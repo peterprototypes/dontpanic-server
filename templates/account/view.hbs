@@ -1,0 +1,97 @@
+{{#*inline "content"}}
+    <h1 class="tabs-bar">
+        Account
+        <ul>
+            <li>
+                {{user.email}}
+            </li>
+        </ul>
+    </h1>
+
+    <form class="account-edit-form" method="POST"
+        hx-post="/account"
+        hx-disabled-elt=".account-edit-form button" hx-target="main">
+
+        {{> components/text_input 
+            name="name"
+            value=form.name
+            label="Your Name *"
+            errors=errors.name
+            helper_text="Max 100 characters."
+        }}
+
+        {{#if saved}}
+            <div id="nav-username" hx-swap-oob="innerHTML">
+                {{#if user.name}}
+                    {{user.name}}
+                {{else}}
+                    {{user.email}}
+                {{/if}}
+                {{> components/icon name="account_circle" size=24 }}
+            </div>
+        {{/if}}
+
+        <button type="submit" class="primary">
+            Save
+            {{> components/icon name="loader" size=20 }}
+        </button>
+    </form>
+
+    <div class="info-section">
+        <form method="POST"
+            class="password-update-form"
+            hx-post="/account/password-update"
+            hx-disabled-elt=".password-update-form button" hx-target="main">
+
+            <h3>Password Update</h3>
+
+            {{> components/text_input 
+                name="old_password"
+                type="password"
+                value=password_form.old_password
+                label="Old Password *"
+                errors=errors.old_password
+            }}
+
+            {{> components/text_input 
+                name="new_password"
+                type="password"
+                value=password_form.new_password
+                label="New Password *"
+                errors=errors.new_password
+            }}
+
+            {{> components/text_input 
+                name="new_password_repeat"
+                type="password"
+                value=password_form.new_password_repeat
+                label="Repeat New Password *"
+                errors=errors.new_password_repeat
+            }}
+
+            <div class="row">
+                <div class="col-md-5">
+                    <button type="submit" class="primary full-width">
+                        Change Password
+                        {{> components/icon name="loader" size=20 }}
+                    </button>
+                </div>
+            </div>
+        </form>
+    </div>
+
+    <div class="info-section">
+        <h3 class="title">Account Termination</h3>
+        <button class="danger"
+            hx-delete="/account"
+            hx-confirm="Are you sure you wish to delete your account? All the data associated with your account will be deleted. This operation cannot be undone.">
+            Delete Account
+        </button>
+    </div>
+{{/inline}}
+
+{{#if is_htmx}}
+    {{> content}}
+{{else}}
+    {{> (lookup this "layout")}}
+{{/if}}

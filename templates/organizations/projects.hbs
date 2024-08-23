@@ -1,0 +1,52 @@
+{{> components/organization_tabs active="projects" org_id=org_id}}
+
+<div role="tabpanel" class="tab-content">
+    {{#if (not projects)}}
+        <div class="info-section">
+            <h3 class="title">Create a Project in {{organization.name}}</h3>
+            <p>
+                When you create a project in your organization you'll receive an API key to integrate <a
+                    href="https://crates.io/crates/dontpanic" target="_blank">dontpanic</a>
+                library in your application and start sending panic reports.
+            </p>
+            <button class="primary" hx-get="/organization/{{organization.organization_id}}/add-project"
+                hx-target=".tab-content">Add
+                Project</button>
+        </div>
+    {{else}}
+        <div class="reports-table">
+            <table>
+                <thead>
+                    <tr>
+                        <th>Project</th>
+                        <th>API Key</th>
+                        <th>Created</th>
+                        <th></th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {{#each projects}}
+                        <tr>
+                            <td><strong>{{name}}</strong></td>
+                            <td>
+                                <pre>{{api_key}}</pre>
+                            </td>
+                            <td>{{dateFmt date=created tz=../user.iana_timezone_name}}</td>
+                            <td>
+                                <button class="btn-icon" title="Edit"
+                                    hx-get="/organization/{{../organization.organization_id}}/project-edit/{{project_id}}"
+                                    hx-target=".tab-content">
+                                    {{> components/icon name="edit"}}
+                                </button>
+                            </td>
+                        </tr>
+                    {{/each}}
+                </tbody>
+            </table>
+        </div>
+
+        <button class="primary" hx-get="/organization/{{organization.organization_id}}/add-project"
+            hx-target=".tab-content">Add
+            Project</button>
+    {{/if}}
+</div>

@@ -1,0 +1,69 @@
+{{#*inline "content"}}
+    <form method="post" action="/register" hx-post="/register" hx-target="main" onsubmit="onRegisterSubmit()"
+        hx-disabled-elt="button">
+        <input type="hidden" id="iana_timezone_name" name="iana_timezone_name" value="" />
+
+        <img src="/static/dontpanic-ferris-logo.svg" alt="Don't Panic Ferris Logo" />
+
+        <h2>Don't Panic Account</h2>
+
+        {{> components/text_input 
+            name="email"
+            value=form.email
+            type="email"
+            label="Email *"
+            placeholder="user@example.com"
+            errors=errors.email
+            helper_text="You'll use your email address to log in."
+        }}
+
+        {{> components/text_input 
+            name="password"
+            value=form.password
+            type="password"
+            label="Password *"
+            placeholder="*****"
+            errors=errors.password
+            helper_text="Min 8 characters long."
+        }}
+
+        {{> components/text_input 
+            name="name"
+            value=form.name
+            label="Name"
+            placeholder="John Doe"
+        }}
+
+        {{> components/text_input 
+            name="company"
+            value=form.company
+            label="Organization"
+            placeholder="Company Inc."
+        }}
+
+        <button type="submit" class="primary">
+            Create Account
+            {{> components/icon name="chevron_right" size=24 }}
+            {{> components/icon name="loader" size=24 }}
+        </button>
+
+        <small class="text-error">{{error_message}}</small>
+
+        <p>
+            Already have an account?
+            <a href="/login" hx-get="/login" hx-target="main" hx-push-url="true">Login</a>
+        </p>
+    </form>
+    <script>
+        function onRegisterSubmit() {
+            const timeZone = Intl.DateTimeFormat().resolvedOptions().timeZone;
+            document.getElementById('iana_timezone_name').value = timeZone;
+        }
+    </script>
+{{/inline}}
+
+{{#if is_htmx}}
+    {{> content}}
+{{else}}
+    {{> (lookup this "layout")}}
+{{/if}}

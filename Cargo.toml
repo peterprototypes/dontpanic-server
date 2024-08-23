@@ -1,0 +1,59 @@
+[package]
+name = "dontpanic-server"
+version = "0.1.0"
+edition = "2021"
+publish = false
+license = "FCL-1.0-MIT"
+
+[workspace]
+members = [".", "migration"]
+
+[dependencies]
+log = "0.4"
+anyhow = "1"
+dotenvy = "0.15"
+env_logger = "0.11"
+chrono = "0.4"
+bcrypt = "0.15"
+rand = "0.8"
+rand_seeder = "0.3"
+actix-web = "4"
+actix-files = "0.6"
+actix-htmx = "0.3"
+actix-session = { version = "0.10", features = ["cookie-session"] }
+serde_json = "1"
+handlebars = { version = "6", features = ["dir_source"] }
+migration = { path = "migration" }
+serde = "1.0"
+validator = { version = "0.18", features = ["derive"] }
+chrono-tz = { version = "0.9", features = ["std", "case-insensitive"] }
+urlencoding = "2.1"
+serde_qs = { version = "0.13", features = ["actix4"] }
+tokio = { version = "1", features = ["full"] }
+
+[dependencies.reqwest]
+version = "0.12"
+default-features = false
+features = ["http2", "json", "charset", "rustls-tls"]
+
+[dependencies.lettre]
+version = "0.11.7"
+default-features = false
+features = [
+    "builder",
+    "hostname",
+    "pool",
+    "smtp-transport",
+    "tokio1-rustls-tls",
+]
+
+[dependencies.sea-orm]
+version = "1.0"
+features = [
+    "runtime-actix-rustls",
+    "sqlx-mysql",
+    "sqlx-sqlite",
+    "macros",
+    "with-chrono",
+    "debug-print",
+]

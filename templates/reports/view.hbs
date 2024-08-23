@@ -1,0 +1,84 @@
+{{#*inline "content"}}
+    <div class="report-view">
+        <div>
+            <a href="{{back_url}}" hx-get="{{back_url}}" hx-target="main" hx-push-url="true"
+                class="back-link">
+                {{> components/icon name="chevron_left" size="18"}}
+                Back to Reports
+            </a>
+        </div>
+        <h3 class="report-title">
+            <span class="report-id">#{{report.project_report_id}}:</span>
+            {{report.title}}
+        </h3>
+
+        <section>
+            <div class="row">
+                <div class="col-xs-6 col-md-3 report-info">
+                    <span class="info-title">Project</span>
+                    <span class="info-value">
+                        {{project.name}}
+                    </span>
+                </div>
+                <div class="col-xs-6 col-md-3 report-info">
+                    <span class="info-title">Environment</span>
+                    <span class="info-value">
+                        {{#if env}}
+                            {{env.name}}
+                        {{else}}
+                            <span class="text-muted">Not Provided</span>
+                        {{/if}}
+                    </span>
+                </div>
+                <div class="col-xs-6 col-md-3 report-info">
+                    <span class="info-title">Last Seen</span>
+                    <span class="info-value">{{dateFmt date=report.last_seen tz=../user.iana_timezone_name}}</span>
+                </div>
+                <div class="col-xs-6 col-md-3 report-info">
+                    <span class="info-title">Created</span>
+                    <span class="info-value">{{dateFmt date=report.created tz=../user.iana_timezone_name}}</span>
+                </div>
+            </div>
+        </section>
+
+        <section class="occurrences-wrapper" x-init="$el.scrollLeft = $el.scrollWidth">
+            <div class="occurrences-calendar">
+                <div class="calendar-column weekday-labels">
+                    <span class="calendar-month">&nbsp;</span>
+                    <span>Mon</span>
+                    <span></span>
+                    <span></span>
+                    <span>Thu</span>
+                    <span></span>
+                    <span></span>
+                    <span>Sun</span>
+                </div>
+                {{#each occurrences}}
+                    <div class="calendar-column">
+                        {{#if month_label}}
+                            <span class="calendar-month">{{month_label}}</span>
+                        {{else}}
+                            <span class="calendar-month">&nbsp;</span>
+                        {{/if}}
+                        {{#each days}}
+                            <span class="calendar-day {{#if events_count}}has-events{{else}}no-events{{/if}}"
+                                title="{{date}} - {{events_count}} events"
+                                style="filter: opacity({{simplePercent count=events_count total=../../max_occurrences}}%);">
+                            </span>
+                        {{/each}}
+                    </div>
+                {{/each}}
+            </div>
+        </section>
+
+        <section class="report-event"
+            hx-get="/reports/{{report.project_report_id}}/event?event_id={{event_id}}&back_url={{urlencode back_url}}"
+            hx-trigger="load"></section>
+    </div>
+{{/inline}}
+
+{{#if is_htmx}}
+    {{> content}}
+{{else}}
+    {{> (lookup this "layout")}}
+{{/if}}

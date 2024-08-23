@@ -1,0 +1,11 @@
+{{#*inline "content"}}
+    <div hx-get="/organization/{{org_id}}/{{active_tab}}" hx-trigger="load" hx-target=".organization-tabs"
+        hx-swap="innerHTML"
+        class="organization-tabs"></div>
+{{/inline}}
+
+{{#if is_htmx}}
+    {{> content}}
+{{else}}
+    {{> (lookup this "layout")}}
+{{/if}}

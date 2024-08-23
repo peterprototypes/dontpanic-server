@@ -1,0 +1,45 @@
+{{#*inline "content"}}
+    <span class="preheader">
+        You have been invited to join the {{organization.name}} organization in Don't Panic
+    </span>
+
+    <table role="presentation" border="0" cellpadding="0" cellspacing="0" class="main">
+        <tr>
+            <td class="wrapper">
+                <p>
+                    {{#if added_by.name}}
+                        {{added_by.name}}
+                    {{else}}
+                        {{added_by.email}}
+                    {{/if}}
+                    has invited you to join {{organization.name}} organization in
+                    <a href="{{scheme}}://{{base_url}}">Don't Panic</a>.
+                </p>
+                <p>
+                    Click on the button bellow to start tracing Rust panic!s and log::error!s.
+                </p>
+                <table role="presentation" border="0" cellpadding="0" cellspacing="0" class="btn btn-primary">
+                    <tbody>
+                        <tr>
+                            <td align="left">
+                                <table role="presentation" border="0" cellpadding="0" cellspacing="0">
+                                    <tbody>
+                                        <tr>
+                                            <td>
+                                                <a href="{{scheme}}://{{base_url}}/register" target="_blank">
+                                                    Join {{organization.name}}
+                                                </a>
+                                            </td>
+                                        </tr>
+                                    </tbody>
+                                </table>
+                            </td>
+                        </tr>
+                    </tbody>
+                </table>
+            </td>
+        </tr>
+    </table>
+{{/inline}}
+
+{{> email/layout}}

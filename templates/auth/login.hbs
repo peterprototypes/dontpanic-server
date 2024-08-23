@@ -1,0 +1,65 @@
+{{#*inline "content"}}
+    <form method="post" action="/login" hx-post="/login" hx-target="main" hx-disabled-elt="button">
+        <img src="/static/dontpanic-ferris-logo.svg" alt="Don't Panic Ferris Logo" />
+
+        <h2>Login to your account</h2>
+
+        {{> components/text_input 
+            name="email"
+            value=form.email
+            type="email"
+            label="Email"
+            placeholder="user@example.com"
+            errors=errors.email
+        }}
+
+        {{> components/text_input 
+            name="password"
+            value=form.password
+            type="password"
+            label="Password"
+            placeholder="*****"
+            errors=errors.password
+        }}
+
+        <button type="submit" class="primary">
+            Log In
+            {{> components/icon name="chevron_right" size=24 }}
+            {{> components/icon name="loader" size=24 }}
+        </button>
+
+        <small class="text-error">{{error_message}}</small>
+
+        {{#if show_resend_verification}}
+            <button
+                hx-post="/auth/resend-verification-email"
+                hx-swap="none"
+                hx-params="email"
+                x-data="{ wait: 60 }"
+                x-init="setInterval(() => wait -= 1, 1000)"
+                x-bind:disabled="wait > 0"
+                x-on:click="wait = 60">
+                Resend Verification Email
+                <span x-show="wait > 0" x-text="'(' + wait + ')'"></span>
+            </button>
+        {{/if}}
+
+        {{#if registration_enabled}}
+            <p>
+                Don't have an account?
+                <a href="/register" hx-get="/register" hx-target="main" hx-push-url="true">Register</a>
+            </p>
+        {{/if}}
+
+        <p>
+            <a href="/auth/password-reset-request" hx-get="/auth/password-reset-request" hx-target="main"
+                hx-push-url="true">Forgot your password?</a>
+        </p>
+    </form>
+{{/inline}}
+
+{{#if is_htmx}}
+    {{> content}}
+{{else}}
+    {{> (lookup this "layout")}}
+{{/if}}

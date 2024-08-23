@@ -1,0 +1,49 @@
+{{#*inline "content"}}
+    <span class="preheader">
+        Please confirm your e-mail address
+    </span>
+
+    <table role="presentation" border="0" cellpadding="0" cellspacing="0" class="main">
+
+        <tr>
+            <td class="wrapper">
+                <p>Hello,</p>
+                <p>
+                    Welcome to Don't Panic.rs! We‚re thrilled to have you on board.
+                </p>
+                <p>
+                    To complete your registration with us, please verify your email address by clicking on
+                    the button bellow.
+                </p>
+                <table role="presentation" border="0" cellpadding="0" cellspacing="0"
+                    class="btn btn-primary">
+                    <tbody>
+                        <tr>
+                            <td align="left">
+                                <table role="presentation" border="0" cellpadding="0" cellspacing="0">
+                                    <tbody>
+                                        <tr>
+                                            <td>
+                                                <a href="{{scheme}}://{{base_url}}/auth/verify-email/{{hash}}"
+                                                    target="_blank">Verify Email Address</a>
+                                            </td>
+                                        </tr>
+                                    </tbody>
+                                </table>
+                            </td>
+                        </tr>
+                    </tbody>
+                </table>
+                <p>
+                    Verifying your email allows you to receive notifications when panics and errors occur in your rust
+                    applications and recover your password in case you lose it. This step shows us that you own the
+                    email you signed up with.
+                </p>
+                <p>Thanks for joining!</p>
+            </td>
+        </tr>
+
+    </table>
+{{/inline}}
+
+{{> email/layout}}

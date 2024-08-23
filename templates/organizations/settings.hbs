@@ -1,0 +1,45 @@
+{{> components/organization_tabs active="settings" org_id=org_id}}
+
+<div role="tabpanel" class="tab-content">
+    {{#if (or (eq role "owner") (eq role "admin"))}}
+        <form class="organization-edit-form" method="POST"
+            hx-post="/organization/{{org_id}}/settings"
+            hx-disabled-elt=".organization-edit-form button" hx-target=".organization-tabs">
+
+            <h4>Edit Organization</h4>
+
+            {{> components/text_input 
+            name="name"
+            value=form.name
+            label="Organization Name *"
+            errors=errors.name
+            helper_text="Max 80 characters."
+        }}
+
+            {{#if saved}}
+                <div id="org_menu_name_{{org_id}}" hx-swap-oob="innerHTML">{{form.name}}</div>
+            {{/if}}
+
+            <button type="submit" class="primary">
+                Save
+                {{> components/icon name="loader" size=24 }}
+            </button>
+
+            <button class="danger"
+                style="float:right"
+                hx-delete="/organization/{{org_id}}"
+                {{#if (ne role "owner")}}disabled="" title="Only owners can delete an organization"
+                {{else}}title="Delete Organization" {{/if}}
+                hx-confirm="Are you sure you wish to delete this organization and all of its projects and reports? This operation cannot be undone.">
+                Delete Organization
+            </button>
+        </form>
+    {{else}}
+        <div class="info-section">
+            <h3 class="title">Permission Denied</h3>
+            <p>
+                Only owners and admins can edit organizations.
+            </p>
+        </div>
+    {{/if}}
+</div>

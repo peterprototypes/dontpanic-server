@@ -1,0 +1,67 @@
+{{#if (or (eq role "owner") (eq role "admin"))}}
+    <form class="member-edit-form" method="POST" hx-post="/organization/{{org_id}}/member-edit/{{member.user_id}}"
+        hx-disabled-elt=".member-edit-form button" hx-target=".member-edit-form">
+
+        <h4>Edit Member</h4>
+
+        <section>
+            <div class="row">
+                <div class="col-xs-6 col-md-3 report-info">
+                    <span class="info-title">Email</span>
+                    <span class="info-value">
+                        {{member.email}}
+                    </span>
+                </div>
+                <div class="col-xs-6 col-md-9 report-info">
+                    <span class="info-title">Role</span>
+                    <span class="info-value">
+                        <select name="role">
+                            <option value="member" {{#if (eq org_member.role "member")}}selected="selected" {{/if}}>
+                                Member</option>
+                            <option value="admin" {{#if (eq org_member.role "admin")}}selected="selected" {{/if}}>Admin
+                            </option>
+                            <option value="owner" {{#if (eq org_member.role "owner")}}selected="selected" {{/if}}
+                                {{#if (ne role "owner")}}disabled="true" {{/if}}>Owner</option>
+                        </select>
+                        <small>
+                            <ul>
+                                <li>A member can view, archive and delete reports, manage notifications.</li>
+                                <li>An admin can also invite and remove other admins and members.</li>
+                                <li>Owner can do all of the above plus add other owners and delete the organization.
+                                </li>
+                            </ul>
+                        </small>
+                    </span>
+                </div>
+            </div>
+        </section>
+
+        <button type="button" hx-get="/organization/{{org_id}}/members"
+            hx-push-url="/organization/{{org_id}}?tab=members" hx-target=".organization-tabs">
+            Cancel
+        </button>
+
+        <button type="submit" class="primary">
+            Save
+            {{> components/icon name="loader" size=24 }}
+        </button>
+
+        <button class="danger" title="Delete Member"
+            style="float:right"
+            hx-delete="/organization/{{org_id}}/member/{{member.user_id}}"
+            hx-confirm="Are you sure you wish to delete this member?">
+            Delete Member
+        </button>
+    </form>
+{{else}}
+    <div class="info-section">
+        <h3 class="title">Permission Denied</h3>
+        <p>
+            Only organization owners and admins can edit members.
+        </p>
+        <button type="button" hx-get="/organization/{{org_id}}/members"
+            hx-push-url="/organization/{{org_id}}?tab=members" hx-target=".organization-tabs">
+            Back
+        </button>
+    </div>
+{{/if}}

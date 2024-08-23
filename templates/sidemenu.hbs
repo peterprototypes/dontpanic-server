@@ -1,0 +1,34 @@
+{{> components/icon name="loader" size=24 }}
+
+<div x-data="{ pathname: location.pathname, search: location.search }"
+    x-on:htmx:after-swap.window="pathname = location.pathname; search = location.search"
+    hx-target="main"
+    hx-push-url="true">
+    <div class="menu-item">
+        <a href="/reports" hx-get="/reports"
+            x-bind:class="pathname == '/reports' && !search.startsWith('?project_id=') && 'active'"
+            id="all-reports-link">
+            All Reports
+        </a>
+    </div>
+
+    {{#each organizations}}
+        <div class="menu-item">
+            <a href="/organization/{{organization.organization_id}}"
+                hx-get="/organization/{{organization.organization_id}}"
+                x-bind:class="pathname == '/organization/{{organization.organization_id}}' && 'active'"
+                id="org_menu_name_{{organization.organization_id}}">{{organization.name}}</a>
+            <ul>
+                {{#each this.projects}}
+                    <li><a href="/reports?project_id={{project_id}}"
+                            hx-get="/reports?project_id={{project_id}}"
+                            x-bind:class="pathname == '/reports' && search.startsWith('?project_id={{project_id}}') && 'active'"
+                            id="project_menu_name_{{project_id}}">{{name}}</a>
+                    </li>
+                {{/each}}
+            </ul>
+        </div>
+    {{/each}}
+
+    <button class="primary small" href="/create-organization" hx-get="/create-organization">Add Organization</button>
+</div>

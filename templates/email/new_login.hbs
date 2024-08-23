@@ -1,0 +1,30 @@
+{{#*inline "content"}}
+    <span class="preheader">
+        A new sign-in to your Don't Panic account
+    </span>
+
+    <table role="presentation" border="0" cellpadding="0" cellspacing="0" class="main">
+
+        <tr>
+            <td class="wrapper">
+                <p>A new sign-in</p>
+                <p>
+                    We noticed a new sign-in to your account.
+                </p>
+                <p>
+                    If this was you, you don’t need to do anything. If not, contact us at
+                    <a href="https://dontpanic.rs/contact">https://dontpanic.rs/contact</a>,
+                    and we’ll help you secure your account.
+                </p>
+                <p>
+                    IP Address: {{ip}}
+                    <br />
+                    User Agent: {{user_agent}}
+                </p>
+            </td>
+        </tr>
+
+    </table>
+{{/inline}}
+
+{{> email/layout}}

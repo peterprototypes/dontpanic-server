@@ -1,0 +1,184 @@
+{{#*inline "content"}}
+    <h1 class="tabs-bar">
+        {{#if project_id}}
+            Reports
+        {{else}}
+            All Reports
+        {{/if}}
+
+        <input
+            class="reports-search"
+            id="reports-search"
+            type="text"
+            placeholder="Search"
+            name="term"
+            value="{{term}}"
+            {{#if project_id}}
+            hx-get="/reports?project_id={{project_id}}&page={{page}}"
+            {{else}}
+            hx-get="/reports?page={{page}}"
+            {{/if}}
+            hx-trigger="keyup changed delay:500ms"
+            hx-target="main"
+            hx-push-url="true" />
+
+
+        <ul>
+            <li {{#if resolved}}class="active" {{/if}}>
+                <a
+                    {{#if project_id}}
+                    href="/reports?project_id={{project_id}}&resolved=1"
+                    hx-get="/reports?project_id={{project_id}}&resolved=1"
+                    {{else}}
+                    href="/reports?resolved=1"
+                    hx-get="/reports?resolved=1"
+                    {{/if}}
+                    hx-push-url="true" hx-target="main">Resolved</a>
+            </li>
+            {{#if project_id}}
+                <li>
+                    <a href="/notifications/setup/{{project_id}}"
+                        hx-get="/notifications/setup/{{project_id}}"
+                        hx-push-url="true" hx-target="main">Notifications</a>
+                </li>
+            {{/if}}
+        </ul>
+
+    </h1>
+
+    {{#if (not reports)}}
+        <div class="info-section">
+            {{#if resolved}}
+                <h3 class="title">No Resolved Reports</h3>
+                <p>
+                    You haven't resolved any reports.
+                </p>
+            {{else}}
+                <h3 class="title">No Reports Submitted</h3>
+                <p>
+                    Your application is either bug free or dontpanic library isn't set up correctly to send reports to
+                    this server. To verify reporting is working, add:
+                    <br>
+                    <code>Option::<()>::None.unwrap();</code>
+                    <br>
+                    after dontpanic initialization and make a test.
+                </p>
+            {{/if}}
+        </div>
+    {{else}}
+        <div class="reports-table">
+            <form autocomplete="off" x-data="{ report_ids: [] }">
+                <table>
+                    <thead>
+                        <tr>
+                            <th></th>
+                            <th>#</th>
+                            <th>Title</th>
+                            {{#if (not project_id)}}
+                                <th>Project</th>
+                            {{/if}}
+                            <th>Environment</th>
+                            <th>Last Seen</th>
+                        </tr>
+                    </thead>
+                    <tbody x-data="{ page: location.pathname + location.search }"
+                        x-on:htmx:after-swap.window="page = location.pathname + location.search">
+                        {{#each reports}}
+                            <tr class="report-row"
+                                x-bind:hx-get="'/reports/view/{{report.project_report_id}}?back_url='+encodeURIComponent(page)"
+                                hx-trigger="click[target.tagName.toLowerCase() !== 'input']"
+                                hx-target="main" hx-swap="innerHTML" hx-push-url="true">
+                                <td>
+                                    <input type="checkbox" name="report_ids[]" value="{{report.project_report_id}}"
+                                        x-model="report_ids" />
+                                </td>
+                                <td>{{report.project_report_id}}</td>
+                                <td>
+                                    {{#if report.is_seen}}
+                                        {{report.title}}
+                                    {{else}}
+                                        <strong>{{report.title}}</strong>
+                                    {{/if}}
+                                </td>
+                                {{#if (not ../project_id)}}
+                                    <td>{{project.name}}</td>
+                                {{/if}}
+                                <td>
+                                    {{#if env}}
+                                        {{env.name}}
+                                    {{else}}
+                                        -
+                                    {{/if}}
+                                </td>
+                                <td>{{dateFmt date=report.last_seen tz=../user.iana_timezone_name}}</td>
+                            </tr>
+                        {{/each}}
+                    </tbody>
+                </table>
+
+                <div class="row">
+                    <div class="col-md-4 action-buttons" hx-swap="none">
+                        <button
+                            class="danger"
+                            type="submit"
+                            hx-delete="/reports"
+                            hx-confirm="Are you sure you want to delete these reports? Some may appear back if they occur again. This operation cannot be undone."
+                            hx-on::after-request="afterReportsUpdate()"
+                            x-show="report_ids.length > 0"
+                            x-transition>
+                            Delete
+                        </button>
+
+                        <button
+                            type="submit"
+                            class="success"
+                            hx-post="/reports/resolve"
+                            hx-confirm="Mark as resolved? You'll receive a notification if a resolved report is seen again."
+                            hx-on::after-request="afterReportsUpdate()"
+                            x-show="report_ids.length > 0"
+                            x-transition>
+                            Resolve
+                        </button>
+                    </div>
+                    <div class="col-md-8 table-paginator">
+                        <button {{#if (not prev_page)}}disabled="" {{/if}}
+                            {{#if project_id}}hx-get="?project_id={{project_id}}&page={{prev_page}}"
+                            {{else}}hx-get="?page={{prev_page}}" {{/if}}
+                            hx-target="main" hx-push-url="true">
+                            {{> components/icon name="chevron_left" size="18"}}
+                        </button>
+                        Page {{page}}
+                        <button {{#if (not next_page)}}disabled="" {{/if}}
+                            {{#if project_id}}hx-get="?project_id={{project_id}}&page={{next_page}}"
+                            {{else}}hx-get="?page={{next_page}}" {{/if}}
+                            hx-target="main" hx-push-url="true">
+                            {{> components/icon name="chevron_right" size="18"}}
+                        </button>
+                    </div>
+                </div>
+            </form>
+        </div>
+        <script>
+            function afterReportsUpdate() {
+                let el = document.getElementById("project_menu_name_{{project_id}}");
+
+                if (!el) {
+                    el = document.getElementById("all-reports-link")
+                }
+
+                el.click();
+            }
+        </script>
+        {{#if term}}
+            <script>
+                document.getElementById("reports-search").focus();
+            </script>
+        {{/if}}
+    {{/if}}
+{{/inline}}
+
+{{#if is_htmx}}
+    {{> content}}
+{{else}}
+    {{> (lookup this "layout")}}
+{{/if}}

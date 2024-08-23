@@ -1,0 +1,104 @@
+<!doctype html>
+<html lang="en">
+
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Don't Panic</title>
+
+    <link rel="icon" type="image/svg+xml" href="/static/favicon.svg">
+    <link rel="icon" type="image/png" href="/static/favicon.png">
+
+    <link rel="stylesheet" href="/static/libs/normalize.css">
+    <link rel="stylesheet" href="/static/libs/flexboxgrid.css">
+    <link rel="stylesheet" href="/static/libs/awesome-notifications/style.css">
+    <link rel="stylesheet" href="/static/css/style.css">
+</head>
+
+<body>
+
+    <nav>
+        <div class="nav-content">
+            <div class="nav-logo">
+                <img src="/static/dontpanic-ferris-logo.svg" alt="Don't Panic Ferris Logo" />
+                <h1>Don't Panic</h1>
+            </div>
+            <div class="nav-menu">
+                <span class="username" id="nav-username">
+                    {{#if user.name}}
+                        {{user.name}}
+                    {{else}}
+                        {{user.email}}
+                    {{/if}}
+                    {{> components/icon name="account_circle" size=24 }}
+                </span>
+                <ul>
+                    <li>
+                        <a href="/account" hx-get="/account" hx-target="main" hx-push-url="true">
+                            Account
+                        </a>
+                    </li>
+                    <li>
+                        <a href="/logout" hx-get="/logout" hx-target="main" hx-push-url="true">
+                            Sign Out
+                        </a>
+                    </li>
+                </ul>
+            </div>
+        </div>
+    </nav>
+
+    {{> components/icon name="loader" size=24 }}
+
+    <div class="app-content">
+        <div class="center-container">
+            <section id="app-menu" class="app-menu"
+                hx-get="/sidemenu{{#if project_id}}?project_id={{project_id}}{{/if}}"
+                hx-trigger="revealed">
+                {{> components/icon name="loader" size=24 }}
+                <p>Loading organizations...</p>
+            </section>
+            <main>
+                {{> content}}
+            </main>
+        </div>
+    </div>
+
+    {{> components/footer}}
+
+    <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"></script>
+    <script src="/static/libs/awesome-notifications/index.var.js"></script>
+    <script src="/static/libs/htmx.js"></script>
+
+    <script>
+        let notifier = new AWN({ icons: { enabled: false } });
+
+        document.addEventListener("htmx:confirm", function (e) {
+            if (e.detail.question === null) return;
+
+            e.preventDefault();
+
+            notifier.confirm(e.detail.question, function () {
+                e.detail.issueRequest(true);
+            });
+        });
+
+        document.addEventListener("htmx:sendError", function (e) {
+            notifier.modal("The dontpanic backend server is currently unreachable.");
+        });
+
+        document.addEventListener("htmx:responseError", function (e) {
+            notifier.modal(e.detail.xhr.response);
+        });
+
+        document.addEventListener("htmx:afterRequest", function (e) {
+            let message = e.detail.xhr.getResponseHeader("X-toast-message");
+
+            if (message !== null) {
+                notifier.info(message)
+            }
+        });
+    </script>
+</body>
+
+</html>

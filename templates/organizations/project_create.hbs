@@ -1,0 +1,22 @@
+<form class="add-project-form" method="POST" hx-post="/organization/{{org_id}}/add-project"
+    hx-disabled-elt=".add-project-form button" hx-target=".add-project-form">
+    <h4>New Project</h4>
+
+    {{> components/text_input 
+        name="project_name"
+        value=form.project_name
+        label="Project Name *"
+        errors=errors.project_name
+        helper_text="Max 80 characters."
+    }}
+
+    <button type="button" hx-get="/organization/{{org_id}}/projects"
+        hx-push-url="/organization/{{org_id}}?tab=projects" hx-target=".organization-tabs">
+        Cancel
+    </button>
+
+    <button type="submit" class="primary">
+        Save
+        {{> components/icon name="loader" size=24 }}
+    </button>
+</form>

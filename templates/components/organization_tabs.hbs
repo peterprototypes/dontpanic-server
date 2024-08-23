@@ -1,0 +1,22 @@
+<h1 class="tabs-bar">
+    Organization
+    <ul>
+        <li {{#if (eq active "projects")}}class="active" {{/if}}>
+            <a href="/organization/{{org_id}}/projects" hx-get="/organization/{{org_id}}/projects"
+                hx-push-url="/organization/{{org_id}}?tab=projects">Projects</a>
+        </li>
+        {{!-- <li {{#if (eq active "notifications")}}class="active" {{/if}}>
+            <a href="/organization/{{org_id}}/notifications"
+                hx-get="/organization/{{org_id}}/notifications"
+                hx-push-url="/organization/{{org_id}}?tab=notifications">Notifications</a>
+        </li> --}}
+        <li {{#if (eq active "members")}}class="active" {{/if}}>
+            <a href="/organization/{{org_id}}/members" hx-get="/organization/{{org_id}}/members"
+                hx-push-url="/organization/{{org_id}}?tab=members">Members</a>
+        </li>
+        <li {{#if (eq active "settings")}}class="active" {{/if}}>
+            <a href="/organization/{{org_id}}/settings" hx-get="/organization/{{org_id}}/settings"
+                hx-push-url="/organization/{{org_id}}?tab=settings">Settings</a>
+        </li>
+    </ul>
+</h1>
