@@ -1,9 +1,12 @@
 <div align="center">
-    <img src="./static/dontpanic-ferris-logo.svg" width="20%" />
+    <img src="https://raw.githubusercontent.com/peterprototypes/dontpanic-server/253282285864ef092281bc63be70f79bdb10670b/static/dontpanic-ferris-logo.svg" width="20%" />
 </div>
 
-# dontpanic-server
-Backend web server for the [dontpanic](https://crates.io/crates/dontpanic) crate. Receives and displays panic reports and log messages. Optionally sends notifications via multiple configurable channels.
+<h1 align="center">dontpanic-server</h1>
+
+<p align="center">
+    Backend web server for the [dontpanic](https://crates.io/crates/dontpanic) crate. Receives and displays panic reports and log messages. Optionally sends notifications via multiple configurable channels.
+</p>
 
 ## Features
 
@@ -15,6 +18,57 @@ Backend web server for the [dontpanic](https://crates.io/crates/dontpanic) crate
 - Setup and manage notifications
 - Organizations and project management
 - User management
+
+## Running via docker compose
+
+### SQLite
+
+```yml
+services:
+  dontpanic:
+    image: ptodorov/dontpanic-server:latest
+    ports:
+      - 8080:8080
+    environment:
+      DATABASE_URL: sqlite:///data/dontpanic.sqlite?mode=rwc
+      DEFAULT_USER_EMAIL: admin@example.com
+      DEFAULT_USER_PASSWORD: admin123
+    volumes:
+      - database-data:/data
+
+volumes:
+  database-data:
+```
+
+### MariaDB/MySQL
+
+```yml
+services:
+
+  dontpanic:
+    image: ptodorov/dontpanic-server:latest
+    ports:
+      - 8080:8080
+    links:
+      - database
+    environment:
+      DATABASE_URL: mysql://dontpanic:32as1e78gdfbqwe5tx@database/dontpanic
+      DEFAULT_USER_EMAIL: admin@example.com
+      DEFAULT_USER_PASSWORD: admin123
+
+  database:
+    image: mariadb
+    environment:
+      MARIADB_DATABASE: dontpanic
+      MARIADB_USER: dontpanic
+      MARIADB_PASSWORD: 32as1e78gdfbqwe5tx
+      MARIADB_RANDOM_ROOT_PASSWORD: 1
+    volumes:
+      - database-data:/var/lib/mysql
+
+volumes:
+  database-data:
+```
 
 ## Environment Variables
 
