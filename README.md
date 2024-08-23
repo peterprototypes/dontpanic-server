@@ -1,12 +1,10 @@
 <div align="center">
     <img src="https://raw.githubusercontent.com/peterprototypes/dontpanic-server/253282285864ef092281bc63be70f79bdb10670b/static/dontpanic-ferris-logo.svg" width="20%" />
+    <h1>dontpanic-server</h1>
+    <p>
+      Backend web server for the [dontpanic](https://crates.io/crates/dontpanic) crate. Receives and displays panic reports and log messages. Optionally sends notifications via multiple configurable channels.
+  </p>
 </div>
-
-<h1 align="center">dontpanic-server</h1>
-
-<p align="center">
-    Backend web server for the [dontpanic](https://crates.io/crates/dontpanic) crate. Receives and displays panic reports and log messages. Optionally sends notifications via multiple configurable channels.
-</p>
 
 ## Features
 
@@ -118,6 +116,10 @@ After populating the migration file, execute it:
 
 And finally regenerate the entity files:  
 `sea-orm-cli generate entity -o src/entity --with-serde serialize`
+
+### Contributing
+
+All commit messages must follow [Conventional Commits](https://www.conventionalcommits.org/en/v1.0.0/) specification.
 
 ## License
 
