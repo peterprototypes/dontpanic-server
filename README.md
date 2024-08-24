@@ -17,6 +17,12 @@
 - Organizations and project management
 - User management
 
+## Screenshots
+
+List of panic!()s and error!()s                | Individual report
+:---------------------------------------------:|:--------------------------------------------------:
+![](/static/img/screenshot_list.png?raw=true)  |  ![](/static/img/screenshot_report.png?raw=true)
+
 ## Running via docker compose
 
 ### SQLite
