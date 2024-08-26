@@ -1,0 +1,30 @@
+name: Conventional Commits
+
+on:
+  pull_request:
+    branches: [master]
+  workflow_dispatch:
+
+jobs:
+  validateCommits:
+    name: Validate commit messages
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+      - uses: webiny/action-conventional-commits@v1.3.0
+
+  validateFormat:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+      - uses: actions-rs/toolchain@v1
+        with:
+          toolchain: stable
+          override: true
+          components: rustfmt, clippy
+      - name: Run rustfmt
+        run: cargo fmt --all -- --check
+      - name: Run clippy
+        uses: actions-rs/clippy-check@v1
+        with:
+          args: --all-features --no-deps

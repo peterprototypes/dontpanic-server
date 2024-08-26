@@ -41,13 +41,7 @@ pub fn routes(cfg: &mut web::ServiceConfig) {
 }
 
 #[route("/register", method = "GET", method = "POST")]
-async fn register(
-    ctx: web::Data<AppContext<'static>>,
-    req: HttpRequest,
-    form: Option<web::Form<RegistrationData>>,
-    identity: Option<Identity>,
-    session: Session,
-) -> Result<ViewModel> {
+async fn register(ctx: web::Data<AppContext<'static>>, form: Option<web::Form<RegistrationData>>, identity: Option<Identity>, session: Session) -> Result<ViewModel> {
     let mut view = ViewModel::with_template_and_layout("auth/register", "layout_auth");
 
     if !ctx.config.registration_enabled {
