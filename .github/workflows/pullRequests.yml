@@ -7,13 +7,14 @@ on:
 
 jobs:
   validateCommits:
-    name: Validate commit messages
+    name: Validate Commit Messages
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v3
       - uses: webiny/action-conventional-commits@v1.3.0
 
   validateFormat:
+    name: Validate Rustfmt and Clippy
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v3
@@ -27,4 +28,5 @@ jobs:
       - name: Run clippy
         uses: actions-rs/clippy-check@v1
         with:
+          token: ${{ secrets.GITHUB_TOKEN }}
           args: --all-features --no-deps
