@@ -1,4 +1,5 @@
 use actix_web::{post, web, HttpResponse};
+use chrono::TimeDelta;
 use chrono::Utc;
 use sea_orm::{prelude::*, ActiveValue, IntoActiveModel, Order, QueryOrder, TryIntoModel};
 use serde::Deserialize;
@@ -36,6 +37,37 @@ async fn ingress(ctx: web::Data<AppContext<'static>>, event: web::Json<Event>) -
     let Some(project) = maybe_project else {
         return Err(Error::new("API key not found or organization disabled"));
     };
+
+    // limits check
+    // ideally this check should not be in the hot path - it should happen on a timer once an hour and disable all projects in the org
+    let org = project.find_related(Organizations).one(&ctx.db).await?.expect("Each project must have organization");
+
+    if let Some(request_limit) = org.requests_limit {
+        let mut request_count = org.requests_count.unwrap_or_default();
+
+        let now = Utc::now().naive_utc();
+        let start_date = org.requests_count_start.unwrap_or_default();
+
+        // reset request_count if 30 days have passed and set requests_count_start to today
+        if now - start_date > TimeDelta::days(30) {
+            request_count = 0;
+
+            let mut row = org.clone().into_active_model();
+            row.requests_count_start = ActiveValue::set(Some(now));
+            row.save(&ctx.db).await?;
+        }
+
+        // TODO: send email if request_count has reached 90% of request_limit
+        // TODO: send email if request_count has request_limit
+
+        if request_count >= request_limit {
+            return Err(Error::new("Organization requests limit exceeded"));
+        } else {
+            let mut row = org.into_active_model();
+            row.requests_count = ActiveValue::set(Some(request_count + 1));
+            row.save(&ctx.db).await?;
+        }
+    }
 
     // find environment or create id
     let env_id = if let Some(env_ident) = event.env_ident {

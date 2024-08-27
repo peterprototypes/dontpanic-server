@@ -266,9 +266,13 @@ async fn create_default_user(db: &DatabaseConnection, config: &Config) -> Result
     if is_new {
         let organization_name = config.default_user_organization.as_deref().unwrap_or("Default Organization");
 
+        let requests_limit = config.organization_requests_limit;
+
         let organization = organizations::ActiveModel {
             name: ActiveValue::set(organization_name.to_string()),
             is_enabled: ActiveValue::set(1),
+            requests_limit: ActiveValue::set(requests_limit),
+            requests_count_start: ActiveValue::set(requests_limit.map(|_| Utc::now().naive_utc())),
             ..Default::default()
         };
 

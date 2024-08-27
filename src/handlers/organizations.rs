@@ -107,11 +107,12 @@ async fn org_create(ctx: web::Data<AppContext<'_>>, identity: Identity, form: Op
             return Ok(view);
         }
 
+        let requests_limit = ctx.config.organization_requests_limit;
+
         let org = organizations::ActiveModel {
             name: ActiveValue::set(name),
-            requests_limit: ActiveValue::Set(Some(10)),
-            requests_count: ActiveValue::Set(Some(0)),
-            requests_count_start: ActiveValue::set(Some(Utc::now().naive_utc())),
+            requests_limit: ActiveValue::set(requests_limit),
+            requests_count_start: ActiveValue::set(requests_limit.map(|_| Utc::now().naive_utc())),
             is_enabled: ActiveValue::set(1),
             ..Default::default()
         };

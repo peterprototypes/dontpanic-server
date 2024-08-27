@@ -91,6 +91,7 @@ volumes:
 | `DEFAULT_USER_ORGANIZATION`   | Organization name to use when creating the default user.                                                                              | `Default Organization`
 | `REGISTRATION_ENABLED`        | Enable/disable account creation. `yes`, `1`, `true` all count as true, anything else is false. Care must be taken when setting this to yes. Anyone with access to the server can register. | `true`
 | `REQUIRE_EMAIL_VERIFICATION`  | Require new users to verify their email address before they can login. A working `EMAIL_URL` configuration is required.               | `true`
+| `ORGANIZATION_REQUESTS_LIMIT` | Limits the number of reports events each new organization can submit each month across all of its projects. Not set - unlimited       | None
 | `SLACK_CLIENT_ID`             | Slack app client id. Required for Slack notifications to work. See [this](https://api.slack.com/quickstart)                           | None
 | `SLACK_CLIENT_SECRET`         | Slack app client secret. Keep this secure.                                                                                            | None
 
@@ -102,25 +103,25 @@ One liner to start hacking. This creates a sqlite database in the current dir an
 DATABASE_URL="sqlite://localdev.sqlite?mode=rwc" DEFAULT_USER_EMAIL=dev@example.com DEFAULT_USER_PASSWORD=$DEFAULT_USER_EMAIL cargo run
 ```
 
-http://localhost:8080  
-User: `dev@example.com`  
-Pass: `dev@example.com`  
+http://localhost:8080
+User: `dev@example.com`
+Pass: `dev@example.com`
 
 ### Database changes
 
-Don't Panic uses the excellent [SeaORM](https://www.sea-ql.org/SeaORM/) project. Make sure you have the cli installed:  
+Don't Panic uses the excellent [SeaORM](https://www.sea-ql.org/SeaORM/) project. Make sure you have the cli installed:
 `cargo install sea-orm-cli`
 
-Set your database url environment var to avoid typing it before every command:  
+Set your database url environment var to avoid typing it before every command:
 `DATABASE_URL="sqlite://localdev.sqlite?mode=rwc"`
 
-To create a database migration run:  
+To create a database migration run:
 `sea-orm-cli migrate generate NAME_OF_MIGRATION`
 
-After populating the migration file, execute it:  
+After populating the migration file, execute it:
 `sea-orm-cli migrate up`
 
-And finally regenerate the entity files:  
+And finally regenerate the entity files:
 `sea-orm-cli generate entity -o src/entity --with-serde serialize`
 
 ### Contributing

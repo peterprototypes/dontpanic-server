@@ -126,11 +126,12 @@ async fn create_user(ctx: web::Data<AppContext<'_>>, data: RegistrationData) -> 
 
     let company = data.company.filter(|s| !s.is_empty());
 
+    let requests_limit = ctx.config.organization_requests_limit;
+
     let organization = organizations::ActiveModel {
         name: ActiveValue::set(company.unwrap_or(String::from("Default Organization"))),
-        requests_limit: ActiveValue::Set(Some(10)),
-        requests_count: ActiveValue::Set(Some(0)),
-        requests_count_start: ActiveValue::set(Some(Utc::now().naive_utc())),
+        requests_limit: ActiveValue::set(requests_limit),
+        requests_count_start: ActiveValue::set(requests_limit.map(|_| Utc::now().naive_utc())),
         is_enabled: ActiveValue::set(1),
         ..Default::default()
     };

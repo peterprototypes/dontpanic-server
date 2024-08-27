@@ -32,6 +32,8 @@ pub struct Config {
     pub default_user_password: Option<String>,
     pub default_user_organization: Option<String>,
 
+    pub organization_requests_limit: Option<u32>,
+
     pub registration_enabled: bool,
     pub require_email_verification: bool,
 }
@@ -88,6 +90,7 @@ impl Config {
             default_user_email: get_var("DEFAULT_USER_EMAIL").ok(),
             default_user_password,
             default_user_organization: get_var("DEFAULT_USER_ORGANIZATION").ok(),
+            organization_requests_limit: get_var("ORGANIZATION_REQUESTS_LIMIT").ok().map(|limit| limit.parse()).transpose()?,
             registration_enabled: get_bool_var("REGISTRATION_ENABLED")?.unwrap_or(true),
             require_email_verification: get_bool_var("REQUIRE_EMAIL_VERIFICATION")?.unwrap_or(true),
         })
