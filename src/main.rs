@@ -162,9 +162,9 @@ fn date(h: &Helper, _: &Handlebars, _: &Context, _rc: &mut RenderContext, out: &
 
     let tz: Tz = tz_name.parse().map_err(|e| RenderErrorReason::NestedError(Box::new(e)))?;
 
-    // 2024-06-17T12:31:56
-    let date_user = NaiveDateTime::parse_from_str(&date, "%Y-%m-%dT%H:%M:%S")
+    let date_user = NaiveDateTime::parse_and_remainder(&date, "%Y-%m-%dT%H:%M:%S")
         .map_err(|e| RenderErrorReason::NestedError(Box::new(e)))?
+        .0
         .and_utc()
         .with_timezone(&tz);
 

@@ -1,15 +1,20 @@
 use actix_web::{post, web, HttpResponse};
+use chrono::Days;
 use chrono::TimeDelta;
 use chrono::Utc;
-use sea_orm::{prelude::*, ActiveValue, IntoActiveModel, Order, QueryOrder, TryIntoModel};
+use lettre::AsyncTransport;
+use sea_orm::{prelude::*, ActiveValue, IntoActiveModel, JoinType, Order, QueryOrder, QuerySelect, TryIntoModel};
 use serde::Deserialize;
 
+use crate::entity::organization_users;
+use crate::entity::organizations;
 use crate::entity::prelude::*;
 use crate::entity::project_environments;
 use crate::entity::project_report_events;
 use crate::entity::project_reports;
 use crate::entity::projects;
 
+use crate::entity::users;
 use crate::event::EventData;
 use crate::notifications::{Notification, ReportStatus};
 use crate::{AppContext, Error, Result};
@@ -57,8 +62,15 @@ async fn ingress(ctx: web::Data<AppContext<'static>>, event: web::Json<Event>) -
             row.save(&ctx.db).await?;
         }
 
-        // TODO: send email if request_count has reached 90% of request_limit
-        // TODO: send email if request_count has request_limit
+        // send an email one request before the limit is reached
+        if request_limit - 1 == request_count {
+            let bg_ctx = ctx.clone();
+            let bg_org = org.clone();
+
+            actix_web::rt::spawn(async move {
+                notify_limit_reached(&bg_ctx, &bg_org).await.expect("Cannot send mail");
+            });
+        }
 
         if request_count >= request_limit {
             return Err(Error::new("Organization requests limit exceeded"));
@@ -151,4 +163,41 @@ async fn ingress(ctx: web::Data<AppContext<'static>>, event: web::Json<Event>) -
     }
 
     Ok(HttpResponse::Ok().finish())
+}
+
+async fn notify_limit_reached(ctx: &AppContext<'_>, org: &organizations::Model) -> Result<()> {
+    let owners = Users::find()
+        .filter(organization_users::Column::OrganizationId.eq(org.organization_id))
+        .filter(organization_users::Column::Role.eq("owner"))
+        .join(JoinType::InnerJoin, users::Relation::OrganizationUsers.def())
+        .all(&ctx.db)
+        .await?;
+
+    let reset_date = org.requests_count_start.map(|date| date + Days::new(30));
+
+    for user in owners {
+        let email = lettre::Message::builder()
+            .from(ctx.config.email_from.clone().into())
+            .to(user.email.parse()?)
+            .subject("Monthly Request Limit Reached for Your Organization")
+            .header(lettre::message::header::ContentType::TEXT_HTML)
+            .body(ctx.hb.render(
+                "email/limit_reached",
+                &serde_json::json!({
+                    "base_url": ctx.config.base_url,
+                    "scheme": ctx.config.scheme,
+                    "user": user,
+                    "reset_date": reset_date,
+                    "title": "Monthly Request Limit Reached for Your Organization"
+                }),
+            )?)?;
+
+        if let Some(mailer) = ctx.mailer.as_ref() {
+            if let Err(e) = mailer.send(email).await {
+                log::error!("Error sending mail: {:?}", e);
+            }
+        }
+    }
+
+    Ok(())
 }
