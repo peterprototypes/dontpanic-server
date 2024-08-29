@@ -17,7 +17,13 @@
             <a href="/organization/{{organization.organization_id}}"
                 hx-get="/organization/{{organization.organization_id}}"
                 x-bind:class="pathname == '/organization/{{organization.organization_id}}' && 'active'"
-                id="org_menu_name_{{organization.organization_id}}">{{organization.name}}</a>
+                id="org_menu_name_{{organization.organization_id}}">
+                {{organization.name}}
+                {{#if (and organization.requests_limit (eq organization.requests_limit organization.requests_count))}}
+                <br />
+                <small class="text-error">Usage limit reached</small>
+                {{/if}}
+            </a>
             <ul>
                 {{#each this.projects}}
                     <li><a href="/reports?project_id={{project_id}}"
