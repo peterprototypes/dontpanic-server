@@ -154,6 +154,7 @@ async fn index() -> HttpResponse {
 fn date(h: &Helper, _: &Handlebars, _: &Context, _rc: &mut RenderContext, out: &mut dyn Output) -> HelperResult {
     let date_param = h.hash_get("date").map(|v| v.value()).ok_or(RenderErrorReason::ParamNotFoundForIndex("dateFmt", 0))?;
     let tz_name_param = h.hash_get("tz").map(|v| v.value()).ok_or(RenderErrorReason::ParamNotFoundForIndex("dateFmt", 1))?;
+    let simple = h.hash_get("simple").map(|v| v.value()).map(|v| v.render()).filter(|s| !s.is_empty());
 
     let date = date_param.render();
     let tz_name = tz_name_param.render();
@@ -168,7 +169,11 @@ fn date(h: &Helper, _: &Handlebars, _: &Context, _rc: &mut RenderContext, out: &
         .and_utc()
         .with_timezone(&tz);
 
-    out.write(&date_user.format("%a %b %e %T %Y").to_string())?;
+    if simple.is_none() {
+        out.write(&date_user.format("%a %b %e %T %Y").to_string())?;
+    } else {
+        out.write(&date_user.format("%e %b %Y @ %R").to_string())?;
+    }
 
     Ok(())
 }

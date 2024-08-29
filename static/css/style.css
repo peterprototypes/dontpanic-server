@@ -864,3 +864,14 @@ footer .footer-content {
 .account-edit-form {
     margin-top: 36px;
 }
+
+/* Organization Limits Section */
+
+.api-usage progress {
+    width: 100%;
+}
+
+.api-usage .api-usage-count {
+    display: flex;
+    justify-content: space-between;
+}

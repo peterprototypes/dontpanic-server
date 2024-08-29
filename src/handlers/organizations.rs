@@ -1,6 +1,6 @@
 use actix_web::delete;
 use actix_web::{get, route, web};
-use chrono::Utc;
+use chrono::{Days, Utc};
 use lettre::AsyncTransport;
 use rand::distributions::Alphanumeric;
 use rand::prelude::*;
@@ -351,6 +351,8 @@ async fn org_settings(ctx: web::Data<AppContext<'_>>, identity: Identity, path: 
     let form = form.map(|f| f.into_inner());
 
     let user = identity.user(&ctx).await?;
+    view.set("user", &user);
+
     let user_role = user.role(&ctx.db, org_id).await?.ok_or(Error::LoginRequired)?;
     view.set("role", &user_role);
 
@@ -394,6 +396,9 @@ async fn org_settings(ctx: web::Data<AppContext<'_>>, identity: Identity, path: 
         view.message("Organization information updated");
         view.set("saved", true);
     }
+
+    let reset_date = org.requests_count_start.map(|date| date + Days::new(30));
+    view.set("limit_reset_date", reset_date);
 
     view.set("organization", org);
 

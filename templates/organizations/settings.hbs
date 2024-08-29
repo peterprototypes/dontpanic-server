@@ -8,7 +8,7 @@
 
             <h4>Edit Organization</h4>
 
-            {{> components/text_input 
+            {{> components/text_input
             name="name"
             value=form.name
             label="Organization Name *"
@@ -34,6 +34,20 @@
                 Delete Organization
             </button>
         </form>
+        {{#if organization.requests_limit}}
+            <div class="info-section api-usage">
+                <h3 class="title">API Usage Limit</h3>
+                <p class="api-usage-count">{{organization.requests_count}} / {{organization.requests_limit}} <span>{{dateFmt date=limit_reset_date tz=user.iana_timezone_name simple=1}}</span></p>
+                <progress value="{{organization.requests_count}}" max="{{organization.requests_limit}}"></progress>
+                <p>
+                    The API usage limit is the number of requests your organization can make to the API in a month.
+                    If you need a higher limit, please contact support.
+                </p>
+                <p>
+                    Your limit resets on {{dateFmt date=limit_reset_date tz=user.iana_timezone_name}}
+                </p>
+            </div>
+        {{/if}}
     {{else}}
         <div class="info-section">
             <h3 class="title">Permission Denied</h3>
