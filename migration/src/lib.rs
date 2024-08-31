@@ -2,13 +2,17 @@ use sea_orm::DbBackend;
 pub use sea_orm_migration::prelude::*;
 
 mod m20220101_000001_users_and_crates;
+mod m20240830_153930_project_slack_webhhok;
 
 pub struct Migrator;
 
 #[async_trait::async_trait]
 impl MigratorTrait for Migrator {
     fn migrations() -> Vec<Box<dyn MigrationTrait>> {
-        vec![Box::new(m20220101_000001_users_and_crates::Migration)]
+        vec![
+            Box::new(m20220101_000001_users_and_crates::Migration),
+            Box::new(m20240830_153930_project_slack_webhhok::Migration),
+        ]
     }
 }
 

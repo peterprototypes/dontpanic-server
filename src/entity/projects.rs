@@ -15,6 +15,7 @@ pub struct Model {
     pub slack_bot_token: Option<String>,
     pub slack_channel: Option<String>,
     pub created: DateTime,
+    pub slack_webhook: Option<String>,
 }
 
 #[derive(Copy, Clone, Debug, EnumIter, DeriveRelation)]

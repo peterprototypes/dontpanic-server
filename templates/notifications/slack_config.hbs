@@ -1,11 +1,11 @@
 <div class="col-md-3">
-    <h4>Slack</h4>
+    <h4>Add our Slack App</h4>
 </div>
 <div class="col-md-9 end-xs">
     {{#if project.slack_bot_token}}
         {{#if slack_chats}}
             <form>
-                <div class="row middle-xs center-xs">
+                <div class="row middle-xs">
                     <div class="col-md-2">
                         <small>Channel</small>
                     </div>
@@ -20,23 +20,22 @@
                             {{/each}}
                         </select>
                     </div>
-                    <div class="col-md-2">
+                    <div class="col-md-4">
                         <button
                             class="primary"
                             type="submit"
-                            hx-swap="none"
+                            hx-target="#slack-config-cnt"
                             hx-post="/notifications/slack-config/{{project.project_id}}">
                             Save
                         </button>
-                    </div>
-                    <div class="col-md-2">
-                        {{#if project.slack_channel}}
-                            <button
-                                hx-swap="none"
-                                hx-post="/notifications/slack-test/{{project.project_id}}">
-                                Test
-                            </button>
-                        {{/if}}
+                        <button
+                            hx-swap="none"
+                            {{#if (not project.slack_channel)}}
+                            disabled="disabled"
+                            {{/if}}
+                            hx-post="/notifications/slack-test/{{project.project_id}}">
+                            Test
+                        </button>
                     </div>
                 </div>
             </form>

@@ -1,3 +1,5 @@
+use std::collections::HashMap;
+
 use anyhow::Result;
 use lettre::AsyncTransport;
 use sea_orm::prelude::*;
@@ -38,7 +40,11 @@ pub async fn send(ctx: &AppContext<'_>, notification: &Notification) -> Result<(
     }
 
     if let Err(e) = send_slack(ctx, notification).await {
-        log::error!("Error sending slack message: {:?}", e);
+        log::error!("Error sending slack app message: {:?}", e);
+    }
+
+    if let Err(e) = send_slack_webhook(ctx, notification).await {
+        log::error!("Error sending slack message via webhook: {:?}", e);
     }
 
     Ok(())
@@ -61,6 +67,34 @@ pub async fn send_slack(_ctx: &AppContext<'_>, notification: &Notification) -> R
 
     let client = reqwest::Client::new();
     client.post("https://slack.com/api/chat.postMessage").form(&params).send().await?;
+
+    // TODO: log error response
+
+    Ok(())
+}
+
+pub async fn send_slack_webhook(_ctx: &AppContext<'_>, notification: &Notification) -> Result<()> {
+    let project = &notification.project;
+
+    let Some(webhook) = project.slack_webhook.as_ref() else {
+        return Ok(());
+    };
+
+    let title = if notification.status == ReportStatus::New {
+        format!("New report on {} received '{}'", notification.project.name, notification.report.title)
+    } else {
+        format!("Resolved report on {} reappeared: '{}'", notification.project.name, notification.report.title)
+    };
+
+    let mut params = HashMap::new();
+    params.insert("username", "Don't Panic".to_string());
+    params.insert("icon_url", "https://dontpanic.rs/static/favicon.png".to_string());
+    params.insert("text", title);
+
+    let client = reqwest::Client::new();
+    client.post(webhook).json(&params).send().await?;
+
+    // TODO: log error response
 
     Ok(())
 }

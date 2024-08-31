@@ -1,0 +1,41 @@
+<div class="col-md-4">
+    <h4>Slack Webhook Url</h4>
+</div>
+<div class="col-md-8 end-xs">
+    <form>
+        <div class="row middle-xs">
+            <div class="col-md-8">
+                {{> components/text_input
+                    name="webhook_url"
+                    placeholder="Webhook Url"
+                    value=form.webhook_url
+                    errors=errors.webhook_url
+                }}
+            </div>
+            <div class="col-md-4">
+                <button
+                    class="primary"
+                    type="submit"
+                    hx-target="#slack-webhook-cnt"
+                    hx-post="/notifications/slack-webhook/{{
+                        project.project_id
+                    }}"
+                >
+                    Save
+                </button>
+
+                <button
+                    hx-swap="none"
+                    {{#if (not project.slack_webhook)}}
+                    disabled="disabled"
+                    {{/if}}
+                    hx-post="/notifications/slack-test-webhook/{{
+                        project.project_id
+                    }}"
+                >
+                    Test
+                </button>
+            </div>
+        </div>
+    </form>
+</div>

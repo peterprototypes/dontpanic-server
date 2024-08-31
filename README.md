@@ -113,7 +113,7 @@ Don't Panic uses the excellent [SeaORM](https://www.sea-ql.org/SeaORM/) project.
 `cargo install sea-orm-cli`
 
 Set your database url environment var to avoid typing it before every command:
-`DATABASE_URL="sqlite://localdev.sqlite?mode=rwc"`
+`DATABASE_URL="mysql://user:pass@127.0.0.1:3306/database"`
 
 To create a database migration run:
 `sea-orm-cli migrate generate NAME_OF_MIGRATION`
@@ -123,6 +123,8 @@ After populating the migration file, execute it:
 
 And finally regenerate the entity files:
 `sea-orm-cli generate entity -o src/entity --with-serde serialize`
+
+**Note that the entity ids generate as i32 when using sqlite. The entity folder in this project was generated from a mysql database which supports unsigned integers and all ids are u32s**
 
 ### Contributing
 

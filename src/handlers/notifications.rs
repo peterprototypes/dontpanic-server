@@ -1,9 +1,12 @@
+use std::collections::HashMap;
+
 use actix_web::{get, post, route, web};
 use migration::IntoCondition;
-use sea_orm::{prelude::*, IntoActiveModel, QuerySelect};
+use sea_orm::{prelude::*, IntoActiveModel, QuerySelect, TryIntoModel};
 use sea_orm::{ActiveValue, FromQueryResult, JoinType};
-use serde::{Deserialize, Serialize};
+use serde::{de::IntoDeserializer, Deserialize, Serialize};
 use serde_qs::actix::QsForm;
+use validator::Validate;
 
 use crate::entity::users;
 use crate::entity::{organization_users, prelude::*, project_user_settings};
@@ -19,7 +22,9 @@ pub fn routes(cfg: &mut web::ServiceConfig) {
         .service(notifications_save)
         .service(slack_auth)
         .service(slack_config)
-        .service(slack_test);
+        .service(slack_test)
+        .service(slack_webhook)
+        .service(slack_test_webhook);
 }
 
 #[derive(FromQueryResult, Serialize)]
@@ -249,6 +254,95 @@ async fn slack_auth(ctx: web::Data<AppContext<'_>>, identity: Identity, path: we
     project_model.save(&ctx.db).await?;
 
     view.redirect(format!("/notifications/setup/{}", project_id), true);
+
+    Ok(view)
+}
+
+#[derive(Serialize, Deserialize, Debug, Validate)]
+struct SlackWebhookForm {
+    #[serde(deserialize_with = "empty_string_as_none")]
+    #[validate(url(message = "Please enter a valid URL"))]
+    webhook_url: Option<String>,
+}
+
+#[route("/notifications/slack-webhook/{project_id}", method = "GET", method = "POST")]
+async fn slack_webhook(ctx: web::Data<AppContext<'_>>, identity: Identity, path: web::Path<u32>, form: Option<web::Form<SlackWebhookForm>>) -> Result<ViewModel> {
+    let mut view = ViewModel::with_template("notifications/slack_webhook");
+
+    view.set("form", &form);
+
+    let project_id = path.into_inner();
+    let mut project = Projects::find_by_id(project_id).one(&ctx.db).await?.ok_or(Error::NotFound)?;
+
+    let user = identity.user(&ctx).await?;
+    let _ = user.role(&ctx.db, project.organization_id).await?.ok_or(Error::LoginRequired)?;
+
+    if let Some(fields) = form.map(|f| f.into_inner()) {
+        if let Err(errors) = fields.validate() {
+            view.set("errors", &errors);
+            return Ok(view);
+        }
+
+        if fields.webhook_url.is_some() {
+            view.message("Slack webhook set");
+        } else {
+            view.message("Slack webhook removed");
+        }
+
+        let mut project_model = project.into_active_model();
+        project_model.slack_webhook = ActiveValue::set(fields.webhook_url);
+        project = project_model.save(&ctx.db).await?.try_into_model()?;
+    } else {
+        view.set(
+            "form",
+            SlackWebhookForm {
+                webhook_url: project.slack_webhook.clone(),
+            },
+        );
+    }
+
+    view.set("project", &project);
+
+    Ok(view)
+}
+
+fn empty_string_as_none<'de, D, T>(de: D) -> std::result::Result<Option<T>, D::Error>
+where
+    D: serde::Deserializer<'de>,
+    T: serde::Deserialize<'de>,
+{
+    let opt = Option::<String>::deserialize(de)?;
+    let opt = opt.as_ref().map(String::as_str);
+    match opt {
+        None | Some("") => Ok(None),
+        Some(s) => T::deserialize(s.into_deserializer()).map(Some),
+    }
+}
+
+#[post("/notifications/slack-test-webhook/{project_id}")]
+async fn slack_test_webhook(ctx: web::Data<AppContext<'_>>, identity: Identity, path: web::Path<u32>) -> Result<ViewModel> {
+    let mut view = ViewModel::default();
+
+    let project_id = path.into_inner();
+    let project = Projects::find_by_id(project_id).one(&ctx.db).await?.ok_or(Error::NotFound)?;
+
+    let user = identity.user(&ctx).await?;
+    let _ = user.role(&ctx.db, project.organization_id).await?.ok_or(Error::LoginRequired)?;
+
+    let Some(webhook) = project.slack_webhook else {
+        view.message("Slack not configured");
+        return Ok(view);
+    };
+
+    let mut params = HashMap::new();
+    params.insert("text", "Slack is working! I'll post here when your app panic!()s");
+
+    let client = reqwest::Client::new();
+    let res = client.post(webhook).json(&params).send().await?;
+
+    log::info!("Slack test response: {:?}", res.text().await);
+
+    view.message("Message sent");
 
     Ok(view)
 }

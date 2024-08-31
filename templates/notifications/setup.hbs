@@ -12,7 +12,9 @@
                     href="/reports?resolved=1"
                     hx-get="/reports?resolved=1"
                     {{/if}}
-                    hx-push-url="true" hx-target="main">Resolved</a>
+                    hx-push-url="true" hx-target="main">
+                    Resolved
+                </a>
             </li>
             <li class="active">
                 <a href="/notifications/setup/{{project_id}}"
@@ -90,6 +92,11 @@
 
     <div class="row middle-xs" hx-get="/notifications/slack-config/{{project.project_id}}" hx-trigger="revealed"
         id="slack-config-cnt"></div>
+
+    <hr />
+
+    <div class="row middle-xs" hx-get="/notifications/slack-webhook/{{project.project_id}}" hx-trigger="revealed"
+        id="slack-webhook-cnt"></div>
 
     <hr />
 
