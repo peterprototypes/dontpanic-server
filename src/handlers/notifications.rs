@@ -230,7 +230,7 @@ async fn slack_auth(ctx: web::Data<AppContext<'_>>, identity: Identity, path: we
 
     // retrieve the verification code and send it to oauth.v2.access to obtain an access_token
 
-    let redirect_uri = format!("{}s://{}/notifications/slack-auth/{}", ctx.config.scheme, ctx.config.base_url, project.project_id);
+    let redirect_uri = format!("{}://{}/notifications/slack-auth/{}", ctx.config.scheme, ctx.config.base_url, project.project_id);
 
     let client_id = ctx.config.slack_client_id.clone().ok_or_else(|| anyhow::anyhow!("Slack client id not found"))?;
     let client_secret = ctx.config.slack_client_secret.clone().ok_or_else(|| anyhow::anyhow!("Slack client secret not found"))?;
