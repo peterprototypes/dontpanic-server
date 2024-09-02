@@ -150,7 +150,7 @@ async fn slack_config(ctx: web::Data<AppContext<'_>>, identity: Identity, path: 
 
     view.set(
         "slack_redirect_uri",
-        format!("{}s://{}/notifications/slack-auth/{}", ctx.config.scheme, ctx.config.base_url, project.project_id),
+        format!("{}://{}/notifications/slack-auth/{}", ctx.config.scheme, ctx.config.base_url, project.project_id),
     );
 
     view.set("slack_client_id", &ctx.config.slack_client_id);
