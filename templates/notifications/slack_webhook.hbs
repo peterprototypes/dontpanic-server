@@ -14,17 +14,22 @@
             </div>
             <div class="col-md-4">
                 <button
-                    class="primary"
+                    class="primary full-width mt-8"
                     type="submit"
                     hx-target="#slack-webhook-cnt"
                     hx-post="/notifications/slack-webhook/{{
                         project.project_id
                     }}"
+                    {{!-- TODO: Temp fix https://github.com/bigskysoftware/htmx/issues/2234 --}}
+                    hx-on::after-request="this.classList.remove('htmx-request')"
+                    hx-disabled-elt="this"
                 >
                     Save
+                    {{> components/icon name="loader" size=18 }}
                 </button>
 
                 <button
+                    class="full-width mt-8"
                     hx-swap="none"
                     {{#if (not project.slack_webhook)}}
                     disabled="disabled"
@@ -32,8 +37,12 @@
                     hx-post="/notifications/slack-test-webhook/{{
                         project.project_id
                     }}"
+                    {{!-- TODO: Temp fix https://github.com/bigskysoftware/htmx/issues/2234 --}}
+                    hx-on::after-request="this.classList.remove('htmx-request')"
+                    hx-disabled-elt="this"
                 >
                     Test
+                    {{> components/icon name="loader" size=18 }}
                 </button>
             </div>
         </div>

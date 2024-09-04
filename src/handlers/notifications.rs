@@ -141,9 +141,7 @@ async fn slack_config(ctx: web::Data<AppContext<'_>>, identity: Identity, path: 
     view.set("form", &form);
 
     let project_id = path.into_inner();
-    let project = Projects::find_by_id(project_id).one(&ctx.db).await?.ok_or(Error::NotFound)?;
-
-    view.set("project", &project);
+    let mut project = Projects::find_by_id(project_id).one(&ctx.db).await?.ok_or(Error::NotFound)?;
 
     let user = identity.user(&ctx).await?;
     let _ = user.role(&ctx.db, project.organization_id).await?.ok_or(Error::LoginRequired)?;
@@ -168,11 +166,13 @@ async fn slack_config(ctx: web::Data<AppContext<'_>>, identity: Identity, path: 
         if let Some(fields) = form.map(|f| f.into_inner()) {
             let mut project_model = project.into_active_model();
             project_model.slack_channel = ActiveValue::set(Some(fields.channel));
-            project_model.save(&ctx.db).await?;
+            project = project_model.save(&ctx.db).await?.try_into_model()?;
 
             view.message("Slack channel set");
         }
     }
+
+    view.set("project", &project);
 
     Ok(view)
 }

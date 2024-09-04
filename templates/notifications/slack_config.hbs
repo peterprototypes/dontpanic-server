@@ -1,15 +1,12 @@
-<div class="col-md-3">
+<div class="col-md-4 start-xs">
     <h4>Add our Slack App</h4>
 </div>
-<div class="col-md-9 end-xs">
+<div class="col-md-8 end-xs">
     {{#if project.slack_bot_token}}
         {{#if slack_chats}}
             <form>
                 <div class="row middle-xs">
-                    <div class="col-md-2">
-                        <small>Channel</small>
-                    </div>
-                    <div class="col-md-6">
+                    <div class="col-md-8">
                         <select name="channel">
                             <option value="">Select which Slack channel to send messages to</option>
                             {{#each slack_chats}}
@@ -22,19 +19,30 @@
                     </div>
                     <div class="col-md-4">
                         <button
-                            class="primary"
+                            class="primary full-width"
                             type="submit"
                             hx-target="#slack-config-cnt"
-                            hx-post="/notifications/slack-config/{{project.project_id}}">
+                            hx-post="/notifications/slack-config/{{project.project_id}}"
+                            {{!-- TODO: Temp fix https://github.com/bigskysoftware/htmx/issues/2234 --}}
+                            hx-on::after-request="this.classList.remove('htmx-request')"
+                            hx-disabled-elt="this"
+                            >
                             Save
+                            {{> components/icon name="loader" size=18 }}
                         </button>
                         <button
                             hx-swap="none"
+                            class="full-width mt-8"
                             {{#if (not project.slack_channel)}}
                             disabled="disabled"
                             {{/if}}
-                            hx-post="/notifications/slack-test/{{project.project_id}}">
+                            hx-post="/notifications/slack-test/{{project.project_id}}"
+                            {{!-- TODO: Temp fix https://github.com/bigskysoftware/htmx/issues/2234 --}}
+                            hx-on::after-request="this.classList.remove('htmx-request')"
+                            hx-disabled-elt="this"
+                            >
                             Test
+                            {{> components/icon name="loader" size=18 }}
                         </button>
                     </div>
                 </div>

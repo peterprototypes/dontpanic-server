@@ -24,7 +24,7 @@
         </ul>
     </h1>
 
-    <form autocomplete="off">
+    <form autocomplete="off" x-data="{ touched: false }">
 
         <div class="reports-table">
             <table>
@@ -39,7 +39,7 @@
                     {{#each members}}
                         <tr>
                             <td>
-                                <strong>
+                                <strong >
                                     {{#if name}}
                                         {{name}}
                                     {{else}}
@@ -53,6 +53,7 @@
                                     type="checkbox"
                                     name="user_ids[]"
                                     value="{{user_id}}"
+                                    x-on:click="touched = true;"
                                     {{#if notify_email}}checked="checked" {{/if}} />
                             </td>
                         </tr>
@@ -60,7 +61,7 @@
                 </tbody>
             </table>
             <div class="row middle-xs mb-36">
-                <div class="col-md-9">
+                <div class="col-md-8">
                     <small>
                         Click
                         <a href="/organization/1?tab=members" hx-get="/organization/1?tab=members" hx-target="main"
@@ -68,19 +69,23 @@
                         to invite members to this organization.
                     </small>
                 </div>
-                <div class="col-md-3 end-xs">
+                <div class="col-md-4 end-xs">
                     <button
-                        class="primary"
+                        class="primary full-width"
                         type="submit"
                         hx-swap="none"
-                        hx-post="/notifications/setup/{{project.project_id}}">
+                        hx-post="/notifications/setup/{{project.project_id}}"
+                        x-bind:disabled="!touched"
+                        {{!-- TODO: Temp fix https://github.com/bigskysoftware/htmx/issues/2234 --}}
+                        hx-on::after-request="this.classList.remove('htmx-request')"
+                        hx-disabled-elt="this"
+                        >
                         Save Preferences
+                        {{> components/icon name="loader" size=18 }}
                     </button>
                 </div>
             </div>
         </div>
-
-
 
     </form>
 
@@ -90,8 +95,9 @@
 
     <hr />
 
-    <div class="row middle-xs" hx-get="/notifications/slack-config/{{project.project_id}}" hx-trigger="revealed"
-        id="slack-config-cnt"></div>
+    <div class="row middle-xs center-xs" hx-get="/notifications/slack-config/{{project.project_id}}" hx-trigger="revealed" id="slack-config-cnt">
+        {{> components/icon name="loader" stroke="#bababa" size=24 }}
+    </div>
 
     <hr />
 
@@ -106,7 +112,7 @@
         </div>
         <div class="col-md-3 end-xs">
             <button
-                class="outlined"
+                class="outlined full-width"
                 disabled="disabled">
                 Coming Soon
             </button>

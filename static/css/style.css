@@ -108,18 +108,23 @@ a:hover {
     margin-bottom: 36px;
 }
 
+.mt-8 {
+    margin-top: 8px;
+}
+
 /* Buttons */
 
 button {
-    position: relative;
     border-radius: 4px;
-    text-align: center;
     border: 0;
     padding: 6px 16px;
     font-size: 15px;
     font-weight: 425;
     filter: brightness(100%);
     cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
 }
 
 button:hover:not(:disabled) {
@@ -134,7 +139,7 @@ button.outlined {
 }
 
 button:disabled {
-    cursor: auto;
+    cursor: not-allowed;
 }
 
 button.primary:disabled {
@@ -169,8 +174,9 @@ button.danger:disabled {
 
 button>svg {
     position: absolute;
-    right: 4px;
-    top: 4px;
+    right: 6px;
+    padding-top: 2px;
+    /* top: 4px; */
 }
 
 button.small {
