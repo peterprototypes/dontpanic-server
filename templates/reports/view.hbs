@@ -72,7 +72,7 @@
         </section>
 
         <section class="report-event"
-            hx-get="/reports/{{report.project_report_id}}/event?event_id={{event_id}}&back_url={{urlencode back_url}}"
+            hx-get="/reports/{{report.project_report_id}}/get-event?event_id={{event_id}}&back_url={{urlencode back_url}}"
             hx-trigger="load"></section>
     </div>
 {{/inline}}

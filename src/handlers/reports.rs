@@ -208,7 +208,7 @@ async fn report_view(ctx: web::Data<AppContext<'_>>, identity: Identity, project
     Ok(view)
 }
 
-#[get("/reports/{report_id}/event")]
+#[get("/reports/{report_id}/get-event")]
 async fn report_event(ctx: web::Data<AppContext<'_>>, identity: Identity, path: web::Path<u32>, query: web::Query<ReportViewQuery>) -> Result<ViewModel> {
     let mut view = ViewModel::with_template("reports/event");
 

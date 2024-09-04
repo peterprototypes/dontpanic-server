@@ -4,13 +4,13 @@
 
     <div class="event-controls">
         <button {{#if (not event.prev_event_id)}}disabled="disabled" {{/if}}
-            hx-get="/reports/{{report_id}}/event?event_id={{event.prev_event_id}}" hx-target=".report-event"
+            hx-get="/reports/{{report_id}}/get-event?event_id={{event.prev_event_id}}" hx-target=".report-event"
             hx-push-url="/reports/view/{{event.project_report_id}}?event_id={{event.prev_event_id}}&back_url={{urlencode back_url}}">
             {{> components/icon name="chevron_left" size="18"}}
             Prev
         </button>
         <button {{#if (not event.next_event_id)}}disabled="disabled" {{/if}}
-            hx-get="/reports/{{report_id}}/event?event_id={{event.next_event_id}}" hx-target=".report-event"
+            hx-get="/reports/{{report_id}}/get-event?event_id={{event.next_event_id}}" hx-target=".report-event"
             hx-push-url="/reports/view/{{event.project_report_id}}?event_id={{event.next_event_id}}&back_url={{urlencode back_url}}">
             Next
             {{> components/icon name="chevron_right" size="18"}}
