@@ -51,22 +51,41 @@ services:
 
   dontpanic:
     image: ptodorov/dontpanic-server:latest
+    restart: always
+    container_name: dontpanic
     ports:
       - 8080:8080
-    links:
-      - database
     environment:
       DATABASE_URL: mysql://dontpanic:32as1e78gdfbqwe5tx@database/dontpanic
       DEFAULT_USER_EMAIL: admin@example.com
       DEFAULT_USER_PASSWORD: admin123
+    depends_on:
+      database:
+        condition: service_healthy
 
   database:
     image: mariadb
+    restart: always
+    container_name: database
+    command:
+      [
+        "mariadbd",
+        "--character-set-server=utf8mb4",
+        "--collation-server=utf8mb4_unicode_ci",
+      ]
+    ports:
+      - 3306:3306
     environment:
       MARIADB_DATABASE: dontpanic
       MARIADB_USER: dontpanic
       MARIADB_PASSWORD: 32as1e78gdfbqwe5tx
       MARIADB_RANDOM_ROOT_PASSWORD: 1
+    healthcheck:
+      test: ["CMD", "healthcheck.sh", "--connect", "--innodb_initialized"]
+      start_period: 10s
+      interval: 10s
+      timeout: 5s
+      retries: 3
     volumes:
       - database-data:/var/lib/mysql
 
@@ -81,6 +100,7 @@ volumes:
 | `BIND_ADDRESS`                | The address:port that can access dontpanic web interface. Use 0.0.0.0:8080 to allow anybody to connect.                               | `0.0.0.0:8080`
 | `BASE_URL`                    | Url to use when generating links in notifications and emails.                                                                         | `localhost`
 | `SCHEME`                      | Http scheme to use when generating links in notifications and emails.  Possible values: `http`, `https`                               | `http`
+| `RUST_LOG`                    | Logging level. Valid values are `trace`, `debug`, `info`, `warn`, `error`                                                             | `info`
 | `COOKIE_SECRET`               | The secret key used to encrypt session cookies. Set this to a random string. If this is not set, a random secret will be generated on each startup. Every time this key is changed, all sessions will be dropped and all users will need to log in again. | Random
 | `DATABASE_URL`                | Mysql: `mysql://username:password@host/database` Sqlite: `sqlite://[PATH_TO_FILE].sqlite?mode=rwc`                                    | None
 | `EMAIL_URL`                   | Optional SMTP connection url for email notifications. Format: `smtps://username:password@smtp.example.com/client.example.com:465`, [Documentation](https://docs.rs/lettre/latest/lettre/transport/smtp/struct.AsyncSmtpTransport.html#method.from_url) | None

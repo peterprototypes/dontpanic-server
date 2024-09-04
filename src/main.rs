@@ -43,7 +43,8 @@ pub struct AppContext<'reg> {
 
 #[actix_web::main]
 async fn main() -> anyhow::Result<()> {
-    env_logger::init_from_env(env_logger::Env::new().default_filter_or("debug,handlebars=info"));
+    let env = env_logger::Env::new().default_filter_or(if cfg!(debug_assertions) { "debug,handlebars=info" } else { "info" });
+    env_logger::init_from_env(env);
 
     log::info!("Starting");
 
