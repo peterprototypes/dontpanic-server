@@ -24,6 +24,7 @@
                 <small class="text-error">Usage limit reached</small>
                 {{/if}}
             </a>
+            {{#if this.projects}}
             <ul>
                 {{#each this.projects}}
                     <li><a href="/reports?project_id={{project_id}}"
@@ -33,6 +34,7 @@
                     </li>
                 {{/each}}
             </ul>
+            {{/if}}
         </div>
     {{/each}}
 
