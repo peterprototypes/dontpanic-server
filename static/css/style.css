@@ -472,17 +472,16 @@ footer .footer-content {
 }
 
 .app-content .app-menu .htmx-indicator {
-    margin-top: 10px;
-    margin-right: 8px;
     stroke: var(--color-text);
 }
 
 .app-content .app-menu a {
-    display: block;
     padding: 8px 12px;
     margin: 4px 0;
     border-radius: 4px;
     text-decoration: none;
+    display: flex;
+    justify-content: space-between;
 }
 
 .app-content a.active {
@@ -505,6 +504,10 @@ footer .footer-content {
     border: 1px solid var(--color-primary);
     color: var(--color-primary);
     width: 100%;
+}
+
+.app-content .app-menu .menu-item .text-error {
+    padding: 0 12px;
 }
 
 .app-content main {

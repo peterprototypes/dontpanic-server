@@ -1,14 +1,17 @@
-{{> components/icon name="loader" size=24 }}
+
 
 <div x-data="{ pathname: location.pathname, search: location.search }"
     x-on:htmx:after-swap.window="pathname = location.pathname; search = location.search"
     hx-target="main"
     hx-push-url="true">
     <div class="menu-item">
-        <a href="/reports" hx-get="/reports"
+        <a  href="/reports"
+            hx-get="/reports"
             x-bind:class="pathname == '/reports' && !search.startsWith('?project_id=') && 'active'"
-            id="all-reports-link">
+            id="all-reports-link"
+        >
             All Reports
+            {{> components/icon name="loader" size=16 }}
         </a>
     </div>
 
@@ -19,18 +22,22 @@
                 x-bind:class="pathname == '/organization/{{organization.organization_id}}' && 'active'"
                 id="org_menu_name_{{organization.organization_id}}">
                 {{organization.name}}
-                {{#if (and organization.requests_limit (eq organization.requests_limit organization.requests_count))}}
-                <br />
-                <small class="text-error">Usage limit reached</small>
-                {{/if}}
             </a>
+            {{#if (and organization.requests_limit (eq organization.requests_limit organization.requests_count))}}
+            <small class="text-error">Usage limit reached</small>
+            {{/if}}
             {{#if this.projects}}
             <ul>
                 {{#each this.projects}}
-                    <li><a href="/reports?project_id={{project_id}}"
+                    <li>
+                        <a href="/reports?project_id={{project_id}}"
                             hx-get="/reports?project_id={{project_id}}"
                             x-bind:class="pathname == '/reports' && search.startsWith('?project_id={{project_id}}') && 'active'"
-                            id="project_menu_name_{{project_id}}">{{name}}</a>
+                            id="project_menu_name_{{project_id}}"
+                        >
+                            {{name}}
+                            {{> components/icon name="loader" size=16 }}
+                        </a>
                     </li>
                 {{/each}}
             </ul>
