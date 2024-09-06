@@ -18,17 +18,6 @@ use crate::entity::users;
 use crate::{AppContext, Error, ViewModel};
 use crate::{Identity, Result};
 
-#[derive(Clone, Debug, Serialize, Deserialize, Validate)]
-struct RegistrationData {
-    #[validate(email(message = "A valid email address is required"), length(max = 320, message = "Must be less than 320 chars"))]
-    email: String,
-    #[validate(length(min = 8, message = "Must be at least 8 characters long"))]
-    password: String,
-    name: Option<String>,
-    company: Option<String>,
-    iana_timezone_name: Option<String>,
-}
-
 pub fn routes(cfg: &mut web::ServiceConfig) {
     cfg.service(register)
         .service(login)
@@ -40,8 +29,30 @@ pub fn routes(cfg: &mut web::ServiceConfig) {
         .service(reset_password);
 }
 
+#[derive(Clone, Debug, Serialize, Deserialize, Validate)]
+struct RegistrationData {
+    #[validate(email(message = "A valid email address is required"), length(max = 320, message = "Must be less than 320 chars"))]
+    email: String,
+    #[validate(length(min = 8, message = "Must be at least 8 characters long"))]
+    password: String,
+    name: Option<String>,
+    company: Option<String>,
+    iana_timezone_name: Option<String>,
+}
+
+#[derive(Clone, Debug, Serialize, Deserialize, Validate)]
+struct RegistrationQuery {
+    org: Option<String>,
+}
+
 #[route("/register", method = "GET", method = "POST")]
-async fn register(ctx: web::Data<AppContext<'static>>, form: Option<web::Form<RegistrationData>>, identity: Option<Identity>, session: Session) -> Result<ViewModel> {
+async fn register(
+    ctx: web::Data<AppContext<'static>>,
+    form: Option<web::Form<RegistrationData>>,
+    query: web::Query<RegistrationQuery>,
+    identity: Option<Identity>,
+    session: Session,
+) -> Result<ViewModel> {
     let mut view = ViewModel::with_template_and_layout("auth/register", "layout_auth");
 
     if !ctx.config.registration_enabled {
@@ -59,6 +70,8 @@ async fn register(ctx: web::Data<AppContext<'static>>, form: Option<web::Form<Re
             session.remove("uid");
         }
     }
+
+    view.set("invited_org", query.into_inner().org);
 
     view.set("form", &form);
 
@@ -124,34 +137,39 @@ async fn create_user(ctx: web::Data<AppContext<'_>>, data: RegistrationData) -> 
 
     let user = user.insert(&ctx.db).await?.try_into_model()?;
 
-    let company = data.company.filter(|s| !s.is_empty());
-
-    let requests_limit = ctx.config.organization_requests_limit;
-
-    let organization = organizations::ActiveModel {
-        name: ActiveValue::set(company.unwrap_or(String::from("Default Organization"))),
-        requests_limit: ActiveValue::set(requests_limit),
-        requests_count_start: ActiveValue::set(requests_limit.map(|_| Utc::now().naive_utc())),
-        is_enabled: ActiveValue::set(1),
-        ..Default::default()
-    };
-
-    let organization = organization.insert(&ctx.db).await?.try_into_model()?;
-
-    let organization_member = organization_users::ActiveModel {
-        organization_id: ActiveValue::set(organization.organization_id),
-        user_id: ActiveValue::set(user.user_id),
-        role: ActiveValue::set("owner".to_string()),
-        ..Default::default()
-    };
-
-    organization_member.insert(&ctx.db).await?;
-
+    // get invitations
     let invitations = OrganizationInvitations::find()
         .filter(organization_invitations::Column::Email.eq(&data.email))
         .all(&ctx.db)
         .await?;
 
+    // create organization if user is not invited to any
+    if invitations.is_empty() {
+        let company = data.company.filter(|s| !s.is_empty());
+
+        let requests_limit = ctx.config.organization_requests_limit;
+
+        let organization = organizations::ActiveModel {
+            name: ActiveValue::set(company.unwrap_or(String::from("Default Organization"))),
+            requests_limit: ActiveValue::set(requests_limit),
+            requests_count_start: ActiveValue::set(requests_limit.map(|_| Utc::now().naive_utc())),
+            is_enabled: ActiveValue::set(1),
+            ..Default::default()
+        };
+
+        let organization = organization.insert(&ctx.db).await?.try_into_model()?;
+
+        let organization_member = organization_users::ActiveModel {
+            organization_id: ActiveValue::set(organization.organization_id),
+            user_id: ActiveValue::set(user.user_id),
+            role: ActiveValue::set("owner".to_string()),
+            ..Default::default()
+        };
+
+        organization_member.insert(&ctx.db).await?;
+    }
+
+    // accept invitations
     for invitation in invitations {
         let organization_member = organization_users::ActiveModel {
             organization_id: ActiveValue::set(invitation.organization_id),

@@ -7,7 +7,7 @@
 
         <h2>Don't Panic Account</h2>
 
-        {{> components/text_input 
+        {{> components/text_input
             name="email"
             value=form.email
             type="email"
@@ -17,7 +17,7 @@
             helper_text="You'll use your email address to log in."
         }}
 
-        {{> components/text_input 
+        {{> components/text_input
             name="password"
             value=form.password
             type="password"
@@ -27,19 +27,28 @@
             helper_text="Min 8 characters long."
         }}
 
-        {{> components/text_input 
+        {{> components/text_input
             name="name"
             value=form.name
             label="Name"
             placeholder="John Doe"
         }}
 
-        {{> components/text_input 
-            name="company"
-            value=form.company
-            label="Organization"
-            placeholder="Company Inc."
-        }}
+        {{#if invited_org}}
+            {{> components/text_input
+                name="company"
+                value=invited_org
+                label="Organization"
+                disabled=1
+            }}
+        {{else}}
+            {{> components/text_input
+                name="company"
+                value=form.company
+                label="Organization"
+                placeholder="Company Inc."
+            }}
+        {{/if}}
 
         <button type="submit" class="primary">
             Create Account
