@@ -258,6 +258,10 @@ form>button {
     border-bottom: 1px dashed #000;
 }
 
+button.tooltip {
+    border-bottom: none;
+}
+
 .tooltip:before {
     content: attr(data-text);
     position: absolute;
@@ -279,6 +283,10 @@ form>button {
     transition: .3s opacity;
 }
 
+button.tooltip:before {
+    bottom: 70%;
+}
+
 .tooltip:after {
     content: "";
     position: absolute;
@@ -293,6 +301,10 @@ form>button {
 
     opacity: 0;
     transition: .3s opacity;
+}
+
+button.tooltip:after {
+    bottom: 70%;
 }
 
 .tooltip:hover:before,

@@ -40,6 +40,21 @@
             Invite
             {{> components/icon name="loader" size=24 }}
         </button>
+
+        {{#if existing_invitation_id}}
+        <button type="button"
+            class="tooltip"
+            data-text="Resend invitation email"
+            title="Resend invitation email"
+            hx-post="/organization/{{org_id}}/resend-invite/{{existing_invitation_id}}"
+            hx-swap="none"
+            x-data="{ disable: false }"
+            x-bind:disabled="disable"
+            x-on:click="disable = true"
+        >
+            Resend Invitation Email
+        </button>
+        {{/if}}
     </form>
 {{else}}
     <div class="info-section">

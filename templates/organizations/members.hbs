@@ -42,9 +42,18 @@
                         <td>{{role}}</td>
                         <td>{{dateFmt date=created tz=../user.iana_timezone_name}}</td>
                         <td>
-                            {{!-- <button class="btn-icon" title="Resend">
-                                {{> components/icon name="edit"}}
-                            </button> --}}
+                            <button type="button"
+                                class="btn-icon tooltip"
+                                data-text="Resend invitation email"
+                                title="Resend invitation email"
+                                hx-post="/organization/{{../organization.organization_id}}/resend-invite/{{organization_invitation_id}}"
+                                hx-swap="none"
+                                x-data="{ disable: false }"
+                                x-bind:disabled="disable"
+                                x-on:click="disable = true"
+                            >
+                                {{> components/icon name="resend"}}
+                            </button>
                             <button class="btn-icon" title="Delete"
                                 hx-delete="/organization/{{../organization.organization_id}}/invite/{{organization_invitation_id}}"
                                 hx-confirm="Are you sure you wish to delete this invitation?">

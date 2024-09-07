@@ -1,5 +1,4 @@
-use actix_web::delete;
-use actix_web::{get, route, web};
+use actix_web::{delete, get, post, route, web};
 use chrono::{Days, Utc};
 use lettre::AsyncTransport;
 use rand::distributions::Alphanumeric;
@@ -37,6 +36,7 @@ pub fn routes(cfg: &mut web::ServiceConfig) {
         .service(org_project_delete)
         .service(org_invite)
         .service(org_invite_delete)
+        .service(org_invite_resend)
         .service(org_member_edit)
         .service(org_member_delete);
 }
@@ -516,10 +516,13 @@ async fn org_invite(ctx: web::Data<AppContext<'_>>, identity: Identity, path: we
             .one(&ctx.db)
             .await?;
 
-        if maybe_invite.is_some() {
+        if let Some(invitation) = maybe_invite {
             let mut errors = ValidationErrors::new();
             errors.add("email", ValidationError::new("exists").with_message("Email already invited".into()));
             view.set("errors", errors);
+
+            view.set("existing_invitation_id", invitation.organization_invitation_id);
+
             return Ok(view);
         }
 
@@ -627,6 +630,49 @@ async fn org_invite_delete(ctx: web::Data<AppContext<'_>>, identity: Identity, p
     }
 
     view.redirect(format!("/organization/{}?tab=members", org_id), false);
+
+    Ok(view)
+}
+
+#[post("/organization/{organization_id}/resend-invite/{organization_invitation_id}")]
+async fn org_invite_resend(ctx: web::Data<AppContext<'_>>, identity: Identity, path: web::Path<(u32, u32)>) -> Result<ViewModel> {
+    let mut view = ViewModel::default();
+
+    let (org_id, org_invitation_id) = path.into_inner();
+
+    let org = Organizations::find_by_id(org_id).one(&ctx.db).await?.ok_or(Error::NotFound)?;
+
+    let user = identity.user(&ctx).await?;
+    let _user_role = user.role(&ctx.db, org_id).await?.ok_or(Error::LoginRequired)?;
+
+    let invitation = OrganizationInvitations::find_by_id(org_invitation_id)
+        .filter(organization_invitations::Column::OrganizationId.eq(org_id))
+        .one(&ctx.db)
+        .await?
+        .ok_or(Error::NotFound)?;
+
+    let title = format!("You have been invited to the {} organization in Don't Panic", org.name);
+
+    let email = lettre::Message::builder()
+        .from(ctx.config.email_from.clone().into())
+        .to(invitation.email.parse()?)
+        .subject(title.clone())
+        .header(lettre::message::header::ContentType::TEXT_HTML)
+        .body(ctx.hb.render(
+            "email/org_invitation",
+            &serde_json::json!({
+                "base_url": ctx.config.base_url,
+                "scheme": ctx.config.scheme,
+                "organization": org,
+                "added_by": user
+            }),
+        )?)?;
+
+    if let Some(mailer) = ctx.mailer.as_ref() {
+        mailer.send(email).await?;
+    }
+
+    view.message("Invitation sent");
 
     Ok(view)
 }
