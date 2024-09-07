@@ -96,6 +96,13 @@
                 notifier.info(message)
             }
         });
+
+        document.addEventListener("htmx:beforeSwap", function (e) {
+            if (e.detail.xhr.responseURL.endsWith("/login")) {
+                e.detail.shouldSwap = false;
+                window.location.replace(e.detail.xhr.responseURL);
+            }
+        });
     </script>
 </body>
 
