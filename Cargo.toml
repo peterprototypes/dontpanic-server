@@ -37,7 +37,7 @@ default-features = false
 features = ["http2", "json", "charset", "rustls-tls"]
 
 [dependencies.lettre]
-version = "0.11.7"
+version = "0.11"
 default-features = false
 features = [
     "builder",
