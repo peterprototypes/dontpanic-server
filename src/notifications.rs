@@ -4,8 +4,9 @@ use anyhow::Result;
 use lettre::AsyncTransport;
 use sea_orm::prelude::*;
 use serde::{Deserialize, Serialize};
+use serde_json::json;
 
-use crate::entity::{prelude::*, project_report_events, project_reports, project_user_settings, projects, users};
+use crate::entity::{prelude::*, project_environments, project_report_events, project_reports, project_user_settings, projects, users};
 use crate::AppContext;
 
 #[derive(Serialize, Deserialize, Debug, Clone, Copy, Eq, PartialEq)]
@@ -20,6 +21,7 @@ pub struct Notification {
     pub project: projects::Model,
     pub event: project_report_events::Model,
     pub report: project_reports::Model,
+    pub environment: Option<project_environments::Model>,
 }
 
 pub async fn send(ctx: &AppContext<'_>, notification: &Notification) -> Result<()> {
@@ -45,6 +47,10 @@ pub async fn send(ctx: &AppContext<'_>, notification: &Notification) -> Result<(
 
     if let Err(e) = send_slack_webhook(ctx, notification).await {
         log::error!("Error sending slack message via webhook: {:?}", e);
+    }
+
+    if let Err(e) = send_webhook(ctx, notification).await {
+        log::error!("Error sending report via webhook: {:?}", e);
     }
 
     Ok(())
@@ -95,6 +101,29 @@ pub async fn send_slack_webhook(_ctx: &AppContext<'_>, notification: &Notificati
     client.post(webhook).json(&params).send().await?;
 
     // TODO: log error response
+
+    Ok(())
+}
+
+pub async fn send_webhook(_ctx: &AppContext<'_>, notification: &Notification) -> Result<()> {
+    let project = &notification.project;
+
+    let Some(webhook) = project.webhook.as_ref() else {
+        return Ok(());
+    };
+
+    let event: serde_json::Value = serde_json::from_str(&notification.event.event_data)?;
+
+    let params = json!({
+        "status": notification.status,
+        "title": notification.report.title,
+        "project": notification.project.name,
+        "environment": notification.environment.as_ref().map(|e| &e.name),
+        "event": event,
+    });
+
+    let client = reqwest::Client::new();
+    client.post(webhook).json(&params).send().await?;
 
     Ok(())
 }

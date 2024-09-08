@@ -82,10 +82,10 @@ async fn ingress(ctx: web::Data<AppContext<'static>>, event: web::Json<Event>) -
     }
 
     // find environment or create id
-    let env_id = if let Some(env_ident) = event.env_ident {
+    let environment = if let Some(env_ident) = event.env_ident {
         let maybe_env = ProjectEnvironments::find().filter(project_environments::Column::Name.eq(&env_ident)).one(&ctx.db).await?;
 
-        let crate_env = match maybe_env {
+        let environment = match maybe_env {
             Some(env_row) => env_row,
             None => {
                 let env_row = project_environments::ActiveModel {
@@ -98,7 +98,7 @@ async fn ingress(ctx: web::Data<AppContext<'static>>, event: web::Json<Event>) -
             }
         };
 
-        Some(crate_env.project_environment_id)
+        Some(environment)
     } else {
         None
     };
@@ -127,7 +127,7 @@ async fn ingress(ctx: web::Data<AppContext<'static>>, event: web::Json<Event>) -
             project_reports::ActiveModel {
                 project_id: ActiveValue::set(project.project_id),
                 title: ActiveValue::set(event.name),
-                project_environment_id: ActiveValue::set(env_id),
+                project_environment_id: ActiveValue::set(environment.as_ref().map(|e| e.project_environment_id)),
                 ..Default::default()
             }
         }
@@ -159,7 +159,13 @@ async fn ingress(ctx: web::Data<AppContext<'static>>, event: web::Json<Event>) -
     }
 
     if let Some(status) = report_status {
-        ctx.notifications.send(Notification { status, project, event, report })?;
+        ctx.notifications.send(Notification {
+            status,
+            project,
+            event,
+            report,
+            environment,
+        })?;
     }
 
     Ok(HttpResponse::Ok().finish())

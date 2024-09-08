@@ -47,3 +47,22 @@ pub struct EventData {
     #[serde(rename = "log")]
     log_messages: Vec<LogEvent>,
 }
+
+impl EventData {
+    pub fn example() -> Self {
+        Self {
+            location: Some(EventFileLocation {
+                file: "stc/main.rs".into(),
+                line: 45,
+                column: Some(12),
+            }),
+            version: "1.2.3".into(),
+            os: "linux".into(),
+            arch: "x86_64".into(),
+            thread_id: "ThreadId(1)".into(),
+            thread_name: Some("main".into()),
+            backtrace: "".into(),
+            log_messages: vec![],
+        }
+    }
+}

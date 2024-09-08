@@ -11,6 +11,8 @@ use validator::Validate;
 use crate::entity::users;
 use crate::entity::{organization_users, prelude::*, project_user_settings};
 
+use crate::event::EventData;
+use crate::notifications::ReportStatus;
 use crate::AppContext;
 use crate::Error;
 use crate::Identity;
@@ -24,7 +26,9 @@ pub fn routes(cfg: &mut web::ServiceConfig) {
         .service(slack_config)
         .service(slack_test)
         .service(slack_webhook)
-        .service(slack_test_webhook);
+        .service(slack_test_webhook)
+        .service(webhook)
+        .service(test_webhook);
 }
 
 #[derive(FromQueryResult, Serialize)]
@@ -293,12 +297,9 @@ async fn slack_webhook(ctx: web::Data<AppContext<'_>>, identity: Identity, path:
         project_model.slack_webhook = ActiveValue::set(fields.webhook_url);
         project = project_model.save(&ctx.db).await?.try_into_model()?;
     } else {
-        view.set(
-            "form",
-            SlackWebhookForm {
-                webhook_url: project.slack_webhook.clone(),
-            },
-        );
+        view.set("form", SlackWebhookForm {
+            webhook_url: project.slack_webhook.clone(),
+        });
     }
 
     view.set("project", &project);
@@ -329,7 +330,7 @@ async fn slack_test_webhook(ctx: web::Data<AppContext<'_>>, identity: Identity, 
     let user = identity.user(&ctx).await?;
     let _ = user.role(&ctx.db, project.organization_id).await?.ok_or(Error::LoginRequired)?;
 
-    let Some(webhook) = project.slack_webhook else {
+    let Some(webhook_url) = project.slack_webhook else {
         view.message("Slack not configured");
         return Ok(view);
     };
@@ -338,11 +339,87 @@ async fn slack_test_webhook(ctx: web::Data<AppContext<'_>>, identity: Identity, 
     params.insert("text", "Slack is working! I'll post here when your app panic!()s");
 
     let client = reqwest::Client::new();
-    let res = client.post(webhook).json(&params).send().await?;
+    let res = client.post(webhook_url).json(&params).send().await?;
 
     log::info!("Slack test response: {:?}", res.text().await);
 
     view.message("Message sent");
+
+    Ok(view)
+}
+
+#[derive(Serialize, Deserialize, Debug, Validate)]
+struct WebhookForm {
+    #[serde(deserialize_with = "empty_string_as_none")]
+    #[validate(url(message = "Please enter a valid URL"))]
+    webhook_url: Option<String>,
+}
+
+#[route("/notifications/webhook/{project_id}", method = "GET", method = "POST")]
+async fn webhook(ctx: web::Data<AppContext<'_>>, identity: Identity, path: web::Path<u32>, form: Option<web::Form<WebhookForm>>) -> Result<ViewModel> {
+    let mut view = ViewModel::with_template("notifications/webhook");
+
+    view.set("form", &form);
+
+    let project_id = path.into_inner();
+    let mut project = Projects::find_by_id(project_id).one(&ctx.db).await?.ok_or(Error::NotFound)?;
+
+    let user = identity.user(&ctx).await?;
+    let _ = user.role(&ctx.db, project.organization_id).await?.ok_or(Error::LoginRequired)?;
+
+    if let Some(fields) = form.map(|f| f.into_inner()) {
+        if let Err(errors) = fields.validate() {
+            view.set("errors", &errors);
+            return Ok(view);
+        }
+
+        if fields.webhook_url.is_some() {
+            view.message("Slack webhook set");
+        } else {
+            view.message("Slack webhook removed");
+        }
+
+        let mut project_model = project.into_active_model();
+        project_model.webhook = ActiveValue::set(fields.webhook_url);
+        project = project_model.save(&ctx.db).await?.try_into_model()?;
+    } else {
+        view.set("form", SlackWebhookForm {
+            webhook_url: project.webhook.clone(),
+        });
+    }
+
+    view.set("project", &project);
+
+    Ok(view)
+}
+
+#[post("/notifications/test-webhook/{project_id}")]
+async fn test_webhook(ctx: web::Data<AppContext<'_>>, identity: Identity, path: web::Path<u32>) -> Result<ViewModel> {
+    let mut view = ViewModel::default();
+
+    let project_id = path.into_inner();
+    let project = Projects::find_by_id(project_id).one(&ctx.db).await?.ok_or(Error::NotFound)?;
+
+    let user = identity.user(&ctx).await?;
+    let _ = user.role(&ctx.db, project.organization_id).await?.ok_or(Error::LoginRequired)?;
+
+    let Some(webhook_url) = project.webhook else {
+        view.message("Webhook not configured");
+        return Ok(view);
+    };
+
+    let params = serde_json::json!({
+        "status": ReportStatus::New,
+        "title": "Called `Option::unwrap()` on a `None` value (Webhook Test)",
+        "project": project.name,
+        "environment": Option::<String>::None,
+        "event": EventData::example(),
+    });
+
+    let client = reqwest::Client::new();
+    let _res = client.post(webhook_url).json(&params).send().await?;
+
+    view.message("Webhook called");
 
     Ok(view)
 }
