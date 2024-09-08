@@ -61,8 +61,38 @@ impl EventData {
             arch: "x86_64".into(),
             thread_id: "ThreadId(1)".into(),
             thread_name: Some("main".into()),
-            backtrace: "".into(),
-            log_messages: vec![],
+            backtrace: r#"stack backtrace:
+0: playground::main::h6849180917e9510b (0x55baf1676201)
+            at src/main.rs:4
+1: std::rt::lang_start::{{closure}}::hb3ceb20351fe39ee (0x55baf1675faf)
+            at /rustc/3c235d5600393dfe6c36eeed34042efad8d4f26e/src/libstd/rt.rs:64
+2: {{closure}} (0x55baf16be492)
+            at src/libstd/rt.rs:49
+    do_call<closure,i32>
+            at src/libstd/panicking.rs:293
+3: __rust_maybe_catch_panic (0x55baf16c00b9)
+            at src/libpanic_unwind/lib.rs:87
+4: try<i32,closure> (0x55baf16bef9c)
+            at src/libstd/panicking.rs:272
+    catch_unwind<closure,i32>
+            at src/libstd/panic.rs:388
+    lang_start_internal
+            at src/libstd/rt.rs:48
+5: std::rt::lang_start::h2c4217f9057b6ddb (0x55baf1675f88)
+            at /rustc/3c235d5600393dfe6c36eeed34042efad8d4f26e/src/libstd/rt.rs:64
+6: main (0x55baf16762f9)
+7: __libc_start_main (0x7fab051b9b96)
+8: _start (0x55baf1675e59)
+9: <unknown> (0x0)"#
+                .into(),
+            log_messages: vec![LogEvent {
+                timestamp: chrono::Utc::now().timestamp() as u64,
+                level: 1,
+                message: "Error message".into(),
+                module: Some("my_module".into()),
+                file: Some("src/main.rs".into()),
+                line: Some(42),
+            }],
         }
     }
 }
