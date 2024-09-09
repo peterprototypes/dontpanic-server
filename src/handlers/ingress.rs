@@ -43,6 +43,9 @@ async fn ingress(ctx: web::Data<AppContext<'static>>, event: web::Json<Event>) -
         return Err(Error::new("API key not found or organization disabled"));
     };
 
+    // make sure to handle events sequentially per project
+    let _lock = ctx.locked_projects.lock(project.project_id).await;
+
     // limits check
     // ideally this check should not be in the hot path - it should happen on a timer once an hour and disable all projects in the org
     let org = project.find_related(Organizations).one(&ctx.db).await?.expect("Each project must have organization");

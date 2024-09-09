@@ -1019,6 +1019,7 @@ dependencies = [
  "dotenvy",
  "env_logger",
  "handlebars",
+ "key-lock",
  "lettre",
  "log",
  "migration",
@@ -1865,6 +1866,15 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "1868808506b929d7b0cfa8f75951347aa71bb21144b7791bae35d9bccfcfe37a"
 dependencies = [
  "wasm-bindgen",
+]
+
+[[package]]
+name = "key-lock"
+version = "0.1.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "792fd2ded02f283f704cda2c8127e256a012beb48e87c9f09bf459e3db051873"
+dependencies = [
+ "tokio",
 ]
 
 [[package]]

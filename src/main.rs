@@ -1,3 +1,5 @@
+use std::sync::Arc;
+
 use actix_files::Files;
 use actix_htmx::HtmxMiddleware;
 use actix_session::{storage::CookieSessionStore, SessionMiddleware};
@@ -6,6 +8,7 @@ use actix_web::{cookie::Key, get, http::header::LOCATION, middleware, web, App, 
 use chrono::prelude::*;
 use chrono_tz::Tz;
 use handlebars::{Context, Handlebars, Helper, HelperResult, JsonRender, Output, RenderContext, RenderErrorReason};
+use key_lock::KeyLock;
 use lettre::{transport::smtp::PoolConfig, AsyncSmtpTransport, Tokio1Executor};
 use migration::{Migrator, MigratorTrait};
 use serde_qs::{actix::QsQueryConfig, Config as QsConfig};
@@ -39,6 +42,7 @@ pub struct AppContext<'reg> {
     pub db: DatabaseConnection,
     pub mailer: Option<AsyncSmtpTransport<Tokio1Executor>>,
     pub notifications: mpsc::UnboundedSender<Notification>,
+    pub locked_projects: Arc<KeyLock<u32>>,
 }
 
 #[actix_web::main]
@@ -88,6 +92,7 @@ async fn main() -> anyhow::Result<()> {
         db: connection,
         mailer,
         notifications,
+        locked_projects: Arc::new(KeyLock::new()),
     };
 
     let query_style_config = QsQueryConfig::default()
