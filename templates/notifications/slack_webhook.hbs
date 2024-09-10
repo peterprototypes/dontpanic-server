@@ -1,8 +1,8 @@
 <div class="col-md-4">
     <h4>Slack Webhook Url</h4>
 </div>
-<div class="col-md-8 end-xs">
-    <form>
+<div class="col-md-8 end-xs" x-data="{ open: {{#if form.webhook_url}}true{{else}}false{{/if}} }">
+    <form x-show="open">
         <div class="row middle-xs">
             <div class="col-md-8">
                 {{> components/text_input
@@ -47,4 +47,9 @@
             </div>
         </div>
     </form>
+    <div class="row end-xs" x-show="!open">
+        <div class="col-md-4">
+            <button class="outlined full-width" @click="open = true">Configure</button>
+        </div>
+    </div>
 </div>
