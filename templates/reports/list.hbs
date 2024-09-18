@@ -71,7 +71,9 @@
                 <table>
                     <thead>
                         <tr>
-                            <th></th>
+                            <th>
+                                <input type="checkbox" x-on:click="toggle($event, report_ids)" />
+                            </th>
                             <th>#</th>
                             <th>Title</th>
                             {{#if (not project_id)}}
@@ -167,6 +169,15 @@
                 }
 
                 el.click();
+            }
+
+            function toggle(event, report_ids) {
+                let checkboxes = document.getElementsByName('report_ids[]');
+
+                for(var i=0, n=checkboxes.length;i<n;i++) {
+                    checkboxes[i].checked = event.target.checked;
+                    report_ids.push(checkboxes[i].value);
+                }
             }
         </script>
         {{#if term}}
