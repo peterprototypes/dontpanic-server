@@ -776,6 +776,10 @@ footer .footer-content {
     background-color: var(--color-error);
 }
 
+.occurrences-calendar .calendar-day.has-events:hover {
+    box-shadow: 0px 0px 2px var(--color-primary);
+}
+
 .occurrences-calendar .calendar-month {
     width: 10px;
     margin-bottom: 2px;
