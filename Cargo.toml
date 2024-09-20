@@ -1,6 +1,6 @@
 [package]
 name = "dontpanic-server"
-version = "0.3.0"
+version = "0.3.1"
 edition = "2021"
 publish = false
 license = "FCL-1.0-MIT"
