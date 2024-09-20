@@ -232,19 +232,21 @@ async fn report_event(ctx: web::Data<AppContext<'_>>, identity: Identity, path: 
 
     view.set("back_url", query.back_url.clone().unwrap_or_else(|| format!("/reports?project_id={}", report.project_id)));
 
-    let event = if let Some(event_id) = event_id {
+    let maybe_event = if let Some(event_id) = event_id {
         ProjectReportEvents::find_by_id(event_id)
             .filter(project_report_events::Column::ProjectReportId.eq(report_id))
             .one(&ctx.db)
             .await?
-            .ok_or(Error::NotFound)?
     } else {
         ProjectReportEvents::find()
             .filter(project_report_events::Column::ProjectReportId.eq(report_id))
             .order_by(project_report_events::Column::ProjectReportEventId, Order::Desc)
             .one(&ctx.db)
             .await?
-            .ok_or(Error::NotFound)?
+    };
+
+    let Some(event) = maybe_event else {
+        return Ok(ViewModel::with_template("reports/no_event"));
     };
 
     let events_count: u64 = ProjectReportEvents::find()
