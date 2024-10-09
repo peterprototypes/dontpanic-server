@@ -63,11 +63,15 @@ pub async fn send_slack(_ctx: &AppContext<'_>, notification: &Notification) -> R
         return Ok(());
     };
 
-    let title = if notification.status == ReportStatus::New {
+    let mut title = if notification.status == ReportStatus::New {
         format!("New report on {} received '{}'", notification.project.name, notification.report.title)
     } else {
         format!("Resolved report on {} reappeared: '{}'", notification.project.name, notification.report.title)
     };
+
+    if let Some(environment) = notification.environment.as_ref() {
+        title.push_str(&format!(" in {}", environment.name));
+    }
 
     let params = [("token", token), ("channel", channel), ("text", &title)];
 
@@ -86,11 +90,15 @@ pub async fn send_slack_webhook(_ctx: &AppContext<'_>, notification: &Notificati
         return Ok(());
     };
 
-    let title = if notification.status == ReportStatus::New {
+    let mut title = if notification.status == ReportStatus::New {
         format!("New report on {} received '{}'", notification.project.name, notification.report.title)
     } else {
         format!("Resolved report on {} reappeared: '{}'", notification.project.name, notification.report.title)
     };
+
+    if let Some(environment) = notification.environment.as_ref() {
+        title.push_str(&format!(" in {}", environment.name));
+    }
 
     let mut params = HashMap::new();
     params.insert("username", "Don't Panic".to_string());
@@ -135,11 +143,15 @@ pub async fn send_email(ctx: &AppContext<'_>, notification: &Notification, user:
         "email/regressed_report"
     };
 
-    let title = if notification.status == ReportStatus::New {
+    let mut title = if notification.status == ReportStatus::New {
         format!("New report on {} received '{}'", notification.project.name, notification.report.title)
     } else {
         format!("Resolved report on {} reappeared: '{}'", notification.project.name, notification.report.title)
     };
+
+    if let Some(environment) = notification.environment.as_ref() {
+        title.push_str(&format!(" in {}", environment.name));
+    }
 
     let data = serde_json::json!({
         "title": &title,
