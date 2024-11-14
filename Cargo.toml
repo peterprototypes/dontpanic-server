@@ -25,8 +25,8 @@ serde_json = "1"
 handlebars = { version = "6", features = ["dir_source"] }
 migration = { path = "migration" }
 serde = "1.0"
-validator = { version = "0.18", features = ["derive"] }
-chrono-tz = { version = "0.9", features = ["std", "case-insensitive"] }
+validator = { version = "0.19", features = ["derive"] }
+chrono-tz = { version = "0.10", features = ["std", "case-insensitive"] }
 urlencoding = "2.1"
 serde_qs = { version = "0.13", features = ["actix4"] }
 tokio = { version = "1", features = ["full"] }
