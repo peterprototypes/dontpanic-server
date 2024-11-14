@@ -152,4 +152,4 @@ All commit messages must follow [Conventional Commits](https://www.conventionalc
 
 ## License
 
-Fair Core License, Version 1.0, MIT Future License [LICENSE.md](LICENSE.md)
+GNU Affero General Public License v3.0 only [LICENSE.md](LICENSE.md)
