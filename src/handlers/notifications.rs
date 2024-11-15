@@ -297,9 +297,12 @@ async fn slack_webhook(ctx: web::Data<AppContext<'_>>, identity: Identity, path:
         project_model.slack_webhook = ActiveValue::set(fields.webhook_url);
         project = project_model.save(&ctx.db).await?.try_into_model()?;
     } else {
-        view.set("form", SlackWebhookForm {
-            webhook_url: project.slack_webhook.clone(),
-        });
+        view.set(
+            "form",
+            SlackWebhookForm {
+                webhook_url: project.slack_webhook.clone(),
+            },
+        );
     }
 
     view.set("project", &project);
@@ -313,8 +316,7 @@ where
     T: serde::Deserialize<'de>,
 {
     let opt = Option::<String>::deserialize(de)?;
-    let opt = opt.as_ref().map(String::as_str);
-    match opt {
+    match opt.as_deref() {
         None | Some("") => Ok(None),
         Some(s) => T::deserialize(s.into_deserializer()).map(Some),
     }
@@ -336,7 +338,7 @@ async fn slack_test_webhook(ctx: web::Data<AppContext<'_>>, identity: Identity, 
     };
 
     let mut params = HashMap::new();
-    params.insert("text", "Slack is working! I'll post here when your app panic!()s");
+    params.insert("text", "Slack is working! I'll post here when your **app** panic!()s");
 
     let client = reqwest::Client::new();
     let res = client.post(webhook_url).json(&params).send().await?;
@@ -383,9 +385,12 @@ async fn webhook(ctx: web::Data<AppContext<'_>>, identity: Identity, path: web::
         project_model.webhook = ActiveValue::set(fields.webhook_url);
         project = project_model.save(&ctx.db).await?.try_into_model()?;
     } else {
-        view.set("form", SlackWebhookForm {
-            webhook_url: project.webhook.clone(),
-        });
+        view.set(
+            "form",
+            SlackWebhookForm {
+                webhook_url: project.webhook.clone(),
+            },
+        );
     }
 
     view.set("project", &project);

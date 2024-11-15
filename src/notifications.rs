@@ -1,5 +1,3 @@
-use std::collections::HashMap;
-
 use anyhow::Result;
 use lettre::AsyncTransport;
 use sea_orm::prelude::*;
@@ -31,49 +29,43 @@ pub async fn send(ctx: &AppContext<'_>, notification: &Notification) -> Result<(
         .all(&ctx.db)
         .await?;
 
+    let report_url = format!("{}://{}/reports/view/{}", ctx.config.scheme, ctx.config.base_url, notification.report.project_report_id);
+
     for (user, maybe_settings) in users {
         if let Some(settings) = maybe_settings {
             if settings.notify_email > 0 {
-                if let Err(e) = send_email(ctx, notification, user).await {
+                if let Err(e) = send_email(ctx, notification, user, &report_url).await {
                     log::error!("Error sending notification email: {:?}", e);
                 }
             }
         }
     }
 
-    if let Err(e) = send_slack(ctx, notification).await {
+    if let Err(e) = send_slack(ctx, notification, &report_url).await {
         log::error!("Error sending slack app message: {:?}", e);
     }
 
-    if let Err(e) = send_slack_webhook(ctx, notification).await {
+    if let Err(e) = send_slack_webhook(ctx, notification, &report_url).await {
         log::error!("Error sending slack message via webhook: {:?}", e);
     }
 
-    if let Err(e) = send_webhook(ctx, notification).await {
+    if let Err(e) = send_webhook(ctx, notification, &report_url).await {
         log::error!("Error sending report via webhook: {:?}", e);
     }
 
     Ok(())
 }
 
-pub async fn send_slack(_ctx: &AppContext<'_>, notification: &Notification) -> Result<()> {
+pub async fn send_slack(_ctx: &AppContext<'_>, notification: &Notification, report_url: &str) -> Result<()> {
     let project = &notification.project;
 
-    let Some((token, channel)) = project.slack_bot_token.as_ref().zip(project.slack_channel.as_ref()) else {
+    let Some((token, channel)) = project.slack_bot_token.as_deref().zip(project.slack_channel.as_deref()) else {
         return Ok(());
     };
 
-    let mut title = if notification.status == ReportStatus::New {
-        format!("New report on {} received '{}'", notification.project.name, notification.report.title)
-    } else {
-        format!("Resolved report on {} reappeared: '{}'", notification.project.name, notification.report.title)
-    };
-
-    if let Some(environment) = notification.environment.as_ref() {
-        title.push_str(&format!(" in {}", environment.name));
-    }
-
-    let params = [("token", token), ("channel", channel), ("text", &title)];
+    let mut params = get_slack_blocks(notification, report_url);
+    params["token"] = token.into();
+    params["channel"] = channel.into();
 
     let client = reqwest::Client::new();
     client.post("https://slack.com/api/chat.postMessage").form(&params).send().await?;
@@ -83,27 +75,16 @@ pub async fn send_slack(_ctx: &AppContext<'_>, notification: &Notification) -> R
     Ok(())
 }
 
-pub async fn send_slack_webhook(_ctx: &AppContext<'_>, notification: &Notification) -> Result<()> {
+pub async fn send_slack_webhook(_ctx: &AppContext<'_>, notification: &Notification, report_url: &str) -> Result<()> {
     let project = &notification.project;
 
     let Some(webhook) = project.slack_webhook.as_ref() else {
         return Ok(());
     };
 
-    let mut title = if notification.status == ReportStatus::New {
-        format!("New report on {} received '{}'", notification.project.name, notification.report.title)
-    } else {
-        format!("Resolved report on {} reappeared: '{}'", notification.project.name, notification.report.title)
-    };
-
-    if let Some(environment) = notification.environment.as_ref() {
-        title.push_str(&format!(" in {}", environment.name));
-    }
-
-    let mut params = HashMap::new();
-    params.insert("username", "Don't Panic".to_string());
-    params.insert("icon_url", "https://dontpanic.rs/static/favicon.png".to_string());
-    params.insert("text", title);
+    let mut params = get_slack_blocks(notification, report_url);
+    params["username"] = "Don't Panic".into();
+    params["icon_url"] = "https://dontpanic.rs/static/favicon.png".into();
 
     let client = reqwest::Client::new();
     client.post(webhook).json(&params).send().await?;
@@ -113,7 +94,52 @@ pub async fn send_slack_webhook(_ctx: &AppContext<'_>, notification: &Notificati
     Ok(())
 }
 
-pub async fn send_webhook(_ctx: &AppContext<'_>, notification: &Notification) -> Result<()> {
+fn get_slack_blocks(notification: &Notification, report_url: &str) -> serde_json::Value {
+    let mut title = if notification.status == ReportStatus::New {
+        format!(":boom: New report on {} received {}", notification.project.name, notification.report.title)
+    } else {
+        format!("Resolved report on {} reappeared: {}", notification.project.name, notification.report.title)
+    };
+
+    let mut markdown = if notification.status == ReportStatus::New {
+        format!(":boom: New report on *{}* received {}", notification.project.name, notification.report.title)
+    } else {
+        format!("Resolved report on *{}* reappeared: {}", notification.project.name, notification.report.title)
+    };
+
+    if let Some(environment) = notification.environment.as_ref() {
+        title.push_str(&format!(" in {}", environment.name));
+        markdown.push_str(&format!(" in *{}*", environment.name));
+    }
+
+    json!({
+        "text": title,
+        "blocks": [
+            {
+                "type": "section",
+                "text": {
+                    "type": "mrkdwn",
+                    "text": markdown
+                }
+            },
+            {
+                "type": "actions",
+                "elements": [
+                    {
+                        "type": "button",
+                        "text": {
+                            "type": "plain_text",
+                            "text": "View in Don't Panic"
+                        },
+                        "url": report_url
+                    }
+                ]
+            }
+        ]
+    })
+}
+
+pub async fn send_webhook(_ctx: &AppContext<'_>, notification: &Notification, report_url: &str) -> Result<()> {
     let project = &notification.project;
 
     let Some(webhook) = project.webhook.as_ref() else {
@@ -128,6 +154,7 @@ pub async fn send_webhook(_ctx: &AppContext<'_>, notification: &Notification) ->
         "project": notification.project.name,
         "environment": notification.environment.as_ref().map(|e| &e.name),
         "event": event,
+        "url": report_url,
     });
 
     let client = reqwest::Client::new();
@@ -136,7 +163,7 @@ pub async fn send_webhook(_ctx: &AppContext<'_>, notification: &Notification) ->
     Ok(())
 }
 
-pub async fn send_email(ctx: &AppContext<'_>, notification: &Notification, user: users::Model) -> Result<()> {
+pub async fn send_email(ctx: &AppContext<'_>, notification: &Notification, user: users::Model, report_url: &str) -> Result<()> {
     let template = if notification.status == ReportStatus::New {
         "email/new_report"
     } else {
@@ -155,10 +182,9 @@ pub async fn send_email(ctx: &AppContext<'_>, notification: &Notification, user:
 
     let data = serde_json::json!({
         "title": &title,
-        "base_url": ctx.config.base_url,
-        "scheme": ctx.config.scheme,
         "report": notification.report,
         "project": notification.project,
+        "report_url": report_url,
     });
 
     let email = lettre::Message::builder()
