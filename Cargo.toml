@@ -31,6 +31,7 @@ urlencoding = "2.1"
 serde_qs = { version = "0.13", features = ["actix4"] }
 tokio = { version = "1", features = ["full"] }
 key-lock = "0.1.0"
+actix-cors = "0.7.0"
 
 [dependencies.reqwest]
 version = "0.12"

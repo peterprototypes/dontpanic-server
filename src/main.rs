@@ -1,5 +1,6 @@
 use std::sync::Arc;
 
+use actix_cors::Cors;
 use actix_files::Files;
 use actix_htmx::HtmxMiddleware;
 use actix_session::{storage::CookieSessionStore, SessionMiddleware};
@@ -123,9 +124,16 @@ async fn main() -> anyhow::Result<()> {
     log::info!("Starting http server. Listen: {}", bind_addr);
 
     HttpServer::new(move || {
+        let cors = Cors::default()
+            .allow_any_origin()
+            .allow_any_header()
+            .allowed_methods(vec!["OPTIONS", "POST", "GET", "DELETE"])
+            .max_age(3600);
+
         App::new()
             .wrap(HtmxMiddleware)
-            .wrap(error::error_handlers())
+            .wrap(middleware::Compress::default())
+            .wrap(cors)
             .wrap(
                 SessionMiddleware::builder(CookieSessionStore::default(), cookie_secret.clone())
                     .cookie_name("dontpanic-session".into())
@@ -135,13 +143,14 @@ async fn main() -> anyhow::Result<()> {
             .app_data(query_style_config.clone())
             .service(Files::new("/static", "./static").prefer_utf8(true))
             .service(index)
-            .configure(handlers::auth::routes)
-            .configure(handlers::reports::routes)
-            .configure(handlers::ingress::routes)
-            .configure(handlers::menu::routes)
-            .configure(handlers::organizations::routes)
-            .configure(handlers::account::routes)
-            .configure(handlers::notifications::routes)
+            .service(web::scope("/api").configure(handlers::routes))
+            // .configure(handlers::auth::routes)
+            // .configure(handlers::reports::routes)
+            // .configure(handlers::ingress::routes)
+            // .configure(handlers::menu::routes)
+            // .configure(handlers::organizations::routes)
+            // .configure(handlers::account::routes)
+            // .configure(handlers::notifications::routes)
             .wrap(middleware::Logger::default())
     })
     .shutdown_timeout(10)
