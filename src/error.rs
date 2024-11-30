@@ -2,18 +2,10 @@ use std::fmt;
 
 use actix_session::SessionGetError;
 use actix_web::{
-    body::BoxBody,
-    dev::ServiceResponse,
-    http::{
-        header::{ContentType, ToStrError},
-        StatusCode,
-    },
-    middleware::{ErrorHandlerResponse, ErrorHandlers},
-    web, HttpResponse,
+    http::{header::ToStrError, StatusCode},
+    HttpResponse,
 };
 use serde_json::json;
-
-use crate::AppContext;
 
 #[derive(Debug)]
 pub enum Error {
