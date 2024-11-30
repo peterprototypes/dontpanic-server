@@ -17,6 +17,7 @@ use tokio::sync::mpsc;
 
 use sea_orm::{prelude::*, ConnectOptions, Database, IntoActiveModel, TryIntoModel};
 
+mod api_response;
 mod config;
 mod entity;
 mod entity_extensions;
@@ -30,6 +31,7 @@ mod view_model;
 use config::Config;
 use notifications::Notification;
 
+pub use api_response::ApiResponse;
 pub use error::Error;
 pub use identity::Identity;
 pub use view_model::ViewModel;
@@ -46,6 +48,103 @@ pub struct AppContext<'reg> {
     pub locked_projects: Arc<KeyLock<u32>>,
 }
 
+impl AppContext<'static> {
+    pub async fn new() -> anyhow::Result<Self> {
+        let config = Config::from_env()?;
+
+        let mut connection_opt = ConnectOptions::new(&config.database_url);
+        //let mut connection_opt = ConnectOptions::new("sqlite://test.sqlite?mode=rwc");
+        connection_opt.sqlx_logging(false);
+
+        let connection = Database::connect(connection_opt).await?;
+        Migrator::up(&connection, None).await?;
+
+        create_default_user(&connection, &config).await?;
+
+        let mut handlebars = Handlebars::new();
+        handlebars.set_dev_mode(cfg!(debug_assertions));
+        handlebars.register_templates_directory("./templates", Default::default())?;
+        handlebars.register_helper("dateFmt", Box::new(date));
+        handlebars.register_helper("timestampFmt", Box::new(timestamp));
+        handlebars.register_helper("simplePercent", Box::new(simple_percent));
+        handlebars.register_helper("urlencode", Box::new(urlencode));
+
+        // mailer
+        let mailer = if let Some(url) = config.email_url.as_ref() {
+            let mailer: AsyncSmtpTransport<Tokio1Executor> = AsyncSmtpTransport::<Tokio1Executor>::from_url(url)?.pool_config(PoolConfig::new().max_size(100)).build();
+
+            Some(mailer)
+        } else {
+            None
+        };
+
+        let (notifications, mut notifications_rx) = mpsc::unbounded_channel();
+
+        let ctx = Self {
+            config,
+            hb: handlebars,
+            db: connection,
+            mailer,
+            notifications,
+            locked_projects: Arc::new(KeyLock::new()),
+        };
+
+        // message handler
+        let handler_context = ctx.clone();
+
+        actix_web::rt::spawn(async move {
+            log::info!("Notifications handler task started");
+
+            loop {
+                let Some(notification) = notifications_rx.recv().await else {
+                    log::info!("Notifications handler receiving channel closed");
+                    break;
+                };
+
+                if let Err(e) = notifications::send(&handler_context, &notification).await {
+                    log::error!("Error sending notification: {:?} error: {:?}", notification, e);
+                }
+            }
+        });
+
+        Ok(ctx)
+    }
+
+    pub async fn testing() -> anyhow::Result<Self> {
+        let mut config = Config::from_env()?;
+
+        let connection = Database::connect(ConnectOptions::new(&config.database_url)).await?;
+        Migrator::up(&connection, None).await?;
+
+        config.default_user_email = Some("testing@dontpanic.rs".into());
+        config.default_user_password = Some("password".into());
+        config.default_user_organization = Some("Testing Organization".into());
+
+        create_default_user(&connection, &config).await?;
+
+        let mut handlebars = Handlebars::new();
+        handlebars.set_dev_mode(cfg!(debug_assertions));
+        handlebars.register_templates_directory("./templates", Default::default())?;
+        handlebars.register_helper("dateFmt", Box::new(date));
+        handlebars.register_helper("timestampFmt", Box::new(timestamp));
+        handlebars.register_helper("simplePercent", Box::new(simple_percent));
+        handlebars.register_helper("urlencode", Box::new(urlencode));
+
+        let (notifications, _notifications_rx) = mpsc::unbounded_channel();
+
+        let ctx = Self {
+            config,
+            hb: handlebars,
+            db: connection,
+            mailer: None,
+            notifications,
+            locked_projects: Arc::new(KeyLock::new()),
+        };
+
+        Ok(ctx)
+    }
+}
+
 #[actix_web::main]
 async fn main() -> anyhow::Result<()> {
     let env = env_logger::Env::new().default_filter_or(if cfg!(debug_assertions) { "debug,handlebars=info" } else { "info" });
@@ -53,48 +152,7 @@ async fn main() -> anyhow::Result<()> {
 
     log::info!("Starting");
 
-    let config = Config::from_env()?;
-
-    let cookie_secret = Key::from(&config.cookie_secret);
-
-    let mut connection_opt = ConnectOptions::new(&config.database_url);
-    //let mut connection_opt = ConnectOptions::new("sqlite://test.sqlite?mode=rwc");
-    connection_opt.sqlx_logging(false);
-
-    let connection = Database::connect(connection_opt).await?;
-    Migrator::up(&connection, None).await?;
-
-    create_default_user(&connection, &config).await?;
-
-    let mut handlebars = Handlebars::new();
-    handlebars.set_dev_mode(cfg!(debug_assertions));
-    handlebars.register_templates_directory("./templates", Default::default())?;
-    handlebars.register_helper("dateFmt", Box::new(date));
-    handlebars.register_helper("timestampFmt", Box::new(timestamp));
-    handlebars.register_helper("simplePercent", Box::new(simple_percent));
-    handlebars.register_helper("urlencode", Box::new(urlencode));
-
-    // mailer
-    let mailer = if let Some(url) = config.email_url.as_ref() {
-        let mailer: AsyncSmtpTransport<Tokio1Executor> = AsyncSmtpTransport::<Tokio1Executor>::from_url(url)?.pool_config(PoolConfig::new().max_size(100)).build();
-
-        Some(mailer)
-    } else {
-        None
-    };
-
-    let (notifications, mut notifications_rx) = mpsc::unbounded_channel();
-
-    let bind_addr = config.bind_addr;
-
-    let ctx = AppContext {
-        config,
-        hb: handlebars,
-        db: connection,
-        mailer,
-        notifications,
-        locked_projects: Arc::new(KeyLock::new()),
-    };
+    let ctx = AppContext::new().await?;
 
     let query_style_config = QsQueryConfig::default()
         // .error_handler(|err, req| {
@@ -103,25 +161,11 @@ async fn main() -> anyhow::Result<()> {
         // })
         .qs_config(QsConfig::new(10, false));
 
-    // message handler
-    let handler_context = ctx.clone();
-
-    actix_web::rt::spawn(async move {
-        log::info!("Notifications handler task started");
-
-        loop {
-            let Some(notification) = notifications_rx.recv().await else {
-                log::info!("Notifications handler receiving channel closed");
-                break;
-            };
-
-            if let Err(e) = notifications::send(&handler_context, &notification).await {
-                log::error!("Error sending notification: {:?} error: {:?}", notification, e);
-            }
-        }
-    });
+    let bind_addr = ctx.config.bind_addr;
 
     log::info!("Starting http server. Listen: {}", bind_addr);
+
+    let cookie_secret = Key::from(&ctx.config.cookie_secret);
 
     HttpServer::new(move || {
         let cors = Cors::default()

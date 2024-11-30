@@ -79,6 +79,9 @@ impl Config {
         Ok(Self {
             bind_addr: get_var("BIND_ADDRESS").ok().unwrap_or_else(|| "0.0.0.0:8080".into()).parse()?,
             cookie_secret,
+            #[cfg(test)]
+            database_url: "sqlite::memory:".into(),
+            #[cfg(not(test))]
             database_url: get_var("DATABASE_URL")?,
             base_url: get_var("BASE_URL").ok().unwrap_or_else(|| "localhost".into()),
             scheme: get_var("SCHEME").ok().unwrap_or_else(|| "http".into()),

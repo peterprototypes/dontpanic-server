@@ -1,3 +1,4 @@
+use std::collections::HashMap;
 use std::fmt;
 
 use actix_session::SessionGetError;
@@ -7,11 +8,14 @@ use actix_web::{
 };
 use serde_json::json;
 
+use crate::ApiResponse;
+
 #[derive(Debug)]
 pub enum Error {
     NotFound,
     LoginRequired,
     UserMessage(String),
+    FieldErrors(HashMap<String, String>),
     Internal(anyhow::Error),
 }
 
@@ -29,6 +33,7 @@ impl fmt::Display for Error {
             Self::NotFound => write!(f, "Not Found"),
             Self::UserMessage(msg) => write!(f, "{}", msg),
             Self::LoginRequired => write!(f, "Unauthorized"),
+            Self::FieldErrors(_) => write!(f, "Bad Request"),
             Self::Internal(_) => write!(f, "An internal error occurred. Please try again later."),
         }
     }
@@ -36,9 +41,15 @@ impl fmt::Display for Error {
 
 impl actix_web::error::ResponseError for Error {
     fn error_response(&self) -> HttpResponse {
-        let res = HttpResponse::build(self.status_code()).json(json!({
-            "error": self.to_string()
-        }));
+        let response = match self {
+            Self::NotFound => ApiResponse::<()>::error("Not Found".to_string()),
+            Self::UserMessage(msg) => ApiResponse::error(msg.clone()),
+            Self::LoginRequired => ApiResponse::error("Unauthorized".to_string()),
+            Self::FieldErrors(errors) => ApiResponse::field_errors(errors.clone()),
+            Self::Internal(_) => ApiResponse::error("An internal error occurred. Please try again later.".to_string()),
+        };
+
+        let res = HttpResponse::build(self.status_code()).json(response);
 
         if let Self::Internal(e) = self {
             log::error!("{:?}", e);
@@ -52,6 +63,7 @@ impl actix_web::error::ResponseError for Error {
             Self::NotFound => StatusCode::NOT_FOUND,
             Self::LoginRequired => StatusCode::UNAUTHORIZED,
             Self::UserMessage(_) => StatusCode::BAD_REQUEST,
+            Self::FieldErrors(_) => StatusCode::BAD_REQUEST,
             Self::Internal(_) => StatusCode::INTERNAL_SERVER_ERROR,
         }
     }
@@ -138,5 +150,21 @@ impl<T: Send + Sync + 'static> From<tokio::sync::mpsc::error::SendError<T>> for 
 impl From<reqwest::Error> for Error {
     fn from(value: reqwest::Error) -> Self {
         Self::Internal(value.into())
+    }
+}
+
+impl From<validator::ValidationErrors> for Error {
+    fn from(value: validator::ValidationErrors) -> Self {
+        let field_errors = value
+            .field_errors()
+            .into_iter()
+            .map(|(field, errors)| {
+                let errors = errors.iter().filter_map(|e| e.message.clone()).map(|e| e.clone()).collect::<Vec<_>>().join(", ");
+
+                (field.to_string(), errors)
+            })
+            .collect();
+
+        Self::FieldErrors(field_errors)
     }
 }

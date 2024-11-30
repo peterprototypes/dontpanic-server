@@ -1,5 +1,5 @@
 use actix_session::Session;
-use actix_web::{get, http, post, HttpRequest};
+use actix_web::{get, http, post, HttpRequest, Responder};
 use actix_web::{route, web};
 use anyhow::anyhow;
 use chrono::{TimeDelta, Utc};
@@ -8,6 +8,7 @@ use lettre::AsyncTransport;
 use rand::{distributions::Alphanumeric, Rng};
 use sea_orm::{prelude::*, ActiveValue, IntoActiveModel, TryIntoModel};
 use serde::{Deserialize, Serialize};
+use serde_json::json;
 use validator::Validate;
 
 use crate::entity::organization_invitations;
@@ -15,7 +16,7 @@ use crate::entity::organization_users;
 use crate::entity::organizations;
 use crate::entity::prelude::*;
 use crate::entity::users;
-use crate::{AppContext, Error, ViewModel};
+use crate::{ApiResponse, AppContext, Error, ViewModel};
 use crate::{Identity, Result};
 
 pub fn routes(cfg: &mut web::ServiceConfig) {
@@ -26,7 +27,8 @@ pub fn routes(cfg: &mut web::ServiceConfig) {
         .service(verify_email)
         .service(resend_verification_email)
         .service(request_password_reset)
-        .service(reset_password);
+        .service(reset_password)
+        .default_service(web::route().to(|| async { ApiResponse::<()>::error("Not Found") }));
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize, Validate)]
@@ -330,55 +332,44 @@ struct LoginData {
     password: String,
 }
 
-#[route("/login", method = "GET", method = "POST")]
-async fn login(ctx: web::Data<AppContext<'_>>, req: HttpRequest, session: Session, form: Option<web::Form<LoginData>>, identity: Option<Identity>) -> Result<ViewModel> {
-    let mut view = ViewModel::with_template_and_layout("auth/login", "layout_auth");
-
-    view.set("registration_enabled", ctx.config.registration_enabled);
-
+#[post("/login")]
+async fn login(ctx: web::Data<AppContext<'_>>, req: HttpRequest, session: Session, form: web::Json<LoginData>, identity: Option<Identity>) -> Result<ApiResponse<()>> {
     if let Some(identity) = identity {
         let user = Users::find_by_id(identity.user_id).one(&ctx.db).await?;
 
         if user.is_some() {
-            view.redirect("/reports", true);
-            return Ok(view);
+            return Ok(ApiResponse::new(()));
         } else {
             session.remove("uid");
         }
     }
 
-    view.set("form", &form);
+    form.validate()?;
 
-    let Some(fields) = form else {
-        return Ok(view);
-    };
+    // if let Err(errors) = form.validate() {
+    //     return Ok(web::Json(json!({"success": false, "errors": errors})));
+    // }
 
-    if let Err(errors) = fields.validate() {
-        view.set("errors", &errors);
-        return Ok(view);
-    }
-
-    let user = Users::find().filter(users::Column::Email.eq(&fields.email)).one(&ctx.db).await?;
+    let user = Users::find().filter(users::Column::Email.eq(&form.email)).one(&ctx.db).await?;
 
     let Some(user) = user else {
         let _ = bcrypt::hash("I want this else branch to take as much time", bcrypt::DEFAULT_COST);
-        view.set("error_message", "Login failed; Invalid email or password.");
-        return Ok(view);
+
+        return Ok(ApiResponse::error("Login failed; Invalid email or password."));
     };
 
     let password_hash = std::str::from_utf8(&user.password)?;
 
-    if !bcrypt::verify(&fields.password, password_hash)? {
-        view.set("error_message", "Login failed; Invalid email or password.");
-        return Ok(view);
+    if !bcrypt::verify(&form.password, password_hash)? {
+        return Ok(ApiResponse::error("Login failed; Invalid email or password."));
     }
 
     if ctx.config.require_email_verification && user.email_verification_hash.is_some() {
-        view.set("error_message", "Your email is not yet verified.");
+        return Ok(ApiResponse::error("Your email is not yet verified."));
 
-        view.set("show_resend_verification", true);
+        // view.set("error_message", "Your email is not yet verified.");
 
-        return Ok(view);
+        // view.set("show_resend_verification", true);
     }
 
     session.insert("uid", user.user_id)?;
@@ -418,9 +409,7 @@ async fn login(ctx: web::Data<AppContext<'_>>, req: HttpRequest, session: Sessio
 
     session.insert(format!("seen_{}", user.user_id), true)?;
 
-    view.redirect("/reports", true);
-
-    Ok(view)
+    Ok(ApiResponse::new(()))
 }
 
 #[route("/logout", method = "GET")]
@@ -579,4 +568,31 @@ async fn reset_password(ctx: web::Data<AppContext<'_>>, path: web::Path<String>,
     view.set("success", true);
 
     Ok(view)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use actix_web::{test, web, App};
+    use serde_json::json;
+
+    #[actix_web::test]
+    async fn test_login() {
+        let ctx = crate::AppContext::testing().await.unwrap();
+        let app = test::init_service(App::new().app_data(web::Data::new(ctx)).configure(routes)).await;
+
+        let req = test::TestRequest::get()
+            .uri("/login")
+            .set_json(json!({
+                "email": "testing@dontpanic.rs",
+                "password": "password"
+            }))
+            .to_request();
+
+        let resp = test::call_service(&app, req).await;
+        assert!(resp.status().is_success());
+
+        let res: serde_json::Value = test::read_body_json(resp).await;
+        assert!(res.is_object());
+    }
 }
