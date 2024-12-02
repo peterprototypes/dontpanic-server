@@ -1,5 +1,5 @@
 use actix_session::Session;
-use actix_web::{get, http, post, HttpRequest, Responder};
+use actix_web::{get, http, post, HttpRequest, HttpResponse, Responder};
 use actix_web::{route, web};
 use anyhow::anyhow;
 use chrono::{TimeDelta, Utc};
@@ -16,7 +16,7 @@ use crate::entity::organization_users;
 use crate::entity::organizations;
 use crate::entity::prelude::*;
 use crate::entity::users;
-use crate::{ApiResponse, AppContext, Error, ViewModel};
+use crate::{AppContext, Error, ViewModel};
 use crate::{Identity, Result};
 
 pub fn routes(cfg: &mut web::ServiceConfig) {
@@ -28,7 +28,7 @@ pub fn routes(cfg: &mut web::ServiceConfig) {
         .service(resend_verification_email)
         .service(request_password_reset)
         .service(reset_password)
-        .default_service(web::route().to(|| async { ApiResponse::<()>::error("Not Found") }));
+        .default_service(web::route().to(|| async { Err::<HttpResponse, _>(Error::new("Not Found")) }));
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize, Validate)]
@@ -333,12 +333,12 @@ struct LoginData {
 }
 
 #[post("/login")]
-async fn login(ctx: web::Data<AppContext<'_>>, req: HttpRequest, session: Session, form: web::Json<LoginData>, identity: Option<Identity>) -> Result<ApiResponse<()>> {
+async fn login(ctx: web::Data<AppContext<'_>>, req: HttpRequest, session: Session, form: web::Json<LoginData>, identity: Option<Identity>) -> Result<impl Responder> {
     if let Some(identity) = identity {
         let user = Users::find_by_id(identity.user_id).one(&ctx.db).await?;
 
         if user.is_some() {
-            return Ok(ApiResponse::new(()));
+            return Ok(web::Json(()));
         } else {
             session.remove("uid");
         }
@@ -346,26 +346,22 @@ async fn login(ctx: web::Data<AppContext<'_>>, req: HttpRequest, session: Sessio
 
     form.validate()?;
 
-    // if let Err(errors) = form.validate() {
-    //     return Ok(web::Json(json!({"success": false, "errors": errors})));
-    // }
-
     let user = Users::find().filter(users::Column::Email.eq(&form.email)).one(&ctx.db).await?;
 
     let Some(user) = user else {
         let _ = bcrypt::hash("I want this else branch to take as much time", bcrypt::DEFAULT_COST);
 
-        return Ok(ApiResponse::error("Login failed; Invalid email or password."));
+        return Err(Error::new("Login failed; Invalid email or password."));
     };
 
     let password_hash = std::str::from_utf8(&user.password)?;
 
     if !bcrypt::verify(&form.password, password_hash)? {
-        return Ok(ApiResponse::error("Login failed; Invalid email or password."));
+        return Err(Error::new("Login failed; Invalid email or password."));
     }
 
     if ctx.config.require_email_verification && user.email_verification_hash.is_some() {
-        return Ok(ApiResponse::error("Your email is not yet verified."));
+        return Err(Error::new_with_type("email_unverified", "Your email is not yet verified."));
 
         // view.set("error_message", "Your email is not yet verified.");
 
@@ -409,7 +405,7 @@ async fn login(ctx: web::Data<AppContext<'_>>, req: HttpRequest, session: Sessio
 
     session.insert(format!("seen_{}", user.user_id), true)?;
 
-    Ok(ApiResponse::new(()))
+    Ok(web::Json(()))
 }
 
 #[route("/logout", method = "GET")]

@@ -6,22 +6,38 @@ use actix_web::{
     http::{header::ToStrError, StatusCode},
     HttpResponse,
 };
-use serde_json::json;
+use serde::Serialize;
 
-use crate::{api_response::ApiError, ApiResponse};
+#[derive(Serialize, Debug, Clone)]
+pub struct ErrorMessage {
+    r#type: Option<String>,
+    message: String,
+}
 
-#[derive(Debug)]
+#[derive(Serialize, Debug)]
+#[serde(rename_all = "camelCase")]
 pub enum Error {
     NotFound,
     LoginRequired,
-    UserMessage(String),
-    FieldErrors(HashMap<String, ApiError>),
+    User(ErrorMessage),
+    Fields(HashMap<String, ErrorMessage>),
+    #[serde(skip)]
     Internal(anyhow::Error),
 }
 
 impl Error {
     pub fn new(message: impl Into<String>) -> Self {
-        Self::UserMessage(message.into())
+        Self::User(ErrorMessage {
+            r#type: None,
+            message: message.into(),
+        })
+    }
+
+    pub fn new_with_type(r#type: impl Into<String>, message: impl Into<String>) -> Self {
+        Self::User(ErrorMessage {
+            r#type: Some(r#type.into()),
+            message: message.into(),
+        })
     }
 }
 
@@ -31,9 +47,9 @@ impl fmt::Display for Error {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match self {
             Self::NotFound => write!(f, "Not Found"),
-            Self::UserMessage(msg) => write!(f, "{}", msg),
+            Self::User(msg) => write!(f, "{}", msg.message),
             Self::LoginRequired => write!(f, "Unauthorized"),
-            Self::FieldErrors(_) => write!(f, "Bad Request"),
+            Self::Fields(_) => write!(f, "Bad Request"),
             Self::Internal(_) => write!(f, "An internal error occurred. Please try again later."),
         }
     }
@@ -41,29 +57,30 @@ impl fmt::Display for Error {
 
 impl actix_web::error::ResponseError for Error {
     fn error_response(&self) -> HttpResponse {
-        let response = match self {
-            Self::NotFound => ApiResponse::<()>::error("Not Found".to_string()),
-            Self::UserMessage(msg) => ApiResponse::error(msg.clone()),
-            Self::LoginRequired => ApiResponse::error("Unauthorized".to_string()),
-            Self::FieldErrors(errors) => ApiResponse::errors(errors.clone()),
-            Self::Internal(_) => ApiResponse::error("An internal error occurred. Please try again later.".to_string()),
-        };
-
-        let res = HttpResponse::build(self.status_code()).json(response);
-
+        // log error if it is internal
         if let Self::Internal(e) = self {
             log::error!("{:?}", e);
         }
 
-        res
+        let mut builder = HttpResponse::build(self.status_code());
+
+        // since Error::Internal(anyhow::Error) cannot be serialized we need to transform it to UserMessage
+        if let Self::Internal(_) = self {
+            return builder.json(Self::User(ErrorMessage {
+                r#type: Some("internal_server_error".into()),
+                message: self.to_string(),
+            }));
+        }
+
+        builder.json(self)
     }
 
     fn status_code(&self) -> StatusCode {
         match *self {
             Self::NotFound => StatusCode::NOT_FOUND,
             Self::LoginRequired => StatusCode::UNAUTHORIZED,
-            Self::UserMessage(_) => StatusCode::BAD_REQUEST,
-            Self::FieldErrors(_) => StatusCode::BAD_REQUEST,
+            Self::User(_) => StatusCode::BAD_REQUEST,
+            Self::Fields(_) => StatusCode::BAD_REQUEST,
             Self::Internal(_) => StatusCode::INTERNAL_SERVER_ERROR,
         }
     }
@@ -159,18 +176,18 @@ impl From<validator::ValidationErrors> for Error {
             .field_errors()
             .into_iter()
             .map(|(field, errors)| {
-                let message = errors.iter().filter_map(|e| e.message.clone()).map(|e| e.clone()).collect::<Vec<_>>().join(", ");
+                let message = errors.iter().filter_map(|e| e.message.clone()).collect::<Vec<_>>().join(", ");
 
                 (
                     field.to_string(),
-                    ApiError {
-                        r#type: "server".to_string(),
+                    ErrorMessage {
+                        r#type: Some("server".to_string()),
                         message,
                     },
                 )
             })
             .collect();
 
-        Self::FieldErrors(field_errors)
+        Self::Fields(field_errors)
     }
 }

@@ -1,7 +1,5 @@
 use actix_web::web;
 
-use crate::ApiResponse;
-
 pub mod account;
 pub mod auth;
 pub mod ingress;

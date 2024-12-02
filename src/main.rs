@@ -17,7 +17,6 @@ use tokio::sync::mpsc;
 
 use sea_orm::{prelude::*, ConnectOptions, Database, IntoActiveModel, TryIntoModel};
 
-mod api_response;
 mod config;
 mod entity;
 mod entity_extensions;
@@ -31,7 +30,6 @@ mod view_model;
 use config::Config;
 use notifications::Notification;
 
-pub use api_response::ApiResponse;
 pub use error::Error;
 pub use identity::Identity;
 pub use view_model::ViewModel;

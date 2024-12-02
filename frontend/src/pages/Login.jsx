@@ -7,12 +7,11 @@ import { Stack, Typography, Link } from "@mui/material";
 import ChevronRightIcon from '@mui/icons-material/ChevronRight';
 
 import Logo from "components/Logo";
-import FormServerError from "components/FormServerError";
-import ControlledTextField from "components/ControlledTextField";
+import { FormServerError, ControlledTextField } from "components/form";
 
 const LoginSchema = yup.object({
   email: yup.string().required("Email is required").email("Please enter a valid email address"),
-  password: yup.string().required().min(8, "Password must be at least 8 characters long"),
+  password: yup.string().required("Password is required").min(8, "Password must be at least 8 characters long"),
 }).required();
 
 const Login = () => {
@@ -20,7 +19,7 @@ const Login = () => {
 
   const methods = useForm({
     resolver: yupResolver(LoginSchema),
-    errors: error?.FieldErrors,
+    errors: error?.fields,
     defaultValues: {
       email: "",
       password: "",
