@@ -37,6 +37,7 @@ const theme = createTheme({
       styleOverrides: {
         root: {
           borderRadius: '3px',
+          backgroundColor: '#fbfbfd'
         },
       },
     },
@@ -44,6 +45,15 @@ const theme = createTheme({
       styleOverrides: {
         root: {
           borderRadius: '1000px',
+        },
+      },
+    },
+    MuiFormLabel: {
+      styleOverrides: {
+        root: {
+          fontWeight: 500,
+          fontSize: '0.78rem',
+          color: '#1d1d1f',
         },
       },
     },

@@ -1,36 +1,58 @@
 import * as yup from "yup";
 import useSWRMutation from 'swr/mutation';
 import { yupResolver } from '@hookform/resolvers/yup';
+import { useForm, FormProvider } from "react-hook-form";
 import { LoadingButton } from "@mui/lab";
 import { Stack, Typography, Link } from "@mui/material";
-import { FormContainer, TextFieldElement, PasswordElement } from 'react-hook-form-mui';
 import ChevronRightIcon from '@mui/icons-material/ChevronRight';
 
 import Logo from "components/Logo";
+import FormServerError from "components/FormServerError";
+import ControlledTextField from "components/ControlledTextField";
+
+const LoginSchema = yup.object({
+  email: yup.string().required("Email is required").email("Please enter a valid email address"),
+  password: yup.string().required().min(8, "Password must be at least 8 characters long"),
+}).required();
 
 const Login = () => {
-  const { trigger } = useSWRMutation('/api/auth/login');
+  const { trigger, error, isMutating } = useSWRMutation('/api/auth/login');
+
+  const methods = useForm({
+    resolver: yupResolver(LoginSchema),
+    errors: error?.FieldErrors,
+    defaultValues: {
+      email: "",
+      password: "",
+    },
+  });
+
+  const onSubmit = (data) => {
+    trigger(data).catch((e) => methods.setError('root.serverError', { message: e.message }));
+  };
 
   return (
-    <FormContainer onSuccess={(data) => trigger(data)} resolver={yupResolver(LoginSchema)}>
-      <Stack alignItems="center" spacing={2} useFlexGap>
+    <FormProvider {...methods}>
+      <Stack component="form" onSubmit={methods.handleSubmit(onSubmit)} noValidate alignItems="center" spacing={2} useFlexGap>
         <Logo sx={{ width: '100px', mb: 2 }} />
         <Typography variant="h5" align="center" sx={{ fontWeight: 'bold', mb: 1 }}>Login to your account</Typography>
 
-        <TextFieldElement name="email" label="Email" placeholder="user@example.com" fullWidth helperText=" " type="email" />
+        <ControlledTextField name="email" type="email" label="Email" placeholder="user@example.com" fullWidth />
 
-        <PasswordElement name="password" label="Password" fullWidth helperText=" " />
+        <ControlledTextField name="password" type="password" label="Password" placeholder="••••••" fullWidth />
 
         <LoadingButton
           type="submit"
           variant="contained"
-          loading={false}
+          loading={isMutating}
           loadingPosition="end"
           endIcon={<ChevronRightIcon />}
           fullWidth
         >
           Login
         </LoadingButton>
+
+        <FormServerError />
 
         <Typography align="center" sx={{ my: 1 }}>
           Don&lsquo;t have an account?
@@ -40,13 +62,8 @@ const Login = () => {
 
         <Link href="#">Forgot your password?</Link>
       </Stack>
-    </FormContainer>
+    </FormProvider>
   );
 };
-
-const LoginSchema = yup.object({
-  email: yup.string().required("Email is required").email("Please enter a valid email address"),
-  password: yup.string().required(),
-}).required();
 
 export default Login;

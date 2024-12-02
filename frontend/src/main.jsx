@@ -13,11 +13,16 @@ const fetcher = async (url, { arg }) => {
   const res = await fetch(api_url + url, {
     method: arg ? 'POST' : 'GET',
     body: arg ? JSON.stringify(arg) : null,
+    headers: {
+      'Content-Type': 'application/json',
+    },
   });
 
   if (!res.ok) {
-    const error = new Error('An error occurred while executing request');
-    error.data = await res.json();
+    const data = await res.json();
+
+    const error = new Error(data.Error);
+    error.FieldErrors = data.FieldErrors;
     error.status = res.status;
     throw error;
   }

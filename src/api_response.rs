@@ -1,13 +1,23 @@
 use std::collections::HashMap;
 
-use actix_web::{body::BoxBody, http::header::ContentType, HttpRequest, HttpResponse, Responder};
+use actix_web::{
+    body::BoxBody,
+    http::{header::ContentType, StatusCode},
+    HttpRequest, HttpResponse, Responder,
+};
 use serde::Serialize;
+
+#[derive(Serialize, Debug, Clone)]
+pub struct ApiError {
+    pub r#type: String,
+    pub message: String,
+}
 
 #[derive(Serialize, Debug, Clone)]
 pub enum ApiResponse<T> {
     Data(T),
     Error(String),
-    FieldErrors(HashMap<String, String>),
+    FieldErrors(HashMap<String, ApiError>),
 }
 
 impl<T> ApiResponse<T> {
@@ -19,7 +29,7 @@ impl<T> ApiResponse<T> {
         Self::Error(error.into())
     }
 
-    pub fn field_errors(errors: HashMap<String, String>) -> Self {
+    pub fn errors(errors: HashMap<String, ApiError>) -> Self {
         Self::FieldErrors(errors)
     }
 }
@@ -29,6 +39,13 @@ impl<T: Serialize> Responder for ApiResponse<T> {
 
     fn respond_to(self, _req: &HttpRequest) -> HttpResponse<Self::Body> {
         let body = serde_json::to_string(&self).unwrap();
-        HttpResponse::Ok().content_type(ContentType::json()).body(body)
+
+        let status = match self {
+            ApiResponse::Data(_) => StatusCode::OK,
+            ApiResponse::Error(_) => StatusCode::BAD_REQUEST,
+            ApiResponse::FieldErrors(_) => StatusCode::BAD_REQUEST,
+        };
+
+        HttpResponse::build(status).content_type(ContentType::json()).body(body)
     }
 }

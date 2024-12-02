@@ -8,14 +8,14 @@ use actix_web::{
 };
 use serde_json::json;
 
-use crate::ApiResponse;
+use crate::{api_response::ApiError, ApiResponse};
 
 #[derive(Debug)]
 pub enum Error {
     NotFound,
     LoginRequired,
     UserMessage(String),
-    FieldErrors(HashMap<String, String>),
+    FieldErrors(HashMap<String, ApiError>),
     Internal(anyhow::Error),
 }
 
@@ -45,7 +45,7 @@ impl actix_web::error::ResponseError for Error {
             Self::NotFound => ApiResponse::<()>::error("Not Found".to_string()),
             Self::UserMessage(msg) => ApiResponse::error(msg.clone()),
             Self::LoginRequired => ApiResponse::error("Unauthorized".to_string()),
-            Self::FieldErrors(errors) => ApiResponse::field_errors(errors.clone()),
+            Self::FieldErrors(errors) => ApiResponse::errors(errors.clone()),
             Self::Internal(_) => ApiResponse::error("An internal error occurred. Please try again later.".to_string()),
         };
 
@@ -159,9 +159,15 @@ impl From<validator::ValidationErrors> for Error {
             .field_errors()
             .into_iter()
             .map(|(field, errors)| {
-                let errors = errors.iter().filter_map(|e| e.message.clone()).map(|e| e.clone()).collect::<Vec<_>>().join(", ");
+                let message = errors.iter().filter_map(|e| e.message.clone()).map(|e| e.clone()).collect::<Vec<_>>().join(", ");
 
-                (field.to_string(), errors)
+                (
+                    field.to_string(),
+                    ApiError {
+                        r#type: "server".to_string(),
+                        message,
+                    },
+                )
             })
             .collect();
 
