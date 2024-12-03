@@ -1,7 +1,7 @@
 import useSWR from 'swr';
 
 const ReportsList = () => {
-  const { data, error, isLoading } = useSWR('http://localhost:8080/reports');
+  //const { data, error, isLoading } = useSWR('http://localhost:8080/reports');
 
   return (
     <div>

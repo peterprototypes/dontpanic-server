@@ -69,7 +69,9 @@ impl AppContext<'static> {
 
         // mailer
         let mailer = if let Some(url) = config.email_url.as_ref() {
-            let mailer: AsyncSmtpTransport<Tokio1Executor> = AsyncSmtpTransport::<Tokio1Executor>::from_url(url)?.pool_config(PoolConfig::new().max_size(100)).build();
+            let mailer: AsyncSmtpTransport<Tokio1Executor> = AsyncSmtpTransport::<Tokio1Executor>::from_url(url)?
+                .pool_config(PoolConfig::new().max_size(100))
+                .build();
 
             Some(mailer)
         } else {
@@ -145,7 +147,11 @@ impl AppContext<'static> {
 
 #[actix_web::main]
 async fn main() -> anyhow::Result<()> {
-    let env = env_logger::Env::new().default_filter_or(if cfg!(debug_assertions) { "debug,handlebars=info" } else { "info" });
+    let env = env_logger::Env::new().default_filter_or(if cfg!(debug_assertions) {
+        "debug,handlebars=info"
+    } else {
+        "info"
+    });
     env_logger::init_from_env(env);
 
     log::info!("Starting");
@@ -171,6 +177,9 @@ async fn main() -> anyhow::Result<()> {
             .allow_any_header()
             .allowed_methods(vec!["OPTIONS", "POST", "GET", "DELETE"])
             .max_age(3600);
+
+        #[cfg(debug_assertions)]
+        let cors = cors.supports_credentials();
 
         App::new()
             .wrap(HtmxMiddleware)
@@ -205,20 +214,34 @@ async fn main() -> anyhow::Result<()> {
 
 #[get("/")]
 async fn index() -> HttpResponse {
-    HttpResponse::TemporaryRedirect().insert_header((LOCATION, "/login")).finish()
+    HttpResponse::TemporaryRedirect()
+        .insert_header((LOCATION, "/login"))
+        .finish()
 }
 
 fn date(h: &Helper, _: &Handlebars, _: &Context, _rc: &mut RenderContext, out: &mut dyn Output) -> HelperResult {
-    let date_param = h.hash_get("date").map(|v| v.value()).ok_or(RenderErrorReason::ParamNotFoundForIndex("dateFmt", 0))?;
-    let tz_name_param = h.hash_get("tz").map(|v| v.value()).ok_or(RenderErrorReason::ParamNotFoundForIndex("dateFmt", 1))?;
-    let simple = h.hash_get("simple").map(|v| v.value()).map(|v| v.render()).filter(|s| !s.is_empty());
+    let date_param = h
+        .hash_get("date")
+        .map(|v| v.value())
+        .ok_or(RenderErrorReason::ParamNotFoundForIndex("dateFmt", 0))?;
+    let tz_name_param = h
+        .hash_get("tz")
+        .map(|v| v.value())
+        .ok_or(RenderErrorReason::ParamNotFoundForIndex("dateFmt", 1))?;
+    let simple = h
+        .hash_get("simple")
+        .map(|v| v.value())
+        .map(|v| v.render())
+        .filter(|s| !s.is_empty());
 
     let date = date_param.render();
     let tz_name = tz_name_param.render();
 
     let tz_name = if tz_name.is_empty() { "UTC".to_string() } else { tz_name };
 
-    let tz: Tz = tz_name.parse().map_err(|e| RenderErrorReason::NestedError(Box::new(e)))?;
+    let tz: Tz = tz_name
+        .parse()
+        .map_err(|e| RenderErrorReason::NestedError(Box::new(e)))?;
 
     let date_user = NaiveDateTime::parse_and_remainder(&date, "%Y-%m-%dT%H:%M:%S")
         .map_err(|e| RenderErrorReason::NestedError(Box::new(e)))?
@@ -241,15 +264,23 @@ fn timestamp(h: &Helper, _: &Handlebars, _: &Context, _rc: &mut RenderContext, o
         .map(|v| v.value())
         .ok_or(RenderErrorReason::ParamNotFoundForIndex("timestampFmt", 0))?;
 
-    let tz_name_param = h.hash_get("tz").map(|v| v.value()).ok_or(RenderErrorReason::ParamNotFoundForIndex("timestampFmt", 1))?;
+    let tz_name_param = h
+        .hash_get("tz")
+        .map(|v| v.value())
+        .ok_or(RenderErrorReason::ParamNotFoundForIndex("timestampFmt", 1))?;
     let format = h.hash_get("format").map(|v| v.value().render()).unwrap_or_default();
 
-    let timestamp: i64 = timestamp_param.render().parse().map_err(|e| RenderErrorReason::NestedError(Box::new(e)))?;
+    let timestamp: i64 = timestamp_param
+        .render()
+        .parse()
+        .map_err(|e| RenderErrorReason::NestedError(Box::new(e)))?;
     let tz_name = tz_name_param.render();
 
     let tz_name = if tz_name.is_empty() { "UTC".to_string() } else { tz_name };
 
-    let tz: Tz = tz_name.parse().map_err(|e| RenderErrorReason::NestedError(Box::new(e)))?;
+    let tz: Tz = tz_name
+        .parse()
+        .map_err(|e| RenderErrorReason::NestedError(Box::new(e)))?;
 
     let date_user = chrono::DateTime::from_timestamp(timestamp, 0)
         .ok_or_else(|| RenderErrorReason::Other("Cannot construct datetime from log timestamp".to_string()))?
@@ -265,7 +296,13 @@ fn timestamp(h: &Helper, _: &Handlebars, _: &Context, _rc: &mut RenderContext, o
     Ok(())
 }
 
-fn simple_percent(h: &Helper, _: &Handlebars, _: &Context, _rc: &mut RenderContext, out: &mut dyn Output) -> HelperResult {
+fn simple_percent(
+    h: &Helper,
+    _: &Handlebars,
+    _: &Context,
+    _rc: &mut RenderContext,
+    out: &mut dyn Output,
+) -> HelperResult {
     let count = h.hash_get("count").map(|v| v.value().render()).unwrap_or_default();
     let total = h.hash_get("total").map(|v| v.value().render()).unwrap_or_default();
 
@@ -279,7 +316,10 @@ fn simple_percent(h: &Helper, _: &Handlebars, _: &Context, _rc: &mut RenderConte
 }
 
 fn urlencode(h: &Helper, _: &Handlebars, _: &Context, _rc: &mut RenderContext, out: &mut dyn Output) -> HelperResult {
-    let param = h.param(0).map(|v| v.value()).ok_or(RenderErrorReason::ParamNotFoundForIndex("urlencode", 0))?;
+    let param = h
+        .param(0)
+        .map(|v| v.value())
+        .ok_or(RenderErrorReason::ParamNotFoundForIndex("urlencode", 0))?;
 
     let param = param.render();
 
@@ -306,7 +346,10 @@ async fn create_default_user(db: &DatabaseConnection, config: &Config) -> Result
 
     let hashed_password = bcrypt::hash(user_pass, bcrypt::DEFAULT_COST)?;
 
-    let probe = Users::find().filter(users::Column::Email.eq(user_email)).one(db).await?;
+    let probe = Users::find()
+        .filter(users::Column::Email.eq(user_email))
+        .one(db)
+        .await?;
 
     let mut user = if let Some(user) = probe {
         user.into_active_model()
@@ -326,7 +369,10 @@ async fn create_default_user(db: &DatabaseConnection, config: &Config) -> Result
     let user = user.save(db).await?.try_into_model()?;
 
     if is_new {
-        let organization_name = config.default_user_organization.as_deref().unwrap_or("Default Organization");
+        let organization_name = config
+            .default_user_organization
+            .as_deref()
+            .unwrap_or("Default Organization");
 
         let requests_limit = config.organization_requests_limit;
 

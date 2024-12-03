@@ -1,5 +1,6 @@
 import * as yup from "yup";
 import useSWRMutation from 'swr/mutation';
+import { useNavigate, Link as RouterLink } from "react-router";
 import { yupResolver } from '@hookform/resolvers/yup';
 import { useForm, FormProvider } from "react-hook-form";
 import { LoadingButton } from "@mui/lab";
@@ -15,6 +16,8 @@ const LoginSchema = yup.object({
 }).required();
 
 const Login = () => {
+  let navigate = useNavigate();
+
   const { trigger, error, isMutating } = useSWRMutation('/api/auth/login');
 
   const methods = useForm({
@@ -27,7 +30,9 @@ const Login = () => {
   });
 
   const onSubmit = (data) => {
-    trigger(data).catch((e) => methods.setError('root.serverError', { message: e.message }));
+    trigger(data)
+      .then(() => navigate("/reports"))
+      .catch((e) => methods.setError('root.serverError', { message: e.message }));
   };
 
   return (
@@ -56,10 +61,10 @@ const Login = () => {
         <Typography align="center" sx={{ my: 1 }}>
           Don&lsquo;t have an account?
           {' '}
-          <Link href="#">Register</Link>
+          <Link component={RouterLink} to="/register">Register</Link>
         </Typography>
 
-        <Link href="#">Forgot your password?</Link>
+        <Link component={RouterLink} to="/request-password-reset">Forgot your password?</Link>
       </Stack>
     </FormProvider>
   );
