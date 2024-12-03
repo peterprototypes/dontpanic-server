@@ -5,7 +5,7 @@ use sea_orm::prelude::*;
 use serde::Deserialize;
 use validator::Validate;
 
-use crate::{AppContext, Error, Identity, Result};
+use crate::{AppContext, Error, Result};
 
 use crate::entity::prelude::*;
 use crate::entity::users;
@@ -27,18 +27,7 @@ pub async fn login(
     req: HttpRequest,
     session: Session,
     form: web::Json<LoginRequest>,
-    identity: Option<Identity>,
 ) -> Result<impl Responder> {
-    if let Some(identity) = identity {
-        let user = Users::find_by_id(identity.user_id).one(&ctx.db).await?;
-
-        if user.is_some() {
-            return Ok(web::Json(()));
-        } else {
-            session.remove("uid");
-        }
-    }
-
     form.validate()?;
 
     let user = Users::find()

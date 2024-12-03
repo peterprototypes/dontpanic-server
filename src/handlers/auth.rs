@@ -1,9 +1,9 @@
 use actix_session::Session;
-use actix_web::HttpResponse;
-use actix_web::{route, web};
+use actix_web::{get, web};
+use actix_web::{HttpResponse, Responder};
 
+use crate::Error;
 use crate::Result;
-use crate::{Error, ViewModel};
 
 mod login;
 mod register;
@@ -25,13 +25,8 @@ pub fn routes(cfg: &mut web::ServiceConfig) {
         .default_service(web::route().to(|| async { Err::<HttpResponse, _>(Error::new("Not Found")) }));
 }
 
-#[route("/logout", method = "GET")]
-async fn logout(session: Session) -> Result<ViewModel> {
-    let mut view = ViewModel::default();
-
+#[get("/logout")]
+async fn logout(session: Session) -> Result<impl Responder> {
     session.remove("uid");
-
-    view.redirect("/login", true);
-
-    Ok(view)
+    Ok(web::Json(()))
 }
