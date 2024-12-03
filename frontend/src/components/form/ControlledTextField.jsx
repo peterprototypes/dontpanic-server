@@ -38,6 +38,7 @@ const ControlledTextField = ({
             onMouseDown={handleMouseDownPassword}
             onMouseUp={handleMouseUpPassword}
             edge="end"
+            tabIndex={-1}
           >
             {showPassword ? <VisibilityOff /> : <Visibility />}
           </IconButton>

@@ -8,7 +8,7 @@ export const UserProvider = ({ children }) => {
   const { data, error } = useSWR("/api/auth/user");
 
   if (error) {
-    return <Navigate to="/login" replace />;
+    return <Navigate to="/auth/login" replace />;
   }
 
   return (

@@ -5,11 +5,12 @@ import AppLayout from "components/AppLayout";
 import AuthLayout from "components/AuthLayout";
 import Footer from "components/Footer";
 
-import Login from "./pages/Login";
-import Register from "./pages/Register";
+import Login from "./pages/auth/Login";
+import Register from "./pages/auth/Register";
 import Reports from "./pages/Reports";
-import PasswordResetRequest from "./pages/PasswordReset";
-import VerifyEmail from "./pages/VerifyEmail";
+import PasswordResetRequest from "./pages/auth/PasswordResetRequest";
+import PasswordReset from "./pages/auth/PasswordReset";
+import VerifyEmail from "./pages/auth/VerifyEmail";
 
 const App = () => {
   return (
@@ -21,11 +22,12 @@ const App = () => {
             <Route index element={<Navigate to="/reports" replace />} />
           </Route>
 
-          <Route element={<AuthLayout />}>
+          <Route element={<AuthLayout />} path="/auth">
             <Route path="login" element={<Login />} />
             <Route path="register" element={<Register />} />
             <Route path="verify-email/:hash" element={<VerifyEmail />} />
             <Route path="request-password-reset" element={<PasswordResetRequest />} />
+            <Route path="password-reset/:hash" element={<PasswordReset />} />
           </Route>
         </Routes>
       </BrowserRouter >

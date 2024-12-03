@@ -1,3 +1,4 @@
+import React from 'react';
 import * as yup from "yup";
 import useSWRMutation from 'swr/mutation';
 import { useNavigate, Link as RouterLink } from "react-router";
@@ -8,6 +9,7 @@ import { Stack, Typography, Link } from "@mui/material";
 import ChevronRightIcon from '@mui/icons-material/ChevronRight';
 
 import Logo from "components/Logo";
+import ResendVerificationEmail from 'components/ResendVerificationEmail';
 import { FormServerError, ControlledTextField } from "components/form";
 
 const LoginSchema = yup.object({
@@ -17,6 +19,8 @@ const LoginSchema = yup.object({
 
 const Login = () => {
   let navigate = useNavigate();
+
+  const [showResendVerification, setShowResendVerification] = React.useState(false);
 
   const { trigger, error, isMutating } = useSWRMutation('/api/auth/login');
 
@@ -30,9 +34,14 @@ const Login = () => {
   });
 
   const onSubmit = (data) => {
+    setShowResendVerification(false);
+
     trigger(data)
       .then(() => navigate("/reports"))
-      .catch((e) => methods.setError('root.serverError', { message: e.message }));
+      .catch((e) => {
+        methods.setError('root.serverError', { message: e.message });
+        setShowResendVerification(e?.user?.type === 'email_unverified');
+      });
   };
 
   return (
@@ -58,13 +67,15 @@ const Login = () => {
 
         <FormServerError />
 
+        {showResendVerification && <ResendVerificationEmail email={methods.watch("email")} initialWait={10} variant="text" />}
+
         <Typography align="center" sx={{ my: 1 }}>
           Don&lsquo;t have an account?
           {' '}
-          <Link component={RouterLink} to="/register">Register</Link>
+          <Link component={RouterLink} to="/auth/register">Register</Link>
         </Typography>
 
-        <Link component={RouterLink} to="/request-password-reset">Forgot your password?</Link>
+        <Link component={RouterLink} to="/auth/request-password-reset">Forgot your password?</Link>
       </Stack>
     </FormProvider>
   );

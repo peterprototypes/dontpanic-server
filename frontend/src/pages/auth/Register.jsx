@@ -2,7 +2,6 @@ import React from 'react';
 import * as yup from "yup";
 import useSWRMutation from 'swr/mutation';
 import { Link as RouterLink } from "react-router";
-import { enqueueSnackbar } from 'notistack';
 import { yupResolver } from '@hookform/resolvers/yup';
 import { useForm, FormProvider } from "react-hook-form";
 import { LoadingButton } from "@mui/lab";
@@ -10,6 +9,7 @@ import { Stack, Typography, Link } from "@mui/material";
 import ChevronRightIcon from '@mui/icons-material/ChevronRight';
 
 import Logo from "components/Logo";
+import ResendVerificationEmail from 'components/ResendVerificationEmail';
 import { FormServerError, ControlledTextField } from "components/form";
 
 const RegisterSchema = yup.object({
@@ -62,7 +62,7 @@ const Register = () => {
           Your account is created. You can now login and start tracking errors and panics.
         </Typography>
 
-        <Link component={RouterLink} to="/login">Go to Login</Link>
+        <Link component={RouterLink} to="/auth/login">Go to Login</Link>
       </Stack>
     );
   }
@@ -97,41 +97,10 @@ const Register = () => {
         <Typography align="center" sx={{ my: 1 }}>
           Already have an account?
           {' '}
-          <Link component={RouterLink} to="/login">Login</Link>
+          <Link component={RouterLink} to="/auth/login">Login</Link>
         </Typography>
       </Stack>
     </FormProvider>
-  );
-};
-
-const ResendVerificationEmail = ({ email }) => {
-  const { trigger, isMutating } = useSWRMutation('/api/auth/resend-verification-email');
-
-  const [waitTime, setWaitTime] = React.useState(60);
-
-  const onSend = () => {
-    trigger({ email })
-      .then(() => setWaitTime(60))
-      .catch((e) => enqueueSnackbar(e.message, { variant: 'error' }));
-  };
-
-  React.useEffect(() => {
-    if (waitTime > 0) {
-      const timer = setTimeout(() => setWaitTime(waitTime - 1), 1000);
-      return () => clearTimeout(timer);
-    }
-  }, [waitTime]);
-
-  return (
-    <LoadingButton
-      onClick={onSend}
-      variant="contained"
-      disabled={waitTime > 0}
-      loading={isMutating}
-    >
-      Resend Verification Email
-      {waitTime > 0 && ` in ${waitTime}s`}
-    </LoadingButton>
   );
 };
 

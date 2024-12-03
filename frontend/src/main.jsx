@@ -1,4 +1,3 @@
-import { StrictMode } from 'react';
 import { createRoot } from 'react-dom/client';
 import { SWRConfig } from 'swr';
 import CssBaseline from '@mui/material/CssBaseline';
@@ -38,7 +37,7 @@ const authMiddleware = (useSWRNext) => {
     const swr = useSWRNext(key, fetcher, config);
 
     if (swr?.error?.status === 401) {
-      window.location.href = '/login';
+      window.location.href = '/auth/login';
     }
 
     return swr;
@@ -52,14 +51,12 @@ const SWR_OPTIONS = {
 };
 
 createRoot(document.getElementById('root')).render(
-  <StrictMode>
-    <SWRConfig value={SWR_OPTIONS}>
-      <ThemeProvider theme={theme}>
-        <CssBaseline />
-        <SnackbarProvider>
-          <App />
-        </SnackbarProvider>
-      </ThemeProvider>
-    </SWRConfig>
-  </StrictMode>,
+  <SWRConfig value={SWR_OPTIONS}>
+    <ThemeProvider theme={theme}>
+      <CssBaseline />
+      <SnackbarProvider>
+        <App />
+      </SnackbarProvider>
+    </ThemeProvider>
+  </SWRConfig>,
 );

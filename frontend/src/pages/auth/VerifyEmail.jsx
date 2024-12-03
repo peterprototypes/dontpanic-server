@@ -24,7 +24,7 @@ const VerifyEmail = () => {
       {!error && (<>
         <Typography variant="h6" align="center">Your email is confirmed. You&lsquo;re ready to start tracking panics and error messages in your Rust apps.</Typography>
         <Typography variant="h6" align="center">
-          <Link component={RouterLink} to="/login">Login</Link>
+          <Link component={RouterLink} to="/auth/login">Login</Link>
           {' '}
           to your account.
         </Typography>

@@ -104,3 +104,30 @@ pub async fn login(
 
     Ok(web::Json(()))
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use actix_web::{test, web, App};
+    use serde_json::json;
+
+    #[actix_web::test]
+    async fn test_login() {
+        let ctx = crate::AppContext::testing().await.unwrap();
+        let app = test::init_service(App::new().app_data(web::Data::new(ctx)).service(login)).await;
+
+        let req = test::TestRequest::post()
+            .uri("/login")
+            .set_json(json!({
+                "email": "testing@dontpanic.rs",
+                "password": "password"
+            }))
+            .to_request();
+
+        let resp = test::call_service(&app, req).await;
+        assert!(resp.status().is_success());
+
+        // let res: serde_json::Value = test::read_body_json(resp).await;
+        // assert!(res.is_object());
+    }
+}
