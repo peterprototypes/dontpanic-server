@@ -1,8 +1,8 @@
 import { Typography } from "@mui/material";
-import { useFormContext } from "react-hook-form";
+import { useFormState } from "react-hook-form";
 
 const FormServerError = (props) => {
-  const { formState: { errors } } = useFormContext();
+  const { errors } = useFormState();
 
   return errors?.root?.serverError ? <Typography color="error" {...props}>{errors.root.serverError.message}</Typography> : null;
 };

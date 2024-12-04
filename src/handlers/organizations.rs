@@ -25,7 +25,7 @@ use crate::ViewModel;
 use crate::{AppContext, Error};
 
 pub fn routes(cfg: &mut web::ServiceConfig) {
-    cfg.service(web::scope("/organizations").service(list));
+    cfg.service(list);
 
     // cfg.service(organization)
     //     .service(org_create)

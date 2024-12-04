@@ -3,6 +3,7 @@ import { SWRConfig } from 'swr';
 import CssBaseline from '@mui/material/CssBaseline';
 import { ThemeProvider } from '@mui/material/styles';
 import { SnackbarProvider } from 'notistack';
+import { ConfirmProvider } from "material-ui-confirm";
 
 import App from './App.jsx';
 import theme from './theme';
@@ -54,8 +55,10 @@ createRoot(document.getElementById('root')).render(
   <SWRConfig value={SWR_OPTIONS}>
     <ThemeProvider theme={theme}>
       <CssBaseline />
-      <SnackbarProvider>
-        <App />
+      <SnackbarProvider anchorOrigin={{ horizontal: 'right', vertical: 'bottom' }}>
+        <ConfirmProvider>
+          <App />
+        </ConfirmProvider>
       </SnackbarProvider>
     </ThemeProvider>
   </SWRConfig>,

@@ -5,7 +5,7 @@ import useSWR from "swr";
 const UserContext = React.createContext();
 
 export const UserProvider = ({ children }) => {
-  const { data, error } = useSWR("/api/auth/user");
+  const { data, error } = useSWR("/api/account");
 
   if (error) {
     return <Navigate to="/auth/login" replace />;

@@ -1,8 +1,9 @@
 import useSWRMutation from 'swr/mutation';
 import * as yup from "yup";
+import { useSnackbar } from 'notistack';
 import { useForm, FormProvider } from 'react-hook-form';
 import { yupResolver } from '@hookform/resolvers/yup';
-import { Box, Divider, Grid2 as Grid, Stack, Typography } from '@mui/material';
+import { Box, Button, Divider, Grid2 as Grid, Stack, Typography, Paper } from '@mui/material';
 import { LoadingButton } from "@mui/lab";
 
 import { useUser } from 'context/user';
@@ -10,23 +11,25 @@ import { useUser } from 'context/user';
 import SideMenu from 'components/SideMenu';
 import { FormServerError, ControlledTextField } from "components/form";
 import { SaveIcon } from 'components/ConsistentIcons';
+import DeleteAccount from 'components/DeleteAccount';
 
 const Account = () => {
   const { user } = useUser();
+  const { enqueueSnackbar } = useSnackbar();
 
-  const { trigger, error, isMutating } = useSWRMutation('/api/auth/login');
+  const { trigger, error, isMutating } = useSWRMutation('/api/account');
 
   const methods = useForm({
     resolver: yupResolver(AccountSchema),
     errors: error?.fields,
     defaultValues: {
-      name: "",
+      name: user.name,
     },
   });
 
   const onSubmit = (data) => {
     trigger(data)
-      .then(() => { })
+      .then(() => enqueueSnackbar("Your account has been updated", { variant: 'success' }))
       .catch((e) => methods.setError('root.serverError', { message: e.message }));
   };
 
@@ -48,7 +51,7 @@ const Account = () => {
         <FormProvider {...methods}>
           <Stack component="form" spacing={2} sx={{ mt: 2 }} onSubmit={methods.handleSubmit(onSubmit)} noValidate useFlexGap>
 
-            <ControlledTextField name="name" label="Your Name" placeholder="John Doe" fullWidth helperText="Max 100 characters" />
+            <ControlledTextField name="name" label="Your Name" placeholder="John Doe" fullWidth helperText="Max 100 characters" required />
 
             <Stack direction="row" spacing={2} alignItems="center">
               <LoadingButton
@@ -63,9 +66,12 @@ const Account = () => {
               </LoadingButton>
               <FormServerError />
             </Stack>
-
           </Stack>
         </FormProvider>
+
+        <Divider sx={{ mt: 4 }} />
+
+        <DeleteAccount />
       </Grid>
     </Grid>
   );
@@ -74,5 +80,7 @@ const Account = () => {
 const AccountSchema = yup.object({
   name: yup.string().required("Name is required"),
 }).required();
+
+
 
 export default Account;
