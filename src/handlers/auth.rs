@@ -1,8 +1,6 @@
 use actix_session::Session;
-use actix_web::{get, web};
-use actix_web::{HttpResponse, Responder};
+use actix_web::{get, web, Responder};
 
-use crate::Error;
 use crate::Result;
 
 mod login;
@@ -14,15 +12,17 @@ mod user;
 mod verify_email;
 
 pub fn routes(cfg: &mut web::ServiceConfig) {
-    cfg.service(register::register)
-        .service(login::login)
-        .service(user::user)
-        .service(logout)
-        .service(verify_email::verify_email)
-        .service(resend_verification_email::resend_verification_email)
-        .service(request_password_reset::request_password_reset)
-        .service(reset_password::reset_password)
-        .default_service(web::route().to(|| async { Err::<HttpResponse, _>(Error::new("Not Found")) }));
+    cfg.service(
+        web::scope("/auth")
+            .service(register::register)
+            .service(login::login)
+            .service(user::user)
+            .service(logout)
+            .service(verify_email::verify_email)
+            .service(resend_verification_email::resend_verification_email)
+            .service(request_password_reset::request_password_reset)
+            .service(reset_password::reset_password),
+    );
 }
 
 #[get("/logout")]

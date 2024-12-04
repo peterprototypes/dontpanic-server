@@ -1,3 +1,4 @@
+use actix_web::Responder;
 use actix_web::{delete, get, post, route, web};
 use chrono::{Days, Utc};
 use lettre::AsyncTransport;
@@ -24,21 +25,67 @@ use crate::ViewModel;
 use crate::{AppContext, Error};
 
 pub fn routes(cfg: &mut web::ServiceConfig) {
-    cfg.service(organization)
-        .service(org_create)
-        .service(org_delete)
-        .service(org_settings)
-        .service(org_notifications)
-        .service(org_members)
-        .service(org_projects)
-        .service(org_project_create)
-        .service(org_project_edit)
-        .service(org_project_delete)
-        .service(org_invite)
-        .service(org_invite_delete)
-        .service(org_invite_resend)
-        .service(org_member_edit)
-        .service(org_member_delete);
+    cfg.service(web::scope("/organizations").service(list));
+
+    // cfg.service(organization)
+    //     .service(org_create)
+    //     .service(org_delete)
+    //     .service(org_settings)
+    //     .service(org_notifications)
+    //     .service(org_members)
+    //     .service(org_projects)
+    //     .service(org_project_create)
+    //     .service(org_project_edit)
+    //     .service(org_project_delete)
+    //     .service(org_invite)
+    //     .service(org_invite_delete)
+    //     .service(org_invite_resend)
+    //     .service(org_member_edit)
+    //     .service(org_member_delete);
+}
+
+#[derive(Serialize, Debug)]
+struct Organization {
+    organization_id: u32,
+    name: String,
+    requests_limit: Option<u32>,
+    requests_count: Option<u32>,
+    requests_count_start: Option<DateTime>,
+    is_enabled: i8,
+    created: DateTime,
+    projects: Vec<projects::Model>,
+}
+
+impl Organization {
+    fn from_model(org: organizations::Model, projects: Vec<projects::Model>) -> Self {
+        Self {
+            organization_id: org.organization_id,
+            name: org.name,
+            requests_limit: org.requests_limit,
+            requests_count: org.requests_count,
+            requests_count_start: org.requests_count_start,
+            is_enabled: org.is_enabled,
+            created: org.created,
+            projects,
+        }
+    }
+}
+
+#[get("")]
+async fn list(ctx: web::Data<AppContext<'_>>, identity: Identity) -> Result<impl Responder> {
+    let user = identity.user(&ctx).await?;
+
+    let organizations: Vec<Organization> = Organizations::find()
+        .filter(organization_users::Column::UserId.eq(user.user_id))
+        .join(JoinType::InnerJoin, organizations::Relation::OrganizationUsers.def())
+        .find_with_related(Projects)
+        .all(&ctx.db)
+        .await?
+        .into_iter()
+        .map(|(org, projects)| Organization::from_model(org, projects))
+        .collect();
+
+    Ok(web::Json(organizations))
 }
 
 #[derive(Deserialize)]
@@ -47,7 +94,12 @@ struct OrganizationQuery {
 }
 
 #[get("/organization/{organization_id}")]
-async fn organization(ctx: web::Data<AppContext<'_>>, identity: Identity, path: web::Path<u32>, query: web::Query<OrganizationQuery>) -> Result<ViewModel> {
+async fn organization(
+    ctx: web::Data<AppContext<'_>>,
+    identity: Identity,
+    path: web::Path<u32>,
+    query: web::Query<OrganizationQuery>,
+) -> Result<ViewModel> {
     let mut view = ViewModel::with_template("organizations/view");
 
     let user = identity.user(&ctx).await?;
@@ -56,13 +108,16 @@ async fn organization(ctx: web::Data<AppContext<'_>>, identity: Identity, path: 
     let organization_id = path.into_inner();
     view.set("org_id", organization_id);
 
-    view.set("active_tab", match query.tab.as_deref() {
-        Some("projects") => "projects",
-        Some("settings") => "settings",
-        Some("members") => "members",
-        Some("notifications") => "notifications",
-        _ => "projects",
-    });
+    view.set(
+        "active_tab",
+        match query.tab.as_deref() {
+            Some("projects") => "projects",
+            Some("settings") => "settings",
+            Some("members") => "members",
+            Some("notifications") => "notifications",
+            _ => "projects",
+        },
+    );
 
     Ok(view)
 }
@@ -74,7 +129,11 @@ struct NewOrganizationForm {
 }
 
 #[route("/create-organization", method = "GET", method = "POST")]
-async fn org_create(ctx: web::Data<AppContext<'_>>, identity: Identity, form: Option<web::Form<NewOrganizationForm>>) -> Result<ViewModel> {
+async fn org_create(
+    ctx: web::Data<AppContext<'_>>,
+    identity: Identity,
+    form: Option<web::Form<NewOrganizationForm>>,
+) -> Result<ViewModel> {
     let mut view = ViewModel::with_template("organizations/create");
 
     let user = identity.user(&ctx).await?;
@@ -101,7 +160,8 @@ async fn org_create(ctx: web::Data<AppContext<'_>>, identity: Identity, form: Op
             let mut errors = ValidationErrors::new();
             errors.add(
                 "name",
-                ValidationError::new("exists").with_message("An organization with the same name already exists.".into()),
+                ValidationError::new("exists")
+                    .with_message("An organization with the same name already exists.".into()),
             );
             view.set("errors", errors);
             return Ok(view);
@@ -186,7 +246,12 @@ struct ProjectFrom {
 }
 
 #[route("/organization/{organization_id}/add-project", method = "GET", method = "POST")]
-async fn org_project_create(ctx: web::Data<AppContext<'_>>, identity: Identity, path: web::Path<u32>, form: Option<web::Form<ProjectFrom>>) -> Result<ViewModel> {
+async fn org_project_create(
+    ctx: web::Data<AppContext<'_>>,
+    identity: Identity,
+    path: web::Path<u32>,
+    form: Option<web::Form<ProjectFrom>>,
+) -> Result<ViewModel> {
     let mut view = ViewModel::with_template("organizations/project_create");
 
     view.set("form", &form);
@@ -225,7 +290,11 @@ async fn org_project_create(ctx: web::Data<AppContext<'_>>, identity: Identity, 
             return Ok(view);
         }
 
-        let api_key: String = rand::thread_rng().sample_iter(&Alphanumeric).take(32).map(char::from).collect();
+        let api_key: String = rand::thread_rng()
+            .sample_iter(&Alphanumeric)
+            .take(32)
+            .map(char::from)
+            .collect();
 
         let project = projects::ActiveModel {
             organization_id: ActiveValue::set(org_id),
@@ -250,8 +319,17 @@ async fn org_project_create(ctx: web::Data<AppContext<'_>>, identity: Identity, 
     Ok(view)
 }
 
-#[route("/organization/{organization_id}/project-edit/{project_id}", method = "GET", method = "POST")]
-async fn org_project_edit(ctx: web::Data<AppContext<'_>>, identity: Identity, path: web::Path<(u32, u32)>, form: Option<web::Form<ProjectFrom>>) -> Result<ViewModel> {
+#[route(
+    "/organization/{organization_id}/project-edit/{project_id}",
+    method = "GET",
+    method = "POST"
+)]
+async fn org_project_edit(
+    ctx: web::Data<AppContext<'_>>,
+    identity: Identity,
+    path: web::Path<(u32, u32)>,
+    form: Option<web::Form<ProjectFrom>>,
+) -> Result<ViewModel> {
     let mut view = ViewModel::with_template("organizations/project_edit");
 
     let form = form.map(|f| f.into_inner());
@@ -312,7 +390,11 @@ async fn org_project_edit(ctx: web::Data<AppContext<'_>>, identity: Identity, pa
 }
 
 #[delete("/organization/{organization_id}/project-edit/{project_id}")]
-async fn org_project_delete(ctx: web::Data<AppContext<'_>>, identity: Identity, path: web::Path<(u32, u32)>) -> Result<ViewModel> {
+async fn org_project_delete(
+    ctx: web::Data<AppContext<'_>>,
+    identity: Identity,
+    path: web::Path<(u32, u32)>,
+) -> Result<ViewModel> {
     let mut view = ViewModel::default();
 
     let (org_id, project_id) = path.into_inner();
@@ -344,7 +426,12 @@ struct OrgSettingsFrom {
 }
 
 #[route("/organization/{organization_id}/settings", method = "GET", method = "POST")]
-async fn org_settings(ctx: web::Data<AppContext<'_>>, identity: Identity, path: web::Path<u32>, form: Option<web::Form<OrgSettingsFrom>>) -> Result<ViewModel> {
+async fn org_settings(
+    ctx: web::Data<AppContext<'_>>,
+    identity: Identity,
+    path: web::Path<u32>,
+    form: Option<web::Form<OrgSettingsFrom>>,
+) -> Result<ViewModel> {
     let mut view = ViewModel::with_template("organizations/settings");
 
     let org_id = path.into_inner();
@@ -365,7 +452,11 @@ async fn org_settings(ctx: web::Data<AppContext<'_>>, identity: Identity, path: 
         .await?
         .ok_or(Error::NotFound)?;
 
-    view.set("form", form.clone().unwrap_or_else(|| OrgSettingsFrom { name: org.name.clone() }));
+    view.set(
+        "form",
+        form.clone()
+            .unwrap_or_else(|| OrgSettingsFrom { name: org.name.clone() }),
+    );
 
     if let Some(fields) = form {
         if let Err(errors) = fields.validate() {
@@ -406,7 +497,11 @@ async fn org_settings(ctx: web::Data<AppContext<'_>>, identity: Identity, path: 
 }
 
 #[get("/organization/{organization_id}/notifications")]
-async fn org_notifications(_ctx: web::Data<AppContext<'_>>, _identity: Identity, path: web::Path<u32>) -> Result<ViewModel> {
+async fn org_notifications(
+    _ctx: web::Data<AppContext<'_>>,
+    _identity: Identity,
+    path: web::Path<u32>,
+) -> Result<ViewModel> {
     let mut view = ViewModel::with_template("organizations/notifications");
 
     let organization_id = path.into_inner();
@@ -462,7 +557,10 @@ async fn org_members(ctx: web::Data<AppContext<'_>>, identity: Identity, path: w
 #[derive(Serialize, Deserialize, Validate)]
 #[validate(context = String)]
 struct InviteForm {
-    #[validate(email(message = "A valid email address is required"), length(max = 320, message = "Must be less than 320 chars"))]
+    #[validate(
+        email(message = "A valid email address is required"),
+        length(max = 320, message = "Must be less than 320 chars")
+    )]
     email: String,
     #[validate(custom(function = "validate_role_choice", use_context))]
     role: String,
@@ -474,7 +572,9 @@ fn validate_role_choice(role: &str, user_role: &String) -> std::result::Result<(
     }
 
     match user_role.as_ref() {
-        "member" => Err(ValidationError::new("forbidden").with_message("Only admins and owners can invite members".into())),
+        "member" => {
+            Err(ValidationError::new("forbidden").with_message("Only admins and owners can invite members".into()))
+        }
         "admin" => match role {
             "member" | "admin" => Ok(()),
             "owner" => Err(ValidationError::new("forbidden").with_message("Only owners invite owners".into())),
@@ -489,7 +589,12 @@ fn validate_role_choice(role: &str, user_role: &String) -> std::result::Result<(
 }
 
 #[route("/organization/{organization_id}/invite", method = "GET", method = "POST")]
-async fn org_invite(ctx: web::Data<AppContext<'_>>, identity: Identity, path: web::Path<u32>, form: Option<web::Form<InviteForm>>) -> Result<ViewModel> {
+async fn org_invite(
+    ctx: web::Data<AppContext<'_>>,
+    identity: Identity,
+    path: web::Path<u32>,
+    form: Option<web::Form<InviteForm>>,
+) -> Result<ViewModel> {
     let mut view = ViewModel::with_template("organizations/invite");
 
     view.set("form", &form);
@@ -501,7 +606,10 @@ async fn org_invite(ctx: web::Data<AppContext<'_>>, identity: Identity, path: we
     let user_role = user.role(&ctx.db, org_id).await?.ok_or(Error::LoginRequired)?;
     view.set("role", &user_role);
 
-    let org = Organizations::find_by_id(org_id).one(&ctx.db).await?.ok_or(Error::NotFound)?;
+    let org = Organizations::find_by_id(org_id)
+        .one(&ctx.db)
+        .await?
+        .ok_or(Error::NotFound)?;
 
     if let Some(fields) = form.map(|f| f.into_inner()) {
         if let Err(errors) = fields.validate_with_args(&user_role) {
@@ -518,7 +626,10 @@ async fn org_invite(ctx: web::Data<AppContext<'_>>, identity: Identity, path: we
 
         if let Some(invitation) = maybe_invite {
             let mut errors = ValidationErrors::new();
-            errors.add("email", ValidationError::new("exists").with_message("Email already invited".into()));
+            errors.add(
+                "email",
+                ValidationError::new("exists").with_message("Email already invited".into()),
+            );
             view.set("errors", errors);
 
             view.set("existing_invitation_id", invitation.organization_invitation_id);
@@ -526,14 +637,22 @@ async fn org_invite(ctx: web::Data<AppContext<'_>>, identity: Identity, path: we
             return Ok(view);
         }
 
-        let maybe_user = Users::find().filter(users::Column::Email.eq(&fields.email)).one(&ctx.db).await?;
+        let maybe_user = Users::find()
+            .filter(users::Column::Email.eq(&fields.email))
+            .one(&ctx.db)
+            .await?;
 
         if let Some(user) = maybe_user {
-            let maybe_user = OrganizationUsers::find_by_id((user.user_id, org_id)).one(&ctx.db).await?;
+            let maybe_user = OrganizationUsers::find_by_id((user.user_id, org_id))
+                .one(&ctx.db)
+                .await?;
 
             if maybe_user.is_some() {
                 let mut errors = ValidationErrors::new();
-                errors.add("email", ValidationError::new("exists").with_message("User is already a member".into()));
+                errors.add(
+                    "email",
+                    ValidationError::new("exists").with_message("User is already a member".into()),
+                );
                 view.set("errors", errors);
                 return Ok(view);
             }
@@ -610,7 +729,11 @@ async fn org_invite(ctx: web::Data<AppContext<'_>>, identity: Identity, path: we
 }
 
 #[delete("/organization/{organization_id}/invite/{organization_invitation_id}")]
-async fn org_invite_delete(ctx: web::Data<AppContext<'_>>, identity: Identity, path: web::Path<(u32, u32)>) -> Result<ViewModel> {
+async fn org_invite_delete(
+    ctx: web::Data<AppContext<'_>>,
+    identity: Identity,
+    path: web::Path<(u32, u32)>,
+) -> Result<ViewModel> {
     let mut view = ViewModel::default();
 
     let (org_id, org_invitation_id) = path.into_inner();
@@ -635,12 +758,19 @@ async fn org_invite_delete(ctx: web::Data<AppContext<'_>>, identity: Identity, p
 }
 
 #[post("/organization/{organization_id}/resend-invite/{organization_invitation_id}")]
-async fn org_invite_resend(ctx: web::Data<AppContext<'_>>, identity: Identity, path: web::Path<(u32, u32)>) -> Result<ViewModel> {
+async fn org_invite_resend(
+    ctx: web::Data<AppContext<'_>>,
+    identity: Identity,
+    path: web::Path<(u32, u32)>,
+) -> Result<ViewModel> {
     let mut view = ViewModel::default();
 
     let (org_id, org_invitation_id) = path.into_inner();
 
-    let org = Organizations::find_by_id(org_id).one(&ctx.db).await?.ok_or(Error::NotFound)?;
+    let org = Organizations::find_by_id(org_id)
+        .one(&ctx.db)
+        .await?
+        .ok_or(Error::NotFound)?;
 
     let user = identity.user(&ctx).await?;
     let _user_role = user.role(&ctx.db, org_id).await?.ok_or(Error::LoginRequired)?;
@@ -678,7 +808,11 @@ async fn org_invite_resend(ctx: web::Data<AppContext<'_>>, identity: Identity, p
 }
 
 #[delete("/organization/{organization_id}/member/{user_id}")]
-async fn org_member_delete(ctx: web::Data<AppContext<'_>>, identity: Identity, path: web::Path<(u32, u32)>) -> Result<ViewModel> {
+async fn org_member_delete(
+    ctx: web::Data<AppContext<'_>>,
+    identity: Identity,
+    path: web::Path<(u32, u32)>,
+) -> Result<ViewModel> {
     let mut view = ViewModel::default();
 
     let (org_id, user_id) = path.into_inner();
@@ -689,7 +823,10 @@ async fn org_member_delete(ctx: web::Data<AppContext<'_>>, identity: Identity, p
     let user_role = user.role(&ctx.db, org_id).await?.ok_or(Error::LoginRequired)?;
 
     if user_role == "admin" || user_role == "owner" {
-        let org_member = OrganizationUsers::find_by_id((user_id, org_id)).one(&ctx.db).await?.ok_or(Error::NotFound)?;
+        let org_member = OrganizationUsers::find_by_id((user_id, org_id))
+            .one(&ctx.db)
+            .await?
+            .ok_or(Error::NotFound)?;
 
         // only owners can delete other owners
         if org_member.role == "owner" && user_role == "admin" {
@@ -713,8 +850,17 @@ struct EditForm {
     role: String,
 }
 
-#[route("/organization/{organization_id}/member-edit/{user_id}", method = "GET", method = "POST")]
-async fn org_member_edit(ctx: web::Data<AppContext<'_>>, identity: Identity, path: web::Path<(u32, u32)>, form: Option<web::Form<EditForm>>) -> Result<ViewModel> {
+#[route(
+    "/organization/{organization_id}/member-edit/{user_id}",
+    method = "GET",
+    method = "POST"
+)]
+async fn org_member_edit(
+    ctx: web::Data<AppContext<'_>>,
+    identity: Identity,
+    path: web::Path<(u32, u32)>,
+    form: Option<web::Form<EditForm>>,
+) -> Result<ViewModel> {
     let mut view = ViewModel::with_template("organizations/member_edit");
 
     view.set("form", &form);
@@ -727,7 +873,10 @@ async fn org_member_edit(ctx: web::Data<AppContext<'_>>, identity: Identity, pat
     view.set("role", &user_role);
 
     let member = Users::find_by_id(user_id).one(&ctx.db).await?.ok_or(Error::NotFound)?;
-    let org_member = OrganizationUsers::find_by_id((member.user_id, org_id)).one(&ctx.db).await?.ok_or(Error::NotFound)?;
+    let org_member = OrganizationUsers::find_by_id((member.user_id, org_id))
+        .one(&ctx.db)
+        .await?
+        .ok_or(Error::NotFound)?;
 
     view.set("member", &member);
     view.set("org_member", &org_member);

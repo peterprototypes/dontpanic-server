@@ -11,6 +11,10 @@ export const UserProvider = ({ children }) => {
     return <Navigate to="/auth/login" replace />;
   }
 
+  if (!data) {
+    return <div>Loading...</div>;
+  }
+
   return (
     <UserContext.Provider value={{ user: data }}>
       {children}

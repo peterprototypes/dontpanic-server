@@ -11,6 +11,7 @@ import Reports from "./pages/Reports";
 import PasswordResetRequest from "./pages/auth/PasswordResetRequest";
 import PasswordReset from "./pages/auth/PasswordReset";
 import VerifyEmail from "./pages/auth/VerifyEmail";
+import Account from "./pages/Account";
 
 const App = () => {
   return (
@@ -19,6 +20,7 @@ const App = () => {
         <Routes>
           <Route element={<AppLayout />}>
             <Route path="reports" element={<Reports />} />
+            <Route path="account" element={<Account />} />
             <Route index element={<Navigate to="/reports" replace />} />
           </Route>
 
