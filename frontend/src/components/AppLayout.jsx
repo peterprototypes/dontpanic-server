@@ -26,7 +26,7 @@ const AppLayout = () => {
           </Toolbar>
         </Container>
       </AppBar>
-      <Container maxWidth="md" sx={{ flexGrow: 1, pt: 3 }}>
+      <Container maxWidth="md" sx={{ flexGrow: 1, py: 3 }}>
         <Outlet />
       </Container>
 

@@ -5,8 +5,6 @@ import '@fontsource/inter/400.css';
 import '@fontsource/inter/500.css';
 import '@fontsource/inter/700.css';
 
-// LinkBehavior.displayName = "LinkBehavior";
-
 const theme = createTheme({
   palette: {
     primary: {
@@ -46,8 +44,18 @@ const theme = createTheme({
     MuiButton: {
       styleOverrides: {
         root: {
-          borderRadius: '1000px',
+          padding: "4px 16px",
         },
+      },
+      defaultProps: {
+        disableElevation: true
+      }
+    },
+    MuiButtonBase: {
+      styleOverrides: {
+        // root: {
+        //   padding: 0,
+        // },
       },
     },
     MuiFormLabel: {
