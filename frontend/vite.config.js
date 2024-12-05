@@ -11,4 +11,7 @@ export default defineConfig({
       context: "/src/context",
     },
   },
+  test: {
+    environment: 'jsdom',
+  }
 });

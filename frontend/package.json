@@ -7,7 +7,8 @@
     "dev": "vite",
     "build": "vite build",
     "lint": "eslint .",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "tests": "vitest"
   },
   "dependencies": {
     "@emotion/react": "^11.13.5",
@@ -28,6 +29,8 @@
   },
   "devDependencies": {
     "@eslint/js": "^9.15.0",
+    "@testing-library/dom": "^10.4.0",
+    "@testing-library/react": "^16.0.1",
     "@types/react": "^18.3.12",
     "@types/react-dom": "^18.3.1",
     "@vitejs/plugin-react-swc": "^3.5.0",
@@ -36,6 +39,8 @@
     "eslint-plugin-react-hooks": "^5.0.0",
     "eslint-plugin-react-refresh": "^0.4.14",
     "globals": "^15.12.0",
-    "vite": "^6.0.1"
+    "jsdom": "^25.0.1",
+    "vite": "^6.0.1",
+    "vitest": "^2.1.8"
   }
 }

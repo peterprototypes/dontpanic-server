@@ -37,7 +37,7 @@ const DeleteAccount = () => {
 
   return (
     <Stack sx={{ mt: 4 }} spacing={1} alignItems="flex-start" useFlexGap>
-      <Typography variant="h6" color="error">Account termination</Typography>
+      <Typography variant="h5" color="error">Account termination</Typography>
 
       {soleOwnerOrgs.length > 0 ? (
         <>
@@ -55,13 +55,21 @@ const DeleteAccount = () => {
           </Alert>
         </>
       ) : (
-        <>
-          <Typography variant="body1" color="textSecondary">Deleting your account will remove all your data and cannot be undone.</Typography>
-          <LoadingButton variant="outlined" color="error" sx={{ mt: 2 }} onClick={onDeleteAccount} loading={isMutating}>Delete Account</LoadingButton>
-          {error && <Alert severity="error" sx={{ width: '100%', mt: 2 }}>{error.message}</Alert>}
-        </>
+        <Typography variant="body1" color="textSecondary">Deleting your account will remove all your data and cannot be undone.</Typography>
       )}
 
+      <LoadingButton
+        variant="outlined"
+        color="error"
+        sx={{ mt: 2 }}
+        onClick={onDeleteAccount}
+        loading={isMutating}
+        disabled={soleOwnerOrgs.length > 0}
+      >
+        Delete Account
+      </LoadingButton>
+
+      {error && <Alert severity="error" sx={{ width: '100%', mt: 2 }}>{error.message}</Alert>}
     </Stack>
   );
 };

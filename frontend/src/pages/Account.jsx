@@ -3,7 +3,7 @@ import * as yup from "yup";
 import { useSnackbar } from 'notistack';
 import { useForm, FormProvider } from 'react-hook-form';
 import { yupResolver } from '@hookform/resolvers/yup';
-import { Box, Button, Divider, Grid2 as Grid, Stack, Typography, Paper } from '@mui/material';
+import { Box, Divider, Grid2 as Grid, Stack, Typography } from '@mui/material';
 import { LoadingButton } from "@mui/lab";
 
 import { useUser } from 'context/user';
@@ -12,6 +12,7 @@ import SideMenu from 'components/SideMenu';
 import { FormServerError, ControlledTextField } from "components/form";
 import { SaveIcon } from 'components/ConsistentIcons';
 import DeleteAccount from 'components/DeleteAccount';
+import PasswordChange from 'components/PasswordChange';
 
 const Account = () => {
   const { user } = useUser();
@@ -40,12 +41,8 @@ const Account = () => {
       </Grid>
       <Grid size={9}>
         <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end', mt: 2 }}>
-          <Typography variant="h4">
-            Account
-          </Typography>
-          <Typography variant="body1">
-            {user.email}
-          </Typography>
+          <Typography variant="h4">Account</Typography>
+          <Typography variant="body1">{user.email}</Typography>
         </Box>
         <Divider />
         <FormProvider {...methods}>
@@ -71,6 +68,10 @@ const Account = () => {
 
         <Divider sx={{ mt: 4 }} />
 
+        <PasswordChange />
+
+        <Divider sx={{ mt: 4 }} />
+
         <DeleteAccount />
       </Grid>
     </Grid>
@@ -80,7 +81,5 @@ const Account = () => {
 const AccountSchema = yup.object({
   name: yup.string().required("Name is required"),
 }).required();
-
-
 
 export default Account;
