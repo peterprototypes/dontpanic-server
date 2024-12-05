@@ -24,7 +24,7 @@ const SideMenu = () => {
         <React.Fragment key={org.organization_id}>
           <ListItemButton>
             <OrgListIcon><OrgIcon /></OrgListIcon>
-            <ListItemText primary="Cytec Bg Ltd." />
+            <ListItemText primary={org.name} />
           </ListItemButton>
 
           {org.projects.map((project) => (

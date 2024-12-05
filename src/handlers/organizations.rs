@@ -4,7 +4,7 @@ use chrono::{Days, Utc};
 use lettre::AsyncTransport;
 use rand::distributions::Alphanumeric;
 use rand::prelude::*;
-use sea_orm::{prelude::*, ActiveValue, IntoActiveModel, JoinType, QuerySelect, TryIntoModel};
+use sea_orm::{prelude::*, ActiveValue, FromQueryResult, IntoActiveModel, JoinType, QuerySelect, TryIntoModel};
 use serde::{Deserialize, Serialize};
 use validator::Validate;
 use validator::ValidateArgs;
@@ -45,6 +45,34 @@ pub fn routes(cfg: &mut web::ServiceConfig) {
 }
 
 #[derive(Serialize, Debug)]
+struct OrganizationProject {
+    project_id: u32,
+    name: String,
+    api_key: String,
+    created: DateTime,
+}
+
+impl From<projects::Model> for OrganizationProject {
+    fn from(project: projects::Model) -> Self {
+        Self {
+            project_id: project.project_id,
+            name: project.name,
+            api_key: project.api_key,
+            created: project.created,
+        }
+    }
+}
+
+#[derive(Debug, Serialize, FromQueryResult)]
+struct OrganizationMember {
+    user_id: u32,
+    email: String,
+    name: Option<String>,
+    role: String,
+    date_added: DateTime,
+}
+
+#[derive(Serialize, Debug)]
 struct Organization {
     organization_id: u32,
     name: String,
@@ -53,12 +81,36 @@ struct Organization {
     requests_count_start: Option<DateTime>,
     is_enabled: i8,
     created: DateTime,
-    projects: Vec<projects::Model>,
+    projects: Vec<OrganizationProject>,
+    members: Vec<OrganizationMember>,
 }
 
-impl Organization {
-    fn from_model(org: organizations::Model, projects: Vec<projects::Model>) -> Self {
-        Self {
+#[get("")]
+async fn list(ctx: web::Data<AppContext<'_>>, identity: Identity) -> Result<impl Responder> {
+    let user = identity.user(&ctx).await?;
+
+    let orgs_and_projects: Vec<(organizations::Model, Vec<projects::Model>)> = Organizations::find()
+        .filter(organization_users::Column::UserId.eq(user.user_id))
+        .join(JoinType::InnerJoin, organizations::Relation::OrganizationUsers.def())
+        .find_with_related(Projects)
+        .all(&ctx.db)
+        .await?;
+
+    let mut response = vec![];
+
+    for (org, projects) in orgs_and_projects {
+        let projects: Vec<OrganizationProject> = projects.into_iter().map(OrganizationProject::from).collect();
+
+        let members: Vec<OrganizationMember> = Users::find()
+            .column_as(organization_users::Column::Role, "role")
+            .column_as(organization_users::Column::Created, "date_added")
+            .filter(organization_users::Column::OrganizationId.eq(org.organization_id))
+            .join(JoinType::InnerJoin, users::Relation::OrganizationUsers.def())
+            .into_model::<OrganizationMember>()
+            .all(&ctx.db)
+            .await?;
+
+        let org = Organization {
             organization_id: org.organization_id,
             name: org.name,
             requests_limit: org.requests_limit,
@@ -67,25 +119,13 @@ impl Organization {
             is_enabled: org.is_enabled,
             created: org.created,
             projects,
-        }
+            members,
+        };
+
+        response.push(org);
     }
-}
 
-#[get("")]
-async fn list(ctx: web::Data<AppContext<'_>>, identity: Identity) -> Result<impl Responder> {
-    let user = identity.user(&ctx).await?;
-
-    let organizations: Vec<Organization> = Organizations::find()
-        .filter(organization_users::Column::UserId.eq(user.user_id))
-        .join(JoinType::InnerJoin, organizations::Relation::OrganizationUsers.def())
-        .find_with_related(Projects)
-        .all(&ctx.db)
-        .await?
-        .into_iter()
-        .map(|(org, projects)| Organization::from_model(org, projects))
-        .collect();
-
-    Ok(web::Json(organizations))
+    Ok(web::Json(response))
 }
 
 #[derive(Deserialize)]
@@ -510,49 +550,49 @@ async fn org_notifications(
     Ok(view)
 }
 
-#[derive(Serialize)]
-struct OrganizationMember {
-    user: Option<users::Model>,
-    user_org: organization_users::Model,
-}
+// #[derive(Serialize)]
+// struct OrganizationMember {
+//     user: Option<users::Model>,
+//     user_org: organization_users::Model,
+// }
 
-#[get("/organization/{organization_id}/members")]
-async fn org_members(ctx: web::Data<AppContext<'_>>, identity: Identity, path: web::Path<u32>) -> Result<ViewModel> {
-    let mut view = ViewModel::with_template("organizations/members");
+// #[get("/organization/{organization_id}/members")]
+// async fn org_members(ctx: web::Data<AppContext<'_>>, identity: Identity, path: web::Path<u32>) -> Result<ViewModel> {
+//     let mut view = ViewModel::with_template("organizations/members");
 
-    let user = identity.user(&ctx).await?;
+//     let user = identity.user(&ctx).await?;
 
-    let org_id = path.into_inner();
-    view.set("org_id", org_id);
+//     let org_id = path.into_inner();
+//     view.set("org_id", org_id);
 
-    let org = Organizations::find_by_id(org_id)
-        .filter(organization_users::Column::UserId.eq(identity.user_id))
-        .join(JoinType::InnerJoin, organizations::Relation::OrganizationUsers.def())
-        .one(&ctx.db)
-        .await?
-        .ok_or(Error::NotFound)?;
+//     let org = Organizations::find_by_id(org_id)
+//         .filter(organization_users::Column::UserId.eq(identity.user_id))
+//         .join(JoinType::InnerJoin, organizations::Relation::OrganizationUsers.def())
+//         .one(&ctx.db)
+//         .await?
+//         .ok_or(Error::NotFound)?;
 
-    let org_members: Vec<OrganizationMember> = OrganizationUsers::find()
-        .filter(organization_users::Column::OrganizationId.eq(org_id))
-        .find_also_related(Users)
-        .all(&ctx.db)
-        .await?
-        .into_iter()
-        .map(|(user_org, user)| OrganizationMember { user_org, user })
-        .collect();
+//     let org_members: Vec<OrganizationMember> = OrganizationUsers::find()
+//         .filter(organization_users::Column::OrganizationId.eq(org_id))
+//         .find_also_related(Users)
+//         .all(&ctx.db)
+//         .await?
+//         .into_iter()
+//         .map(|(user_org, user)| OrganizationMember { user_org, user })
+//         .collect();
 
-    let org_invites = OrganizationInvitations::find()
-        .filter(organization_invitations::Column::OrganizationId.eq(org_id))
-        .all(&ctx.db)
-        .await?;
+//     let org_invites = OrganizationInvitations::find()
+//         .filter(organization_invitations::Column::OrganizationId.eq(org_id))
+//         .all(&ctx.db)
+//         .await?;
 
-    view.set("invitations", org_invites);
-    view.set("members", org_members);
-    view.set("organization", org);
-    view.set("user", user);
+//     view.set("invitations", org_invites);
+//     view.set("members", org_members);
+//     view.set("organization", org);
+//     view.set("user", user);
 
-    Ok(view)
-}
+//     Ok(view)
+// }
 
 #[derive(Serialize, Deserialize, Validate)]
 #[validate(context = String)]

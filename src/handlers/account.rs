@@ -3,12 +3,15 @@ use actix_web::{delete, get, post, route, web, Responder};
 use sea_orm::prelude::*;
 use sea_orm::{ActiveValue, IntoActiveModel, TryIntoModel};
 use serde::{Deserialize, Serialize};
+use serde_json::json;
 use validator::{Validate, ValidationError, ValidationErrors};
 
+use crate::entity::organization_users;
+use crate::entity::organizations;
+use crate::entity::prelude::*;
 use crate::entity::users;
-use crate::entity::{organization_users, prelude::*};
 
-use crate::{AppContext, Identity, Result};
+use crate::{AppContext, Error, Identity, Result};
 
 pub fn routes(cfg: &mut web::ServiceConfig) {
     cfg.service(get)
@@ -64,21 +67,26 @@ async fn update(ctx: web::Data<AppContext<'_>>, id: Identity, input: web::Json<I
 async fn delete(ctx: web::Data<AppContext<'_>>, id: Identity, session: Session) -> Result<impl Responder> {
     let user = id.user(&ctx).await?;
 
-    // delete organizations only if this user is the only one in them
-    let user_organizations = user.find_related(OrganizationUsers).all(&ctx.db).await?;
+    // delete user only if they
+    let user_owned_organizations = user
+        .find_related(OrganizationUsers)
+        .filter(organization_users::Column::Role.eq("owner"))
+        .all(&ctx.db)
+        .await?;
 
-    for user_org in user_organizations {
+    for user_org in user_owned_organizations {
         let org_id = user_org.organization_id;
 
-        let member_count = OrganizationUsers::find()
+        let owner_count = OrganizationUsers::find()
             .filter(organization_users::Column::OrganizationId.eq(org_id))
+            .filter(organization_users::Column::Role.eq("owner"))
             .count(&ctx.db)
             .await?;
 
-        user_org.delete(&ctx.db).await?;
-
-        if member_count == 1 {
-            Organizations::delete(&ctx.db, org_id).await?;
+        if owner_count == 1 {
+            return Err(Error::new(
+                "Cannot delete account because you are the only owner of an organization.",
+            ));
         }
     }
 

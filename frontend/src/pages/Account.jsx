@@ -58,7 +58,7 @@ const Account = () => {
                 type="submit"
                 variant="contained"
                 loading={isMutating}
-                loadingPosition="end"
+                loadingPosition="start"
                 sx={{ width: '120px' }}
                 startIcon={<SaveIcon />}
               >
