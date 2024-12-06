@@ -34,29 +34,41 @@ const PasswordChange = () => {
 
   return (
     <FormProvider {...methods}>
-      <Stack component="form" spacing={2} sx={{ mt: 2 }} onSubmit={methods.handleSubmit(onSubmit)} noValidate useFlexGap>
+      <Stack component="form" spacing={2} sx={{ mt: 2 }} onSubmit={methods.handleSubmit(onSubmit)} noValidate useFlexGap alignItems="flex-start">
         <Typography variant="h5">Password</Typography>
 
-        <ControlledTextField name="old_password" label="Current Password" type="password" fullWidth required />
-        <ControlledTextField name="new_password" label="New Password" type="password" fullWidth required helperText="Must be at least 8 characters. Make sure your password is strong." />
+        <ControlledTextField
+          name="old_password"
+          label="Current Password"
+          type="password"
+          fullWidth
+          required
+          helperText="You must provide your current password in order to change it."
+        />
+
+        <ControlledTextField
+          name="new_password"
+          label="New Password"
+          type="password"
+          fullWidth
+          required
+          helperText="Must be at least 8 characters. Make sure your password is strong."
+        />
+
         <ControlledTextField name="new_password_repeat" label="Retype New Password" type="password" fullWidth required />
 
-        <Stack direction="row" spacing={2} alignItems="center">
+        <LoadingButton
+          type="submit"
+          variant="contained"
+          loading={isMutating}
+          loadingPosition="start"
+          startIcon={<SaveIcon />}
+        >
+          Save Password
+        </LoadingButton>
 
-          <LoadingButton
-            type="submit"
-            variant="contained"
-            loading={isMutating}
-            loadingPosition="start"
-            sx={{ width: '120px' }}
-            startIcon={<SaveIcon />}
-          >
-            Save
-          </LoadingButton>
+        <FormServerError sx={{ width: '100%' }} />
 
-          <FormServerError />
-
-        </Stack>
       </Stack>
     </FormProvider>
   );

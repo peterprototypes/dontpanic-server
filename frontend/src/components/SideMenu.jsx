@@ -1,5 +1,6 @@
 import React from 'react';
 import useSWR from 'swr';
+import { Link } from 'react-router';
 import List from '@mui/material/List';
 import ListItemButton from '@mui/material/ListItemButton';
 import ListItemIcon from '@mui/material/ListItemIcon';
@@ -16,13 +17,13 @@ const SideMenu = () => {
 
   return (
     <List component="nav">
-      <ListItemButton divider>
+      <ListItemButton component={Link} to="/reports" divider>
         <ListItemText primary="All Reports" />
       </ListItemButton>
 
       {organizations?.map((org) => (
         <React.Fragment key={org.organization_id}>
-          <ListItemButton>
+          <ListItemButton component={Link} to={`/organization/${org.organization_id}/projects`}>
             <OrgListIcon><OrgIcon /></OrgListIcon>
             <ListItemText primary={org.name} />
           </ListItemButton>
@@ -38,7 +39,7 @@ const SideMenu = () => {
 
 
       <ListItem disableGutters>
-        <Button variant="outlined" fullWidth>Add Organization</Button>
+        <Button variant="outlined" fullWidth component={Link} to="/add-organization">Add Organization</Button>
       </ListItem>
     </List>
   );

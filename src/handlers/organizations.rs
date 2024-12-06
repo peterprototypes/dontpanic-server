@@ -6,6 +6,7 @@ use rand::distributions::Alphanumeric;
 use rand::prelude::*;
 use sea_orm::{prelude::*, ActiveValue, FromQueryResult, IntoActiveModel, JoinType, QuerySelect, TryIntoModel};
 use serde::{Deserialize, Serialize};
+use serde_json::json;
 use validator::Validate;
 use validator::ValidateArgs;
 use validator::ValidationError;
@@ -25,7 +26,7 @@ use crate::ViewModel;
 use crate::{AppContext, Error};
 
 pub fn routes(cfg: &mut web::ServiceConfig) {
-    cfg.service(list);
+    cfg.service(list).service(create);
 
     // cfg.service(organization)
     //     .service(org_create)
@@ -128,6 +129,62 @@ async fn list(ctx: web::Data<AppContext<'_>>, identity: Identity) -> Result<impl
     Ok(web::Json(response))
 }
 
+#[derive(Debug, Deserialize, Validate)]
+struct CreateInput {
+    #[validate(length(min = 1, max = 80, message = "Organization name is required"))]
+    name: String,
+}
+
+#[post("")]
+async fn create(ctx: web::Data<AppContext<'_>>, id: Identity, input: web::Json<CreateInput>) -> Result<impl Responder> {
+    input.validate()?;
+
+    let name = input.name.trim().to_string();
+
+    let maybe_org = Organizations::find()
+        .filter(organizations::Column::Name.eq(&name))
+        .filter(organization_users::Column::UserId.eq(id.user_id))
+        .join(JoinType::InnerJoin, organizations::Relation::OrganizationUsers.def())
+        .one(&ctx.db)
+        .await?;
+
+    if maybe_org.is_some() {
+        let mut errors = ValidationErrors::new();
+
+        errors.add(
+            "name",
+            ValidationError::new("exists").with_message("An organization with the same name already exists.".into()),
+        );
+
+        return Err(Error::from(errors));
+    }
+
+    let requests_limit = ctx.config.organization_requests_limit;
+
+    let org = organizations::ActiveModel {
+        name: ActiveValue::set(name),
+        requests_limit: ActiveValue::set(requests_limit),
+        requests_count_start: ActiveValue::set(requests_limit.map(|_| Utc::now().naive_utc())),
+        is_enabled: ActiveValue::set(1),
+        ..Default::default()
+    };
+
+    let org = org.insert(&ctx.db).await?.try_into_model()?;
+
+    let organization_member = organization_users::ActiveModel {
+        organization_id: ActiveValue::set(org.organization_id),
+        user_id: ActiveValue::set(id.user_id),
+        role: ActiveValue::set("owner".to_string()),
+        ..Default::default()
+    };
+
+    organization_member.insert(&ctx.db).await?;
+
+    Ok(web::Json(json!({
+        "organization_id": org.organization_id,
+    })))
+}
+
 #[derive(Deserialize)]
 struct OrganizationQuery {
     tab: Option<String>,
@@ -158,78 +215,6 @@ async fn organization(
             _ => "projects",
         },
     );
-
-    Ok(view)
-}
-
-#[derive(Serialize, Deserialize, Validate)]
-struct NewOrganizationForm {
-    #[validate(length(min = 1, max = 80, message = "Organization name is required"))]
-    name: String,
-}
-
-#[route("/create-organization", method = "GET", method = "POST")]
-async fn org_create(
-    ctx: web::Data<AppContext<'_>>,
-    identity: Identity,
-    form: Option<web::Form<NewOrganizationForm>>,
-) -> Result<ViewModel> {
-    let mut view = ViewModel::with_template("organizations/create");
-
-    let user = identity.user(&ctx).await?;
-    view.set("user", user);
-
-    view.set("form", &form);
-
-    if let Some(fields) = form.map(|f| f.into_inner()) {
-        if let Err(errors) = fields.validate() {
-            view.set("errors", &errors);
-            return Ok(view);
-        }
-
-        let name = fields.name.trim().to_string();
-
-        let maybe_org = Organizations::find()
-            .filter(organizations::Column::Name.eq(&name))
-            .filter(organization_users::Column::UserId.eq(identity.user_id))
-            .join(JoinType::InnerJoin, organizations::Relation::OrganizationUsers.def())
-            .one(&ctx.db)
-            .await?;
-
-        if maybe_org.is_some() {
-            let mut errors = ValidationErrors::new();
-            errors.add(
-                "name",
-                ValidationError::new("exists")
-                    .with_message("An organization with the same name already exists.".into()),
-            );
-            view.set("errors", errors);
-            return Ok(view);
-        }
-
-        let requests_limit = ctx.config.organization_requests_limit;
-
-        let org = organizations::ActiveModel {
-            name: ActiveValue::set(name),
-            requests_limit: ActiveValue::set(requests_limit),
-            requests_count_start: ActiveValue::set(requests_limit.map(|_| Utc::now().naive_utc())),
-            is_enabled: ActiveValue::set(1),
-            ..Default::default()
-        };
-
-        let org = org.insert(&ctx.db).await?.try_into_model()?;
-
-        let organization_member = organization_users::ActiveModel {
-            organization_id: ActiveValue::set(org.organization_id),
-            user_id: ActiveValue::set(identity.user_id),
-            role: ActiveValue::set("owner".to_string()),
-            ..Default::default()
-        };
-
-        organization_member.insert(&ctx.db).await?;
-
-        view.redirect(format!("/organization/{}?tab=projects", org.organization_id), true);
-    }
 
     Ok(view)
 }

@@ -57,13 +57,6 @@ const ControlledTextField = ({
             {...field}
             type={type == 'password' ? (showPassword ? 'text' : 'password') : type}
             error={!!fieldState.error}
-            // helperText={
-            //   <>
-            //     {fieldState.error?.message}
-            //     {fieldState.error?.message && helperText && <br />}
-            //     {helperText}
-            //   </>
-            // }
             helperText={fieldState.error?.message || helperText}
             slotProps={slotProps}
             {...props}

@@ -46,23 +46,21 @@ const Account = () => {
         </Box>
         <Divider />
         <FormProvider {...methods}>
-          <Stack component="form" spacing={2} sx={{ mt: 2 }} onSubmit={methods.handleSubmit(onSubmit)} noValidate useFlexGap>
+          <Stack component="form" spacing={2} sx={{ mt: 2 }} onSubmit={methods.handleSubmit(onSubmit)} noValidate useFlexGap alignItems="flex-start">
 
-            <ControlledTextField name="name" label="Your Name" placeholder="John Doe" fullWidth helperText="Max 100 characters" required />
+            <ControlledTextField name="name" label="Your Name" placeholder="John Doe" fullWidth helperText="Max 100 characters." required />
 
-            <Stack direction="row" spacing={2} alignItems="center">
-              <LoadingButton
-                type="submit"
-                variant="contained"
-                loading={isMutating}
-                loadingPosition="start"
-                sx={{ width: '120px' }}
-                startIcon={<SaveIcon />}
-              >
-                Save
-              </LoadingButton>
-              <FormServerError />
-            </Stack>
+            <LoadingButton
+              type="submit"
+              variant="contained"
+              loading={isMutating}
+              loadingPosition="start"
+              startIcon={<SaveIcon />}
+            >
+              Save
+            </LoadingButton>
+
+            <FormServerError sx={{ width: '100%' }} />
           </Stack>
         </FormProvider>
 
