@@ -7,7 +7,7 @@ use sea_orm::{prelude::*, ActiveValue, IntoActiveModel, TryIntoModel};
 use serde::Deserialize;
 use validator::Validate;
 
-use crate::{AppContext, Result};
+use crate::{AppContext, Error, Identity, Result};
 
 use crate::entity::prelude::*;
 use crate::entity::users;
@@ -18,7 +18,7 @@ struct PasswordResetRequest {
         email(message = "A valid email address is required"),
         length(max = 320, message = "Must be less than 320 chars")
     )]
-    email: String,
+    email: Option<String>,
 }
 
 #[post("/request-password-reset")]
@@ -26,13 +26,21 @@ pub async fn request_password_reset(
     ctx: web::Data<AppContext<'static>>,
     req: HttpRequest,
     form: web::Json<PasswordResetRequest>,
+    id: Option<Identity>,
 ) -> Result<impl Responder> {
     form.validate()?;
 
-    let pw_reset_ctx = ctx.clone();
-    let email = form.email.clone();
+    let email = if let Some(email) = form.email.clone() {
+        email
+    } else if let Some(id) = id {
+        id.user(&ctx).await?.email.clone()
+    } else {
+        return Err(Error::field("email", "Email is required".into()));
+    };
 
     // try for constant time response, regardless if user exists or not
+    let pw_reset_ctx = ctx.clone();
+
     actix_web::rt::spawn(async move {
         if let Err(e) = password_reset_request_in_bg(pw_reset_ctx, req, email).await {
             log::error!("Password reset request error: {}", e);

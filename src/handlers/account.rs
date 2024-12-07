@@ -2,7 +2,7 @@ use actix_web::{get, post, web, Responder};
 use sea_orm::prelude::*;
 use sea_orm::{ActiveValue, IntoActiveModel, TryIntoModel};
 use serde::{Deserialize, Serialize};
-use validator::{Validate, ValidationError, ValidationErrors};
+use validator::Validate;
 
 use crate::entity::organization_users;
 use crate::entity::prelude::*;
@@ -118,14 +118,7 @@ async fn update_password(
     let password_hash = std::str::from_utf8(&user.password)?;
 
     if !bcrypt::verify(&input.old_password, password_hash)? {
-        let mut errors = ValidationErrors::new();
-
-        errors.add(
-            "old_password",
-            ValidationError::new("incorrect").with_message("Password is incorrect".into()),
-        );
-
-        return Err(Error::from(errors));
+        return Err(Error::field("old_password", "Password is incorrect".into()));
     }
 
     let hashed_password = bcrypt::hash(&input.new_password, bcrypt::DEFAULT_COST)?;

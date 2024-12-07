@@ -1,3 +1,4 @@
+use std::borrow::Cow;
 use std::collections::HashMap;
 use std::fmt;
 
@@ -7,6 +8,7 @@ use actix_web::{
     HttpResponse,
 };
 use serde::Serialize;
+use validator::{ValidationError, ValidationErrors};
 
 #[derive(Serialize, Debug, Clone)]
 pub struct ErrorMessage {
@@ -38,6 +40,14 @@ impl Error {
             r#type: Some(r#type.into()),
             message: message.into(),
         })
+    }
+
+    pub fn field(name: &'static str, message: Cow<'static, str>) -> Self {
+        let mut errors = ValidationErrors::new();
+
+        errors.add(name, ValidationError::new("server_validation").with_message(message));
+
+        Self::from(errors)
     }
 }
 
@@ -176,7 +186,11 @@ impl From<validator::ValidationErrors> for Error {
             .field_errors()
             .into_iter()
             .map(|(field, errors)| {
-                let message = errors.iter().filter_map(|e| e.message.clone()).collect::<Vec<_>>().join(", ");
+                let message = errors
+                    .iter()
+                    .filter_map(|e| e.message.clone())
+                    .collect::<Vec<_>>()
+                    .join(", ");
 
                 (
                     field.to_string(),

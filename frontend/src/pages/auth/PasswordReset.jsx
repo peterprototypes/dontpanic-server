@@ -13,7 +13,7 @@ import { FormServerError, ControlledTextField } from "components/form";
 
 const PasswordResetSchema = yup.object({
   new_password: yup.string().required("Password is required").min(8, "Password must be at least 8 characters long"),
-  new_password_repeat: yup.string().oneOf([yup.ref('password'), null], 'Passwords must match')
+  new_password_repeat: yup.string().oneOf([yup.ref('new_password'), null], 'Passwords must match')
 }).required();
 
 const PasswordReset = () => {

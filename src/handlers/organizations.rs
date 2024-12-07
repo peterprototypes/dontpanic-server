@@ -149,14 +149,10 @@ async fn create(ctx: web::Data<AppContext<'_>>, id: Identity, input: web::Json<C
         .await?;
 
     if maybe_org.is_some() {
-        let mut errors = ValidationErrors::new();
-
-        errors.add(
+        return Err(Error::field(
             "name",
-            ValidationError::new("exists").with_message("An organization with the same name already exists.".into()),
-        );
-
-        return Err(Error::from(errors));
+            "An organization with the same name already exists.".into(),
+        ));
     }
 
     let requests_limit = ctx.config.organization_requests_limit;
