@@ -13,7 +13,11 @@ import PasswordReset from "./pages/auth/PasswordReset";
 import VerifyEmail from "./pages/auth/VerifyEmail";
 import Account from "./pages/Account";
 import AddOrganization from "./pages/AddOrganization";
-import Projects from "./pages/Projects";
+import Projects from "./pages/organization/Projects";
+import Organization from "./pages/organization/Organization";
+import Settings from "./pages/organization/Settings";
+import Members from "./pages/organization/Members";
+import ProjectManage from "./pages/organization/ProjectManage";
 
 const App = () => {
   return (
@@ -24,7 +28,14 @@ const App = () => {
             <Route path="reports" element={<Reports />} />
             <Route path="account" element={<Account />} />
             <Route path="add-organization" element={<AddOrganization />} />
-            <Route path="organization/:id/projects" element={<Projects />} />
+            <Route path="organization/:id" element={<Organization />}>
+              <Route path="projects">
+                <Route index element={<Projects />} />
+                <Route path="manage/:projectId?" element={<ProjectManage />} />
+              </Route>
+              <Route path="settings" element={<Settings />} />
+              <Route path="members" element={<Members />} />
+            </Route>
             <Route index element={<Navigate to="/reports" replace />} />
           </Route>
 

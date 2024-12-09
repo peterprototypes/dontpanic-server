@@ -20,7 +20,10 @@ const theme = createTheme({
   },
   typography: {
     fontFamily: '"Inter", sans-serif',
-    fontSize: 12
+    fontSize: 12,
+    h5: {
+      // fontWeight: 500
+    }
   },
   components: {
     MuiLink: {
@@ -51,12 +54,25 @@ const theme = createTheme({
         disableElevation: true
       }
     },
-    MuiButtonBase: {
+    MuiTab: {
       styleOverrides: {
-        // root: {
-        //   padding: 0,
-        // },
+        root: {
+          textTransform: 'none',
+          fontSize: '1rem',
+          minHeight: 'auto',
+          padding: '4px 16px',
+        },
       },
+      defaultProps: {
+        disableRipple: true,
+      }
+    },
+    MuiTabs: {
+      styleOverrides: {
+        root: {
+          minHeight: 'auto',
+        }
+      }
     },
     MuiFormLabel: {
       styleOverrides: {
@@ -67,6 +83,11 @@ const theme = createTheme({
         },
       },
     },
+    MuiPaper: {
+      defaultProps: {
+        variant: 'outlined',
+      },
+    }
   }
 });
 

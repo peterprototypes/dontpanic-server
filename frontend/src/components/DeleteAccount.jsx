@@ -1,6 +1,7 @@
 import { Stack, Typography, Alert, Link } from '@mui/material';
 import { Link as RouterLink } from 'react-router';
 import { useConfirm } from "material-ui-confirm";
+import { useSnackbar } from 'notistack';
 import useSWR, { mutate } from 'swr';
 import useSWRMutation from 'swr/mutation';
 
@@ -9,6 +10,7 @@ import { LoadingButton } from '@mui/lab';
 
 const DeleteAccount = () => {
   const confirm = useConfirm();
+  const { enqueueSnackbar } = useSnackbar();
   const { user } = useUser();
   const { trigger, error, isMutating } = useSWRMutation('/api/account/delete');
   const { data: organizations } = useSWR('/api/organizations');
@@ -29,9 +31,10 @@ const DeleteAccount = () => {
     };
 
     confirm(config)
-      .then(() => trigger({}).then(() => {
-        mutate('/api/account');
-      }))
+      .then(() => trigger({})
+        .then(() => mutate('/api/account'))
+        .catch((e) => enqueueSnackbar(e.message, { variant: 'error' }))
+      )
       .catch(() => { });
   };
 

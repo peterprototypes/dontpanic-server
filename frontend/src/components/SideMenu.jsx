@@ -8,9 +8,9 @@ import ListItemText from '@mui/material/ListItemText';
 import ListItem from '@mui/material/ListItem';
 import Button from '@mui/material/Button';
 import { styled } from '@mui/material/styles';
-
-import OrgIcon from '@mui/icons-material/CorporateFareOutlined';
 import CircleIcon from '@mui/icons-material/Circle';
+
+import { OrganizationIcon } from './ConsistentIcons';
 
 const SideMenu = () => {
   const { data: organizations } = useSWR('/api/organizations');
@@ -24,7 +24,7 @@ const SideMenu = () => {
       {organizations?.map((org) => (
         <React.Fragment key={org.organization_id}>
           <ListItemButton component={Link} to={`/organization/${org.organization_id}/projects`}>
-            <OrgListIcon><OrgIcon /></OrgListIcon>
+            <OrgListIcon><OrganizationIcon /></OrgListIcon>
             <ListItemText primary={org.name} />
           </ListItemButton>
 
