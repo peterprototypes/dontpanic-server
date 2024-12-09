@@ -23,7 +23,7 @@ const fetcher = async (url, data) => {
   if (!res.ok) {
     const data = await res.json();
 
-    const error = new Error(data?.user?.message ?? 'An error occurred');
+    const error = new Error(data?.user?.message ?? '');
     error.user = data.user;
     error.fields = data.fields;
     error.status = res.status;
