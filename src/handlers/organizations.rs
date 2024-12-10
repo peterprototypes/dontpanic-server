@@ -25,10 +25,14 @@ use crate::{AppContext, Error, Identity, Result};
 mod projects;
 use projects::OrganizationProject;
 
+mod members;
+use members::OrganizationMember;
+
 pub fn routes(cfg: &mut web::ServiceConfig) {
     cfg.service(list)
         .service(create)
-        .service(web::scope("/{organization_id}/projects").configure(projects::routes));
+        .service(web::scope("/{organization_id}/projects").configure(projects::routes))
+        .service(web::scope("/{organization_id}/members").configure(members::routes));
 
     // cfg.service(organization)
     //     .service(org_create)
@@ -36,24 +40,11 @@ pub fn routes(cfg: &mut web::ServiceConfig) {
     //     .service(org_settings)
     //     .service(org_notifications)
     //     .service(org_members)
-    //     .service(org_projects)
-    //     .service(org_project_create)
-    //     .service(org_project_edit)
-    //     .service(org_project_delete)
     //     .service(org_invite)
     //     .service(org_invite_delete)
     //     .service(org_invite_resend)
     //     .service(org_member_edit)
     //     .service(org_member_delete);
-}
-
-#[derive(Debug, Serialize, FromQueryResult)]
-struct OrganizationMember {
-    user_id: u32,
-    email: String,
-    name: Option<String>,
-    role: String,
-    date_added: DateTime,
 }
 
 #[derive(Serialize, Debug)]
@@ -164,40 +155,6 @@ async fn create(ctx: web::Data<AppContext<'_>>, id: Identity, input: web::Json<C
     })))
 }
 
-// #[derive(Deserialize)]
-// struct OrganizationQuery {
-//     tab: Option<String>,
-// }
-
-// #[get("/organization/{organization_id}")]
-// async fn organization(
-//     ctx: web::Data<AppContext<'_>>,
-//     identity: Identity,
-//     path: web::Path<u32>,
-//     query: web::Query<OrganizationQuery>,
-// ) -> Result<ViewModel> {
-//     let mut view = ViewModel::with_template("organizations/view");
-
-//     let user = identity.user(&ctx).await?;
-//     view.set("user", user);
-
-//     let organization_id = path.into_inner();
-//     view.set("org_id", organization_id);
-
-//     view.set(
-//         "active_tab",
-//         match query.tab.as_deref() {
-//             Some("projects") => "projects",
-//             Some("settings") => "settings",
-//             Some("members") => "members",
-//             Some("notifications") => "notifications",
-//             _ => "projects",
-//         },
-//     );
-
-//     Ok(view)
-// }
-
 // #[delete("/organization/{organization_id}")]
 // async fn org_delete(ctx: web::Data<AppContext<'_>>, identity: Identity, path: web::Path<u32>) -> Result<ViewModel> {
 //     let mut view = ViewModel::default();
@@ -215,210 +172,6 @@ async fn create(ctx: web::Data<AppContext<'_>>, id: Identity, input: web::Json<C
 //     Organizations::delete(&ctx.db, org_id).await?;
 
 //     view.redirect("/reports", true);
-
-//     Ok(view)
-// }
-
-// #[get("/organization/{organization_id}/projects")]
-// async fn org_projects(ctx: web::Data<AppContext<'_>>, identity: Identity, path: web::Path<u32>) -> Result<ViewModel> {
-//     let mut view = ViewModel::with_template("organizations/projects");
-
-//     let user = identity.user(&ctx).await?;
-//     view.set("user", user);
-
-//     let org_id = path.into_inner();
-//     view.set("org_id", org_id);
-
-//     let org = Organizations::find_by_id(org_id)
-//         .filter(organization_users::Column::UserId.eq(identity.user_id))
-//         .join(JoinType::InnerJoin, organizations::Relation::OrganizationUsers.def())
-//         .one(&ctx.db)
-//         .await?
-//         .ok_or(Error::NotFound)?;
-
-//     let projects = org.find_related(Projects).all(&ctx.db).await?;
-//     view.set("projects", projects);
-//     view.set("organization", org);
-
-//     Ok(view)
-// }
-
-// #[derive(Clone, Debug, Serialize, Deserialize, Validate)]
-// struct ProjectFrom {
-//     #[validate(length(min = 1, max = 80, message = "Project name is required"))]
-//     project_name: String,
-// }
-
-// #[route("/organization/{organization_id}/add-project", method = "GET", method = "POST")]
-// async fn org_project_create(
-//     ctx: web::Data<AppContext<'_>>,
-//     identity: Identity,
-//     path: web::Path<u32>,
-//     form: Option<web::Form<ProjectFrom>>,
-// ) -> Result<ViewModel> {
-//     let mut view = ViewModel::with_template("organizations/project_create");
-
-//     view.set("form", &form);
-
-//     let org_id = path.into_inner();
-//     view.set("org_id", org_id);
-
-//     let org = Organizations::find_by_id(org_id)
-//         .filter(organization_users::Column::UserId.eq(identity.user_id))
-//         .join(JoinType::InnerJoin, organizations::Relation::OrganizationUsers.def())
-//         .one(&ctx.db)
-//         .await?
-//         .ok_or(Error::NotFound)?;
-
-//     view.set("organization", org);
-
-//     if let Some(fields) = form.map(|f| f.into_inner()) {
-//         if let Err(errors) = fields.validate() {
-//             view.set("errors", &errors);
-//             return Ok(view);
-//         }
-
-//         let project_search = Projects::find()
-//             .filter(projects::Column::Name.eq(&fields.project_name))
-//             .filter(projects::Column::OrganizationId.eq(org_id))
-//             .one(&ctx.db)
-//             .await?;
-
-//         if project_search.is_some() {
-//             let mut errors = ValidationErrors::new();
-//             errors.add(
-//                 "project_name",
-//                 ValidationError::new("exists").with_message("A project with the same name already exists".into()),
-//             );
-//             view.set("errors", errors);
-//             return Ok(view);
-//         }
-
-//         let api_key: String = rand::thread_rng()
-//             .sample_iter(&Alphanumeric)
-//             .take(32)
-//             .map(char::from)
-//             .collect();
-
-//         let project = projects::ActiveModel {
-//             organization_id: ActiveValue::set(org_id),
-//             name: ActiveValue::set(fields.project_name),
-//             api_key: ActiveValue::set(api_key),
-//             ..Default::default()
-//         };
-
-//         let project = project.save(&ctx.db).await?.try_into_model()?;
-
-//         let project_user_settings = project_user_settings::ActiveModel {
-//             project_id: ActiveValue::set(project.project_id),
-//             user_id: ActiveValue::set(identity.user_id),
-//             notify_email: ActiveValue::set(1),
-//         };
-
-//         project_user_settings.insert(&ctx.db).await?;
-
-//         view.redirect(format!("/organization/{}?tab=projects", org_id), true);
-//     }
-
-//     Ok(view)
-// }
-
-// #[route(
-//     "/organization/{organization_id}/project-edit/{project_id}",
-//     method = "GET",
-//     method = "POST"
-// )]
-// async fn org_project_edit(
-//     ctx: web::Data<AppContext<'_>>,
-//     identity: Identity,
-//     path: web::Path<(u32, u32)>,
-//     form: Option<web::Form<ProjectFrom>>,
-// ) -> Result<ViewModel> {
-//     let mut view = ViewModel::with_template("organizations/project_edit");
-
-//     let form = form.map(|f| f.into_inner());
-
-//     let (org_id, project_id) = path.into_inner();
-
-//     let user = identity.user(&ctx).await?;
-//     let user_role = user.role(&ctx.db, org_id).await?.ok_or(Error::LoginRequired)?;
-//     view.set("role", &user_role);
-
-//     let mut project = Projects::find_by_id(project_id)
-//         .filter(projects::Column::OrganizationId.eq(org_id))
-//         .one(&ctx.db)
-//         .await?
-//         .ok_or(Error::NotFound)?;
-
-//     view.set(
-//         "form",
-//         form.clone().unwrap_or_else(|| ProjectFrom {
-//             project_name: project.name.clone(),
-//         }),
-//     );
-
-//     if let Some(fields) = form {
-//         if let Err(errors) = fields.validate() {
-//             view.set("errors", &errors);
-//             return Ok(view);
-//         }
-
-//         let project_search = Projects::find()
-//             .filter(projects::Column::Name.eq(&fields.project_name))
-//             .filter(projects::Column::ProjectId.ne(project_id))
-//             .one(&ctx.db)
-//             .await?;
-
-//         if project_search.is_some() {
-//             let mut errors = ValidationErrors::new();
-//             errors.add(
-//                 "project_name",
-//                 ValidationError::new("exists").with_message("A project with the same name already exists".into()),
-//             );
-//             view.set("errors", errors);
-//             return Ok(view);
-//         }
-
-//         let mut project_model = project.into_active_model();
-//         project_model.name = ActiveValue::set(fields.project_name);
-//         project = project_model.save(&ctx.db).await?.try_into_model()?;
-
-//         view.message("Project information updated");
-//         view.set("saved", true);
-//     }
-
-//     view.set("project", project);
-//     view.set("org_id", org_id);
-
-//     Ok(view)
-// }
-
-// #[delete("/organization/{organization_id}/project-edit/{project_id}")]
-// async fn org_project_delete(
-//     ctx: web::Data<AppContext<'_>>,
-//     identity: Identity,
-//     path: web::Path<(u32, u32)>,
-// ) -> Result<ViewModel> {
-//     let mut view = ViewModel::default();
-
-//     let (org_id, project_id) = path.into_inner();
-
-//     let user = identity.user(&ctx).await?;
-//     let user_role = user.role(&ctx.db, org_id).await?.ok_or(Error::LoginRequired)?;
-
-//     if user_role == "admin" || user_role == "owner" {
-//         let project = Projects::find_by_id(project_id)
-//             .filter(projects::Column::OrganizationId.eq(org_id))
-//             .one(&ctx.db)
-//             .await?
-//             .ok_or(Error::NotFound)?;
-
-//         project.delete(&ctx.db).await?;
-
-//         view.message("Project deleted");
-//     }
-
-//     view.redirect(format!("/organization/{}?tab=projects", org_id), true);
 
 //     Ok(view)
 // }
@@ -514,50 +267,6 @@ async fn create(ctx: web::Data<AppContext<'_>>, id: Identity, input: web::Json<C
 //     Ok(view)
 // }
 
-// // #[derive(Serialize)]
-// // struct OrganizationMember {
-// //     user: Option<users::Model>,
-// //     user_org: organization_users::Model,
-// // }
-
-// // #[get("/organization/{organization_id}/members")]
-// // async fn org_members(ctx: web::Data<AppContext<'_>>, identity: Identity, path: web::Path<u32>) -> Result<ViewModel> {
-// //     let mut view = ViewModel::with_template("organizations/members");
-
-// //     let user = identity.user(&ctx).await?;
-
-// //     let org_id = path.into_inner();
-// //     view.set("org_id", org_id);
-
-// //     let org = Organizations::find_by_id(org_id)
-// //         .filter(organization_users::Column::UserId.eq(identity.user_id))
-// //         .join(JoinType::InnerJoin, organizations::Relation::OrganizationUsers.def())
-// //         .one(&ctx.db)
-// //         .await?
-// //         .ok_or(Error::NotFound)?;
-
-// //     let org_members: Vec<OrganizationMember> = OrganizationUsers::find()
-// //         .filter(organization_users::Column::OrganizationId.eq(org_id))
-// //         .find_also_related(Users)
-// //         .all(&ctx.db)
-// //         .await?
-// //         .into_iter()
-// //         .map(|(user_org, user)| OrganizationMember { user_org, user })
-// //         .collect();
-
-// //     let org_invites = OrganizationInvitations::find()
-// //         .filter(organization_invitations::Column::OrganizationId.eq(org_id))
-// //         .all(&ctx.db)
-// //         .await?;
-
-// //     view.set("invitations", org_invites);
-// //     view.set("members", org_members);
-// //     view.set("organization", org);
-// //     view.set("user", user);
-
-// //     Ok(view)
-// // }
-
 // #[derive(Serialize, Deserialize, Validate)]
 // #[validate(context = String)]
 // struct InviteForm {
@@ -568,28 +277,6 @@ async fn create(ctx: web::Data<AppContext<'_>>, id: Identity, input: web::Json<C
 //     email: String,
 //     #[validate(custom(function = "validate_role_choice", use_context))]
 //     role: String,
-// }
-
-// fn validate_role_choice(role: &str, user_role: &String) -> std::result::Result<(), ValidationError> {
-//     if user_role == "member" {
-//         return Err(ValidationError::new("forbidden").with_message("Only admins and owners can invite members".into()));
-//     }
-
-//     match user_role.as_ref() {
-//         "member" => {
-//             Err(ValidationError::new("forbidden").with_message("Only admins and owners can invite members".into()))
-//         }
-//         "admin" => match role {
-//             "member" | "admin" => Ok(()),
-//             "owner" => Err(ValidationError::new("forbidden").with_message("Only owners invite owners".into())),
-//             _ => Err(ValidationError::new("forbidden").with_message("Unknown role".into())),
-//         },
-//         "owner" => match role {
-//             "member" | "admin" | "owner" => Ok(()),
-//             _ => Err(ValidationError::new("forbidden").with_message("Unknown role".into())),
-//         },
-//         _ => Err(ValidationError::new("forbidden").with_message("Unknown role".into())),
-//     }
 // }
 
 // #[route("/organization/{organization_id}/invite", method = "GET", method = "POST")]
@@ -807,96 +494,6 @@ async fn create(ctx: web::Data<AppContext<'_>>, id: Identity, input: web::Json<C
 //     }
 
 //     view.message("Invitation sent");
-
-//     Ok(view)
-// }
-
-// #[delete("/organization/{organization_id}/member/{user_id}")]
-// async fn org_member_delete(
-//     ctx: web::Data<AppContext<'_>>,
-//     identity: Identity,
-//     path: web::Path<(u32, u32)>,
-// ) -> Result<ViewModel> {
-//     let mut view = ViewModel::default();
-
-//     let (org_id, user_id) = path.into_inner();
-
-//     view.redirect(format!("/organization/{}?tab=members", org_id), false);
-
-//     let user = identity.user(&ctx).await?;
-//     let user_role = user.role(&ctx.db, org_id).await?.ok_or(Error::LoginRequired)?;
-
-//     if user_role == "admin" || user_role == "owner" {
-//         let org_member = OrganizationUsers::find_by_id((user_id, org_id))
-//             .one(&ctx.db)
-//             .await?
-//             .ok_or(Error::NotFound)?;
-
-//         // only owners can delete other owners
-//         if org_member.role == "owner" && user_role == "admin" {
-//             return Err(Error::new("Permission denied"));
-//         }
-
-//         if org_member.user_id == user.user_id {
-//             return Err(Error::new("You cannot delete yourself"));
-//         }
-
-//         org_member.delete(&ctx.db).await?;
-//     }
-
-//     Ok(view)
-// }
-
-// #[derive(Serialize, Deserialize, Validate)]
-// #[validate(context = String)]
-// struct EditForm {
-//     #[validate(custom(function = "validate_role_choice", use_context))]
-//     role: String,
-// }
-
-// #[route(
-//     "/organization/{organization_id}/member-edit/{user_id}",
-//     method = "GET",
-//     method = "POST"
-// )]
-// async fn org_member_edit(
-//     ctx: web::Data<AppContext<'_>>,
-//     identity: Identity,
-//     path: web::Path<(u32, u32)>,
-//     form: Option<web::Form<EditForm>>,
-// ) -> Result<ViewModel> {
-//     let mut view = ViewModel::with_template("organizations/member_edit");
-
-//     view.set("form", &form);
-
-//     let (org_id, user_id) = path.into_inner();
-//     view.set("org_id", org_id);
-
-//     let current_user = identity.user(&ctx).await?;
-//     let user_role = current_user.role(&ctx.db, org_id).await?.ok_or(Error::LoginRequired)?;
-//     view.set("role", &user_role);
-
-//     let member = Users::find_by_id(user_id).one(&ctx.db).await?.ok_or(Error::NotFound)?;
-//     let org_member = OrganizationUsers::find_by_id((member.user_id, org_id))
-//         .one(&ctx.db)
-//         .await?
-//         .ok_or(Error::NotFound)?;
-
-//     view.set("member", &member);
-//     view.set("org_member", &org_member);
-
-//     if let Some(fields) = form.map(|f| f.into_inner()) {
-//         if let Err(errors) = fields.validate_with_args(&user_role) {
-//             view.set("errors", &errors);
-//             return Ok(view);
-//         }
-
-//         let mut org_member_model = org_member.into_active_model();
-//         org_member_model.role = ActiveValue::set(fields.role);
-//         org_member_model.save(&ctx.db).await?.try_into_model()?;
-
-//         view.redirect(format!("/organization/{}?tab=members", org_id), false);
-//     }
 
 //     Ok(view)
 // }
