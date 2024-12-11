@@ -1,6 +1,6 @@
 import React from 'react';
 import useSWR from 'swr';
-import { Link } from 'react-router';
+import { Link, useMatch, useSearchParams } from 'react-router';
 import List from '@mui/material/List';
 import ListItemButton from '@mui/material/ListItemButton';
 import ListItemIcon from '@mui/material/ListItemIcon';
@@ -13,30 +13,46 @@ import CircleIcon from '@mui/icons-material/Circle';
 import { OrganizationIcon } from './ConsistentIcons';
 
 const SideMenu = () => {
+  const [searchParams] = useSearchParams();
   const { data: organizations } = useSWR('/api/organizations');
+
+  const organizationPage = useMatch('/organization/:id/:page/*');
+  const selectedOrganizationId = organizationPage?.params.id ?? null;
+
+  const reportsPage = useMatch('reports/:projectId?');
+  const selectedProjectId = reportsPage && searchParams.get('projectId');
 
   return (
     <List component="nav">
-      <ListItemButton component={Link} to="/reports" divider>
+      <ListItemButton component={Link} to="/reports" divider selected={!selectedProjectId}>
         <ListItemText primary="All Reports" />
       </ListItemButton>
 
       {organizations?.map((org) => (
         <React.Fragment key={org.organization_id}>
-          <ListItemButton component={Link} to={`/organization/${org.organization_id}/projects`}>
+          <ListItemButton
+            component={Link}
+            to={`/organization/${org.organization_id}/projects`}
+            selected={selectedOrganizationId == org.organization_id}
+          >
             <OrgListIcon><OrganizationIcon /></OrgListIcon>
             <ListItemText primary={org.name} />
           </ListItemButton>
 
           {org.projects.map((project) => (
-            <ListItemButton key={project.project_id} sx={{ pl: 4 }}>
+            <ListItemButton
+              key={project.project_id}
+              component={Link}
+              to={`/reports?projectId=${project.project_id}`}
+              sx={{ pl: 4 }}
+              selected={selectedProjectId == project.project_id}
+            >
               <ProjectListIcon><CircleIcon sx={{ fontSize: 10 }} /></ProjectListIcon>
               <ListItemText primary={project.name} />
             </ListItemButton>
           ))}
         </React.Fragment>
       ))}
-
 
       <ListItem disableGutters>
         <Button variant="outlined" fullWidth component={Link} to="/add-organization">Add Organization</Button>
