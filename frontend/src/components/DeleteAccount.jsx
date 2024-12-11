@@ -49,12 +49,12 @@ const DeleteAccount = () => {
           <ul>
             {soleOwnerOrgs.map((org) => (
               // TODO: revisit this link
-              <li key={org.organization_id}><Link component={RouterLink} to={`/organization/${org.organization_id}`}>{org.name}</Link></li>
+              <li key={org.organization_id}><Link component={RouterLink} to={`/organization/${org.organization_id}/members`}>{org.name}</Link></li>
             ))}
           </ul>
 
           <Alert severity="warning" sx={{ width: '100%' }}>
-            You must transfer ownership or delete these before you can delete your account.
+            You must add another owner or delete these before you can delete your account.
           </Alert>
         </>
       ) : (

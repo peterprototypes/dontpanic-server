@@ -1,4 +1,5 @@
 import { createTheme } from '@mui/material/styles';
+import { grey } from "@mui/material/colors";
 
 import '@fontsource/inter/300.css';
 import '@fontsource/inter/400.css';
@@ -16,6 +17,10 @@ const theme = createTheme({
     text: {
       primary: "#1d1d1f"
     },
+    grey: {
+      main: grey[300],
+      dark: grey[400],
+    },
     accentBackground: "#f2f2f7"
   },
   typography: {
@@ -32,6 +37,11 @@ const theme = createTheme({
       },
     },
     MuiTextField: {
+      defaultProps: {
+        size: 'small',
+      },
+    },
+    MuiSelect: {
       defaultProps: {
         size: 'small',
       },
@@ -87,7 +97,12 @@ const theme = createTheme({
       defaultProps: {
         variant: 'outlined',
       },
-    }
+    },
+    MuiDataGrid: {
+      defaultProps: {
+        disableColumnMenu: true,
+      },
+    },
   }
 });
 

@@ -66,7 +66,8 @@ const ProjectManage = () => {
 
         <Stack sx={{ width: '100%' }} direction="row" justifyContent="space-between">
           <Button
-            variant="outlined"
+            variant="contained"
+            color="grey"
             component={RouterLink}
             to={`/organization/${organizationId}/projects`}
           >

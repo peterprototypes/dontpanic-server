@@ -18,6 +18,8 @@ import Organization from "./pages/organization/Organization";
 import Settings from "./pages/organization/Settings";
 import Members from "./pages/organization/Members";
 import ProjectManage from "./pages/organization/ProjectManage";
+import MemberInvite from "./pages/organization/MemberInvite";
+import MemberManage from "./pages/organization/MemberManage";
 
 const App = () => {
   return (
@@ -33,8 +35,12 @@ const App = () => {
                 <Route index element={<Projects />} />
                 <Route path="manage/:projectId?" element={<ProjectManage />} />
               </Route>
+              <Route path="members">
+                <Route index element={<Members />} />
+                <Route path="invite" element={<MemberInvite />} />
+                <Route path="manage/:memberId" element={<MemberManage />} />
+              </Route>
               <Route path="settings" element={<Settings />} />
-              <Route path="members" element={<Members />} />
             </Route>
             <Route index element={<Navigate to="/reports" replace />} />
           </Route>

@@ -170,25 +170,15 @@ async fn get_single(ctx: Data<AppContext<'_>>, path: Path<(u32, u32)>, id: Ident
     Ok(Json(OrganizationProject::from(project)))
 }
 
-#[derive(Debug, Deserialize)]
-struct DeleteInput {
-    project_id: u32,
-}
-
-#[post("/delete")]
-async fn delete(
-    ctx: web::Data<AppContext<'_>>,
-    path: web::Path<u32>,
-    id: Identity,
-    input: Json<DeleteInput>,
-) -> Result<impl Responder> {
-    let organization_id = path.into_inner();
+#[post("/delete/{project_id}")]
+async fn delete(ctx: web::Data<AppContext<'_>>, path: web::Path<(u32, u32)>, id: Identity) -> Result<impl Responder> {
+    let (organization_id, project_id) = path.into_inner();
 
     let user = id.user(&ctx).await?;
     let user_role = user.role(&ctx.db, organization_id).await?.ok_or(Error::LoginRequired)?;
 
     if user_role == "admin" || user_role == "owner" {
-        let project = Projects::find_by_id(input.project_id)
+        let project = Projects::find_by_id(project_id)
             .filter(projects::Column::OrganizationId.eq(organization_id))
             .one(&ctx.db)
             .await?

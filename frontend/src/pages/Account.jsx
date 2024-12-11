@@ -77,7 +77,7 @@ const Account = () => {
 };
 
 const AccountSchema = yup.object({
-  name: yup.string().required("Name is required"),
+  name: yup.string(),
 }).required();
 
 export default Account;

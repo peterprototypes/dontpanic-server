@@ -44,17 +44,15 @@ async fn get(ctx: web::Data<AppContext<'_>>, id: Identity) -> Result<impl Respon
     Ok(web::Json(AccountResponse::from(user)))
 }
 
-#[derive(Serialize, Deserialize, Clone, Validate)]
+#[derive(Serialize, Deserialize, Clone)]
 struct InfoInput {
     name: Option<String>,
 }
 
 #[post("")]
 async fn update(ctx: web::Data<AppContext<'_>>, id: Identity, input: web::Json<InfoInput>) -> Result<impl Responder> {
-    input.validate()?;
-
     let mut user = id.user(&ctx).await?.into_active_model();
-    user.name = ActiveValue::set(input.into_inner().name);
+    user.name = ActiveValue::set(input.into_inner().name.filter(|s| !s.is_empty()));
     let user = user.save(&ctx.db).await?.try_into_model()?;
 
     Ok(web::Json(AccountResponse::from(user)))
@@ -64,7 +62,6 @@ async fn update(ctx: web::Data<AppContext<'_>>, id: Identity, input: web::Json<I
 async fn delete(ctx: web::Data<AppContext<'_>>, id: Identity) -> Result<impl Responder> {
     let user = id.user(&ctx).await?;
 
-    // delete user only if they
     let user_owned_organizations = user
         .find_related(OrganizationUsers)
         .filter(organization_users::Column::Role.eq("owner"))
@@ -86,6 +83,11 @@ async fn delete(ctx: web::Data<AppContext<'_>>, id: Identity) -> Result<impl Res
             ));
         }
     }
+
+    OrganizationUsers::delete_many()
+        .filter(organization_users::Column::UserId.eq(user.user_id))
+        .exec(&ctx.db)
+        .await?;
 
     user.delete(&ctx.db).await?;
     id.logout();

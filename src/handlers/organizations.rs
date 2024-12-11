@@ -79,6 +79,7 @@ async fn list(ctx: web::Data<AppContext<'_>>, identity: Identity) -> Result<impl
         let members: Vec<OrganizationMember> = Users::find()
             .column_as(organization_users::Column::Role, "role")
             .column_as(organization_users::Column::Created, "date_added")
+            .column_as(organization_users::Column::OrganizationId, "organization_id")
             .filter(organization_users::Column::OrganizationId.eq(org.organization_id))
             .join(JoinType::InnerJoin, users::Relation::OrganizationUsers.def())
             .into_model::<OrganizationMember>()

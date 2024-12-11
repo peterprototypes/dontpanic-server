@@ -19,16 +19,18 @@ use crate::{AppContext, Error, Identity, Result};
 
 pub fn routes(cfg: &mut web::ServiceConfig) {
     cfg.service(list)
-        .service(manage)
         .service(delete)
         .service(invite)
         .service(delete_invite)
-        .service(resend_invite);
+        .service(resend_invite)
+        .service(manage)
+        .service(get_member);
 }
 
 #[derive(Debug, Serialize, FromQueryResult)]
 pub struct OrganizationMember {
     user_id: u32,
+    organization_id: u32,
     email: String,
     name: Option<String>,
     role: String,
@@ -51,6 +53,7 @@ async fn list(ctx: web::Data<AppContext<'_>>, path: Path<u32>, id: Identity) -> 
     let members: Vec<OrganizationMember> = Users::find()
         .column_as(organization_users::Column::Role, "role")
         .column_as(organization_users::Column::Created, "date_added")
+        .column_as(organization_users::Column::OrganizationId, "organization_id")
         .filter(organization_users::Column::OrganizationId.eq(organization.organization_id))
         .join(JoinType::InnerJoin, users::Relation::OrganizationUsers.def())
         .into_model::<OrganizationMember>()
@@ -66,6 +69,33 @@ async fn list(ctx: web::Data<AppContext<'_>>, path: Path<u32>, id: Identity) -> 
         "members": members,
         "invitations": invites,
     })))
+}
+
+#[get("/{user_id}")]
+async fn get_member(
+    ctx: web::Data<AppContext<'_>>,
+    path: web::Path<(u32, u32)>,
+    id: Identity,
+) -> Result<impl Responder> {
+    let (organization_id, user_id) = path.into_inner();
+    let user = id.user(&ctx).await?;
+
+    let _user_has_access = user.role(&ctx.db, organization_id).await?.ok_or(Error::LoginRequired)?;
+
+    let member = Users::find_by_id(user_id).one(&ctx.db).await?.ok_or(Error::NotFound)?;
+    let org_member = OrganizationUsers::find_by_id((member.user_id, organization_id))
+        .one(&ctx.db)
+        .await?
+        .ok_or(Error::NotFound)?;
+
+    Ok(Json(OrganizationMember {
+        user_id: member.user_id,
+        organization_id,
+        email: member.email,
+        name: member.name,
+        role: org_member.role,
+        date_added: org_member.created,
+    }))
 }
 
 #[derive(Debug, Deserialize, Validate)]
@@ -92,6 +122,10 @@ async fn manage(
         .await?
         .ok_or(Error::LoginRequired)?;
 
+    if user_id == current_user.user_id {
+        return Err(Error::field("role", "You cannot change your own role".into()));
+    }
+
     let member = Users::find_by_id(user_id).one(&ctx.db).await?.ok_or(Error::NotFound)?;
     let org_member = OrganizationUsers::find_by_id((member.user_id, organization_id))
         .one(&ctx.db)
@@ -106,6 +140,7 @@ async fn manage(
 
     Ok(Json(OrganizationMember {
         user_id: member.user_id,
+        organization_id,
         email: member.email,
         name: member.name,
         role: org_member.role,
@@ -132,7 +167,7 @@ async fn delete(ctx: web::Data<AppContext<'_>>, path: web::Path<(u32, u32)>, id:
         }
 
         if org_member.user_id == user.user_id {
-            return Err(Error::new("You cannot delete yourself"));
+            return Err(Error::new("You cannot remove yourself from an organization."));
         }
 
         org_member.delete(&ctx.db).await?;
@@ -242,10 +277,17 @@ async fn invite(
 
         org_invitation.insert(&ctx.db).await?;
 
-        let title = format!(
-            "You have been invited to the {} organization in Don't Panic",
-            organization.name
-        );
+        let title = if let Some(name) = user.name.as_ref() {
+            format!(
+                "{} has invited you to join the {} organization in Don't Panic",
+                name, organization.name
+            )
+        } else {
+            format!(
+                "You have been invited to the {} organization in Don't Panic",
+                organization.name
+            )
+        };
 
         let email = lettre::Message::builder()
             .from(ctx.config.email_from.clone().into())
@@ -319,10 +361,17 @@ async fn resend_invite(
         .await?
         .ok_or(Error::NotFound)?;
 
-    let title = format!(
-        "You have been invited to the {} organization in Don't Panic",
-        organization.name
-    );
+    let title = if let Some(name) = user.name.as_ref() {
+        format!(
+            "{} has invited you to join the {} organization in Don't Panic",
+            name, organization.name
+        )
+    } else {
+        format!(
+            "You have been invited to the {} organization in Don't Panic",
+            organization.name
+        )
+    };
 
     let email = lettre::Message::builder()
         .from(ctx.config.email_from.clone().into())
@@ -347,17 +396,11 @@ async fn resend_invite(
 }
 
 fn validate_role_choice(role: &str, user_role: &String) -> std::result::Result<(), ValidationError> {
-    if user_role == "member" {
-        return Err(ValidationError::new("forbidden").with_message("Only admins and owners can invite members".into()));
-    }
-
     match user_role.as_ref() {
-        "member" => {
-            Err(ValidationError::new("forbidden").with_message("Only admins and owners can invite members".into()))
-        }
+        "member" => Err(ValidationError::new("forbidden").with_message("Only admins and owners can set roles".into())),
         "admin" => match role {
             "member" | "admin" => Ok(()),
-            "owner" => Err(ValidationError::new("forbidden").with_message("Only owners invite owners".into())),
+            "owner" => Err(ValidationError::new("forbidden").with_message("Only owners set other owners".into())),
             _ => Err(ValidationError::new("forbidden").with_message("Unknown role".into())),
         },
         "owner" => match role {
