@@ -1,5 +1,8 @@
 use actix_web::Responder;
-use actix_web::{delete, get, post, route, web};
+use actix_web::{
+    get, post,
+    web::{self, Data, Json, Path},
+};
 use chrono::{Days, Utc};
 use lettre::AsyncTransport;
 use rand::distributions::Alphanumeric;
@@ -32,7 +35,9 @@ pub fn routes(cfg: &mut web::ServiceConfig) {
     cfg.service(list)
         .service(create)
         .service(web::scope("/{organization_id}/projects").configure(projects::routes))
-        .service(web::scope("/{organization_id}/members").configure(members::routes));
+        .service(web::scope("/{organization_id}/members").configure(members::routes))
+        .service(delete)
+        .service(manage);
 
     // cfg.service(organization)
     //     .service(org_create)
@@ -86,6 +91,8 @@ async fn list(ctx: web::Data<AppContext<'_>>, identity: Identity) -> Result<impl
             .all(&ctx.db)
             .await?;
 
+        let reset_date = org.requests_count_start.map(|date| date + Days::new(30));
+
         let org = Organization {
             organization_id: org.organization_id,
             name: org.name,
@@ -111,7 +118,7 @@ struct CreateInput {
 }
 
 #[post("")]
-async fn create(ctx: web::Data<AppContext<'_>>, id: Identity, input: web::Json<CreateInput>) -> Result<impl Responder> {
+async fn create(ctx: Data<AppContext<'_>>, id: Identity, input: Json<CreateInput>) -> Result<impl Responder> {
     input.validate()?;
 
     let name = input.name.trim().to_string();
@@ -156,6 +163,52 @@ async fn create(ctx: web::Data<AppContext<'_>>, id: Identity, input: web::Json<C
     })))
 }
 
+#[post("/{organization_id}")]
+async fn manage(
+    ctx: Data<AppContext<'_>>,
+    id: Identity,
+    input: Json<CreateInput>,
+    path: Path<u32>,
+) -> Result<impl Responder> {
+    let input = input.into_inner();
+    input.validate()?;
+
+    let organization_id = path.into_inner();
+    let user = id.user(&ctx).await?;
+
+    let user_role = user.role(&ctx.db, organization_id).await?.ok_or(Error::LoginRequired)?;
+
+    if user_role != "owner" {
+        return Err(Error::new("Only owners can manage an organization"));
+    }
+
+    let org = Organizations::find_by_id(organization_id)
+        .filter(organization_users::Column::UserId.eq(id.user_id))
+        .join(JoinType::InnerJoin, organizations::Relation::OrganizationUsers.def())
+        .one(&ctx.db)
+        .await?
+        .ok_or(Error::NotFound)?;
+
+    let org_search = Organizations::find()
+        .filter(organizations::Column::Name.eq(&input.name))
+        .filter(organizations::Column::OrganizationId.ne(organization_id))
+        .one(&ctx.db)
+        .await?;
+
+    if org_search.is_some() {
+        return Err(Error::field(
+            "name",
+            "An organization with the same name already exists.".into(),
+        ));
+    }
+
+    let mut org_model = org.into_active_model();
+    org_model.name = ActiveValue::set(input.name);
+    org_model.save(&ctx.db).await?;
+
+    Ok(Json(()))
+}
+
 // #[delete("/organization/{organization_id}")]
 // async fn org_delete(ctx: web::Data<AppContext<'_>>, identity: Identity, path: web::Path<u32>) -> Result<ViewModel> {
 //     let mut view = ViewModel::default();
@@ -176,6 +229,22 @@ async fn create(ctx: web::Data<AppContext<'_>>, id: Identity, input: web::Json<C
 
 //     Ok(view)
 // }
+
+#[post("/{organization_id}/delete")]
+async fn delete(ctx: Data<AppContext<'_>>, id: Identity, path: Path<u32>) -> Result<impl Responder> {
+    let organization_id = path.into_inner();
+
+    let user = id.user(&ctx).await?;
+    let user_role = user.role(&ctx.db, organization_id).await?.ok_or(Error::LoginRequired)?;
+
+    if user_role != "owner" {
+        return Err(Error::new("Only owners can delete an organization"));
+    }
+
+    Organizations::delete(&ctx.db, organization_id).await?;
+
+    Ok(Json(()))
+}
 
 // #[derive(Clone, Debug, Serialize, Deserialize, Validate)]
 // struct OrgSettingsFrom {
