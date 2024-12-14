@@ -24,7 +24,7 @@ const SideMenu = () => {
 
   return (
     <List component="nav">
-      <ListItemButton component={Link} to="/reports" divider selected={!selectedProjectId}>
+      <ListItemButton component={Link} to="/reports" divider selected={reportsPage && !selectedProjectId}>
         <ListItemText primary="All Reports" />
       </ListItemButton>
 
