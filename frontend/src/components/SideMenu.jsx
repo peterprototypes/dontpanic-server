@@ -19,8 +19,8 @@ const SideMenu = () => {
   const organizationPage = useMatch('/organization/:id/:page/*');
   const selectedOrganizationId = organizationPage?.params.id ?? null;
 
-  const reportsPage = useMatch('reports/:projectId?');
-  const selectedProjectId = reportsPage && searchParams.get('projectId');
+  const reportsPage = useMatch('reports/:project_id?');
+  const selectedProjectId = reportsPage && searchParams.get('project_id');
 
   return (
     <List component="nav">
@@ -43,7 +43,7 @@ const SideMenu = () => {
             <ListItemButton
               key={project.project_id}
               component={Link}
-              to={`/reports?projectId=${project.project_id}`}
+              to={`/reports?project_id=${project.project_id}`}
               sx={{ pl: 4 }}
               selected={selectedProjectId == project.project_id}
             >

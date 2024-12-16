@@ -8,8 +8,7 @@ const Project = () => {
   const [searchParams] = useSearchParams();
   const reportsRoute = useMatch('/reports/:page/*');
 
-  const projectId = searchParams.get('projectId');
-  const searchParamsString = searchParams.size ? '?' + searchParams.toString() : '';
+  const projectId = searchParams.get('project_id');
 
   return (
     <Grid container spacing={2}>
@@ -20,7 +19,7 @@ const Project = () => {
         <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end', mt: 2 }}>
           <Link
             component={RouterLink}
-            to={`/reports` + searchParamsString}
+            to={`/reports` + (projectId ? `?project_id=${projectId}` : '')}
             variant="h4"
             color={reportsRoute?.params?.page ? 'textPrimary' : 'primary'}
           >
@@ -28,8 +27,8 @@ const Project = () => {
           </Link>
 
           <Tabs value={reportsRoute?.params?.page ?? false}>
-            <Tab label="Resolved" value="resolved" component={RouterLink} to={`/reports/resolved` + searchParamsString} />
-            {projectId && <Tab label="Notifications" value="notifications" component={RouterLink} to={`/reports/notifications` + searchParamsString} />}
+            <Tab label="Resolved" value="resolved" component={RouterLink} to={`/reports/resolved` + (projectId ? `?project_id=${projectId}` : '')} />
+            {projectId && <Tab label="Notifications" value="notifications" component={RouterLink} to={`/reports/notifications?project_id=${projectId}`} />}
           </Tabs>
         </Box>
         <Divider sx={{ mb: 2 }} />
