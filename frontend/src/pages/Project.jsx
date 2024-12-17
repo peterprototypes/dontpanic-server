@@ -1,5 +1,4 @@
-import { useSearchParams } from 'react-router';
-import { Outlet, useMatch, Link as RouterLink } from 'react-router';
+import { Outlet, useMatch, Link as RouterLink, useSearchParams } from 'react-router';
 import { Box, Divider, Grid2 as Grid, Tab, Tabs, Link } from '@mui/material';
 
 import SideMenu from 'components/SideMenu';

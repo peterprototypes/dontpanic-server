@@ -25,6 +25,7 @@ import MemberManage from "./pages/organization/MemberManage";
 import Project from "./pages/Project";
 import ReportsList from "./pages/project/ReportsList";
 import Notifications from "./pages/project/Notifications";
+import Report from "./pages/Report";
 
 const App = () => {
   return (
@@ -37,6 +38,7 @@ const App = () => {
               <Route path="resolved" element={<ReportsList resolved={true} />} />
               <Route path="notifications" element={<Notifications />} />
             </Route>
+            <Route path="view-report/:id" element={<Report />} />
             <Route path="account" element={<Account />} />
             <Route path="add-organization" element={<AddOrganization />} />
             <Route path="organization/:id" element={<Organization />}>

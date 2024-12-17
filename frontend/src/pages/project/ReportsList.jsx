@@ -105,7 +105,7 @@ const ReportsList = ({ resolved = false }) => {
         </TableHead>
         <TableBody>
           {data?.reports.map((row) => (
-            <TableRow key={row.report.project_report_id} onClick={() => navigate(`/report/${row.report.project_report_id}`)}>
+            <TableRow key={row.report.project_report_id} onClick={() => navigate(`/view-report/${row.report.project_report_id}`)}>
               <TableCell onClick={(e) => e.stopPropagation()}>
                 <Checkbox onChange={() => toggle(row.report.project_report_id)} checked={selected.includes(row.report.project_report_id)} />
               </TableCell>
