@@ -1,10 +1,14 @@
 use std::sync::Arc;
 
 use actix_cors::Cors;
-use actix_files::Files;
+use actix_files::{Files, NamedFile};
 use actix_htmx::HtmxMiddleware;
 use actix_session::{storage::CookieSessionStore, SessionMiddleware};
-use actix_web::{cookie::Key, middleware, web, App, HttpServer};
+use actix_web::{
+    cookie::Key,
+    dev::{fn_service, ServiceRequest, ServiceResponse},
+    middleware, web, App, HttpServer,
+};
 
 use chrono::prelude::*;
 use chrono_tz::Tz;
@@ -156,7 +160,6 @@ async fn main() -> anyhow::Result<()> {
     let cookie_secret = Key::from(&ctx.config.cookie_secret);
 
     HttpServer::new(move || {
-        #[cfg(debug_assertions)]
         let cors = if cfg!(debug_assertions) {
             Cors::permissive()
         } else {
@@ -177,7 +180,13 @@ async fn main() -> anyhow::Result<()> {
             .service(
                 Files::new("/", "./frontend/dist")
                     .index_file("index.html")
-                    .prefer_utf8(true),
+                    .prefer_utf8(true)
+                    .default_handler(fn_service(|req: ServiceRequest| async {
+                        let (req, _) = req.into_parts();
+                        let file = NamedFile::open_async("./frontend/dist/index.html").await?;
+                        let res = file.into_response(&req);
+                        Ok(ServiceResponse::new(req, res))
+                    })),
             )
             .configure(handlers::ingress::routes)
             .wrap(middleware::Logger::default())
