@@ -1,45 +1,45 @@
 {{#*inline "content"}}
-    <span class="preheader">
-        You have been added to the {{organization.name}} organization in Don't Panic
-    </span>
+<span class="preheader">
+    You have been added to the {{organization.name}} organization in Don't Panic
+</span>
 
-    <table role="presentation" border="0" cellpadding="0" cellspacing="0" class="main">
-        <tr>
-            <td class="wrapper">
-                <p>
-                    {{#if added_by.name}}
-                        {{added_by.name}}
-                    {{else}}
-                        {{added_by.email}}
-                    {{/if}}
-                    has added you to the {{organization.name}} organization in Don't Panic.
-                </p>
-                <p>
-                    You can now create projects and start tracking Rust panic!s and log::error!s.
-                </p>
-                <table role="presentation" border="0" cellpadding="0" cellspacing="0" class="btn btn-primary">
-                    <tbody>
-                        <tr>
-                            <td align="left">
-                                <table role="presentation" border="0" cellpadding="0" cellspacing="0">
-                                    <tbody>
-                                        <tr>
-                                            <td>
-                                                <a href="{{scheme}}://{{base_url}}/organization/{{organization.organization_id}}"
-                                                    target="_blank">
-                                                    Open {{organization.name}}
-                                                </a>
-                                            </td>
-                                        </tr>
-                                    </tbody>
-                                </table>
-                            </td>
-                        </tr>
-                    </tbody>
-                </table>
-            </td>
-        </tr>
-    </table>
+<table role="presentation" border="0" cellpadding="0" cellspacing="0" class="main">
+    <tr>
+        <td class="wrapper">
+            <p>
+                {{#if added_by.name}}
+                {{added_by.name}}
+                {{else}}
+                {{added_by.email}}
+                {{/if}}
+                has added you to the {{organization.name}} organization in Don't Panic.
+            </p>
+            <p>
+                You can now create projects and start tracking Rust panic!s and log::error!s.
+            </p>
+            <table role="presentation" border="0" cellpadding="0" cellspacing="0" class="btn btn-primary">
+                <tbody>
+                    <tr>
+                        <td align="left">
+                            <table role="presentation" border="0" cellpadding="0" cellspacing="0">
+                                <tbody>
+                                    <tr>
+                                        <td>
+                                            <a href="{{scheme}}://{{base_url}}/organization/{{organization.organization_id}}/projects"
+                                                target="_blank">
+                                                Open {{organization.name}}
+                                            </a>
+                                        </td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </td>
+                    </tr>
+                </tbody>
+            </table>
+        </td>
+    </tr>
+</table>
 {{/inline}}
 
 {{> email/layout}}
