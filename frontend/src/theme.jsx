@@ -103,6 +103,19 @@ const theme = createTheme({
         disableColumnMenu: true,
       },
     },
+    MuiTableCell: {
+      styleOverrides: {
+        head: {
+          fontWeight: 300,
+          textTransform: 'uppercase',
+        },
+      }
+    },
+    MuiTable: {
+      defaultProps: {
+        size: 'small',
+      }
+    }
   }
 });
 

@@ -91,8 +91,8 @@ const ReportsList = ({ resolved = false }) => {
 
   return (
     <TableContainer>
-      <Table size="small">
-        <TableHead sx={{ textTransform: 'uppercase' }}>
+      <Table>
+        <TableHead>
           <TableRow>
             <TableCell>
               <Checkbox onChange={toggleAll} />
@@ -131,6 +131,7 @@ const ReportsList = ({ resolved = false }) => {
             <Button variant="outlined" color="success" startIcon={<ResolveIcon />} onClick={onResolve}>Resolve</Button>
           </Grow>
         </Stack>
+
         <Stack spacing={2} direction="row">
           <Button
             variant="contained"
@@ -152,6 +153,7 @@ const ReportsList = ({ resolved = false }) => {
             Next
           </Button>
         </Stack>
+
       </Stack>
     </TableContainer >
   );

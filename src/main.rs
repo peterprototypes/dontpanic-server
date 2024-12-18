@@ -25,14 +25,14 @@ mod event;
 mod handlers;
 mod identity;
 mod notifications;
-mod view_model;
+// mod view_model;
 
 use config::Config;
 use notifications::Notification;
 
 pub use error::Error;
 pub use identity::Identity;
-pub use view_model::ViewModel;
+// pub use view_model::ViewModel;
 
 pub type Result<T> = std::result::Result<T, error::Error>;
 

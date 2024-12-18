@@ -27,7 +27,7 @@ const Report = () => {
         <SideMenu />
       </Grid>
       <Grid size={9} sx={{ mt: 2 }}>
-        <Link component={RouterLink} to={`/reports`} color="primary" sx={{ display: 'flex', alignItems: 'center', mb: 2 }}>
+        <Link component={RouterLink} to={`/reports?project_id=${data.report.project_id}`} color="primary" sx={{ display: 'flex', alignItems: 'center', mb: 2 }}>
           <BackIcon />
           Back to reports
         </Link>
@@ -61,7 +61,6 @@ const Report = () => {
         <Occurrences occurrences={data.occurrences} maxOccurrences={data.max_occurrences} />
 
         {event && <Event reportEvent={event} setSearchParams={setSearchParams} />}
-
       </Grid>
     </Grid>
   );

@@ -7,3 +7,4 @@ export { default as SendEmailIcon } from '@mui/icons-material/EmailOutlined';
 export { default as BackIcon } from '@mui/icons-material/NavigateBeforeOutlined';
 export { default as NextIcon } from '@mui/icons-material/NavigateNextOutlined';
 export { default as ResolveIcon } from '@mui/icons-material/CheckOutlined';
+export { default as TestIcon } from '@mui/icons-material/AutorenewOutlined';
