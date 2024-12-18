@@ -1,27 +1,20 @@
-use std::collections::HashMap;
-
 use actix_web::{
-    get, post, route,
+    get, post,
     web::{self, Data, Json, Path},
-    App, Responder,
+    Responder,
 };
 use migration::IntoCondition;
-use sea_orm::{prelude::*, IntoActiveModel, QuerySelect, TryIntoModel};
+use sea_orm::{prelude::*, QuerySelect};
 use sea_orm::{ActiveValue, FromQueryResult, JoinType};
-use serde::{de::IntoDeserializer, Deserialize, Serialize};
+use serde::{Deserialize, Serialize};
 use serde_json::json;
-use serde_qs::actix::QsForm;
-use validator::Validate;
 
+use crate::entity::organization_users;
+use crate::entity::prelude::*;
+use crate::entity::project_user_settings;
 use crate::entity::users;
-use crate::entity::{organization_users, prelude::*, project_user_settings};
 
-use crate::event::EventData;
-use crate::notifications::ReportStatus;
-use crate::AppContext;
-use crate::Error;
-use crate::Identity;
-use crate::Result;
+use crate::{AppContext, Error, Identity, Result};
 
 mod slack_app;
 mod slack_webhook;
@@ -34,16 +27,6 @@ pub fn routes(cfg: &mut web::ServiceConfig) {
         .service(web::scope("/{project_id}/slack-app").configure(slack_app::routes))
         .service(web::scope("/{project_id}/slack-webhook").configure(slack_webhook::routes))
         .service(web::scope("/{project_id}/webhook").configure(webhook::routes));
-
-    // cfg.service(notifications)
-    //     .service(notifications_save)
-    //     .service(slack_auth)
-    //     .service(slack_config)
-    //     .service(slack_test)
-    //     .service(slack_webhook)
-    //     .service(slack_test_webhook)
-    //     .service(webhook)
-    //     .service(test_webhook);
 }
 
 #[derive(FromQueryResult, Serialize)]
@@ -168,232 +151,3 @@ async fn get_project(ctx: Data<AppContext<'_>>, id: Identity, path: Path<u32>) -
 
     Ok(Json(project))
 }
-
-// #[derive(Serialize, Deserialize, Debug)]
-// struct SlackChannels {
-//     channels: Vec<SlackChannel>,
-// }
-
-// #[derive(Serialize, Deserialize, Debug)]
-// struct SlackChannel {
-//     id: String,
-//     is_member: bool,
-//     name: String,
-// }
-
-// #[derive(Serialize, Deserialize, Debug)]
-// struct SlackConfigForm {
-//     channel: String,
-// }
-
-// #[route("/notifications/slack-config/{project_id}", method = "GET", method = "POST")]
-// async fn slack_config(ctx: web::Data<AppContext<'_>>, identity: Identity, path: web::Path<u32>, form: Option<web::Form<SlackConfigForm>>) -> Result<ViewModel> {
-//     let mut view = ViewModel::with_template("notifications/slack_config");
-
-//     view.set("form", &form);
-
-//     let project_id = path.into_inner();
-//     let mut project = Projects::find_by_id(project_id).one(&ctx.db).await?.ok_or(Error::NotFound)?;
-
-//     let user = identity.user(&ctx).await?;
-//     let _ = user.role(&ctx.db, project.organization_id).await?.ok_or(Error::LoginRequired)?;
-
-//     view.set(
-//         "slack_redirect_uri",
-//         format!("{}://{}/notifications/slack-auth/{}", ctx.config.scheme, ctx.config.base_url, project.project_id),
-//     );
-
-//     view.set("slack_client_id", &ctx.config.slack_client_id);
-
-//     if let Some(bot_token) = project.slack_bot_token.as_deref() {
-//         let params = [("token", bot_token), ("limit", "1000"), ("types", "public_channel,private_channel")];
-
-//         let client = reqwest::Client::new();
-//         let mut result: SlackChannels = client.post("https://slack.com/api/conversations.list").form(&params).send().await?.json().await?;
-
-//         result.channels.retain(|channel| channel.is_member);
-
-//         view.set("slack_chats", result.channels);
-
-//         if let Some(fields) = form.map(|f| f.into_inner()) {
-//             let mut project_model = project.into_active_model();
-//             project_model.slack_channel = ActiveValue::set(Some(fields.channel));
-//             project = project_model.save(&ctx.db).await?.try_into_model()?;
-
-//             view.message("Slack channel set");
-//         }
-//     }
-
-//     view.set("project", &project);
-
-//     Ok(view)
-// }
-
-// #[post("/notifications/slack-test/{project_id}")]
-// async fn slack_test(ctx: web::Data<AppContext<'_>>, identity: Identity, path: web::Path<u32>) -> Result<ViewModel> {
-//     let mut view = ViewModel::default();
-
-//     let project_id = path.into_inner();
-//     let project = Projects::find_by_id(project_id).one(&ctx.db).await?.ok_or(Error::NotFound)?;
-
-//     let user = identity.user(&ctx).await?;
-//     let _ = user.role(&ctx.db, project.organization_id).await?.ok_or(Error::LoginRequired)?;
-
-//     let Some((token, channel)) = project.slack_bot_token.zip(project.slack_channel) else {
-//         view.message("Slack not configured");
-//         return Ok(view);
-//     };
-
-//     let params = [
-//         ("token", token),
-//         ("channel", channel),
-//         ("text", "Slack is working! I'll post here when your app panic!()s".into()),
-//     ];
-
-//     let client = reqwest::Client::new();
-//     client.post("https://slack.com/api/chat.postMessage").form(&params).send().await?;
-
-//     view.message("Message sent");
-
-//     Ok(view)
-// }
-
-// #[derive(Deserialize, Debug)]
-// struct SlackAuthParams {
-//     code: String,
-// }
-
-// #[derive(Deserialize, Debug)]
-// struct SlackAccessResponse {
-//     ok: bool,
-//     access_token: Option<String>,
-//     error: Option<String>,
-// }
-
-// #[get("/notifications/slack-auth/{project_id}")]
-// async fn slack_auth(ctx: web::Data<AppContext<'_>>, identity: Identity, path: web::Path<u32>, query: web::Query<SlackAuthParams>) -> Result<ViewModel> {
-//     let mut view = ViewModel::default();
-
-//     let project_id = path.into_inner();
-//     let project = Projects::find_by_id(project_id).one(&ctx.db).await?.ok_or(Error::NotFound)?;
-
-//     let user = identity.user(&ctx).await?;
-//     let _ = user.role(&ctx.db, project.organization_id).await?.ok_or(Error::LoginRequired)?;
-
-//     // retrieve the verification code and send it to oauth.v2.access to obtain an access_token
-
-//     let redirect_uri = format!("{}://{}/notifications/slack-auth/{}", ctx.config.scheme, ctx.config.base_url, project.project_id);
-
-//     let client_id = ctx.config.slack_client_id.clone().ok_or_else(|| anyhow::anyhow!("Slack client id not found"))?;
-//     let client_secret = ctx.config.slack_client_secret.clone().ok_or_else(|| anyhow::anyhow!("Slack client secret not found"))?;
-
-//     let params = [
-//         ("code", urlencoding::encode(&query.code).to_string()),
-//         ("client_id", client_id),
-//         ("client_secret", client_secret),
-//         ("redirect_uri", redirect_uri),
-//     ];
-
-//     let client = reqwest::Client::new();
-//     let result: SlackAccessResponse = client.post("https://slack.com/api/oauth.v2.access").form(&params).send().await?.json().await?;
-
-//     if !result.ok {
-//         return Err(Error::Internal(anyhow::anyhow!("Error from slack: {:?}", result.error)));
-//     }
-
-//     let mut project_model = project.into_active_model();
-//     project_model.slack_bot_token = ActiveValue::set(result.access_token);
-//     project_model.save(&ctx.db).await?;
-
-//     view.redirect(format!("/notifications/setup/{}", project_id), true);
-
-//     Ok(view)
-// }
-
-// #[derive(Serialize, Deserialize, Debug, Validate)]
-// struct SlackWebhookForm {
-//     #[serde(deserialize_with = "empty_string_as_none")]
-//     #[validate(url(message = "Please enter a valid URL"))]
-//     webhook_url: Option<String>,
-// }
-
-// #[route("/notifications/slack-webhook/{project_id}", method = "GET", method = "POST")]
-// async fn slack_webhook(ctx: web::Data<AppContext<'_>>, identity: Identity, path: web::Path<u32>, form: Option<web::Form<SlackWebhookForm>>) -> Result<ViewModel> {
-//     let mut view = ViewModel::with_template("notifications/slack_webhook");
-
-//     view.set("form", &form);
-
-//     let project_id = path.into_inner();
-//     let mut project = Projects::find_by_id(project_id).one(&ctx.db).await?.ok_or(Error::NotFound)?;
-
-//     let user = identity.user(&ctx).await?;
-//     let _ = user.role(&ctx.db, project.organization_id).await?.ok_or(Error::LoginRequired)?;
-
-//     if let Some(fields) = form.map(|f| f.into_inner()) {
-//         if let Err(errors) = fields.validate() {
-//             view.set("errors", &errors);
-//             return Ok(view);
-//         }
-
-//         if fields.webhook_url.is_some() {
-//             view.message("Slack webhook set");
-//         } else {
-//             view.message("Slack webhook removed");
-//         }
-
-//         let mut project_model = project.into_active_model();
-//         project_model.slack_webhook = ActiveValue::set(fields.webhook_url);
-//         project = project_model.save(&ctx.db).await?.try_into_model()?;
-//     } else {
-//         view.set(
-//             "form",
-//             SlackWebhookForm {
-//                 webhook_url: project.slack_webhook.clone(),
-//             },
-//         );
-//     }
-
-//     view.set("project", &project);
-
-//     Ok(view)
-// }
-
-// fn empty_string_as_none<'de, D, T>(de: D) -> std::result::Result<Option<T>, D::Error>
-// where
-//     D: serde::Deserializer<'de>,
-//     T: serde::Deserialize<'de>,
-// {
-//     let opt = Option::<String>::deserialize(de)?;
-//     match opt.as_deref() {
-//         None | Some("") => Ok(None),
-//         Some(s) => T::deserialize(s.into_deserializer()).map(Some),
-//     }
-// }
-
-// #[post("/notifications/slack-test-webhook/{project_id}")]
-// async fn slack_test_webhook(ctx: web::Data<AppContext<'_>>, identity: Identity, path: web::Path<u32>) -> Result<ViewModel> {
-//     let mut view = ViewModel::default();
-
-//     let project_id = path.into_inner();
-//     let project = Projects::find_by_id(project_id).one(&ctx.db).await?.ok_or(Error::NotFound)?;
-
-//     let user = identity.user(&ctx).await?;
-//     let _ = user.role(&ctx.db, project.organization_id).await?.ok_or(Error::LoginRequired)?;
-
-//     let Some(webhook_url) = project.slack_webhook else {
-//         view.message("Slack not configured");
-//         return Ok(view);
-//     };
-
-//     let mut params = HashMap::new();
-//     params.insert("text", "Slack is working! I'll post here when your **app** panic!()s");
-
-//     let client = reqwest::Client::new();
-//     let res = client.post(webhook_url).json(&params).send().await?;
-
-//     log::info!("Slack test response: {:?}", res.text().await);
-
-//     view.message("Message sent");
-
-//     Ok(view)
-// }

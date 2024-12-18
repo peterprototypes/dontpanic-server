@@ -4,18 +4,18 @@ use actix_cors::Cors;
 use actix_files::Files;
 use actix_htmx::HtmxMiddleware;
 use actix_session::{storage::CookieSessionStore, SessionMiddleware};
-use actix_web::{cookie::Key, get, http::header::LOCATION, middleware, web, App, HttpResponse, HttpServer};
+use actix_web::{cookie::Key, middleware, web, App, HttpServer};
 
 use chrono::prelude::*;
 use chrono_tz::Tz;
 use handlebars::{Context, Handlebars, Helper, HelperResult, JsonRender, Output, RenderContext, RenderErrorReason};
 use key_lock::KeyLock;
 use lettre::{transport::smtp::PoolConfig, AsyncSmtpTransport, Tokio1Executor};
-use migration::{Migrator, MigratorTrait};
-use serde_qs::{actix::QsQueryConfig, Config as QsConfig};
 use tokio::sync::mpsc;
 
 use sea_orm::{prelude::*, ConnectOptions, Database, IntoActiveModel, TryIntoModel};
+
+use migration::{Migrator, MigratorTrait};
 
 mod config;
 mod entity;
@@ -25,14 +25,12 @@ mod event;
 mod handlers;
 mod identity;
 mod notifications;
-// mod view_model;
 
 use config::Config;
 use notifications::Notification;
 
 pub use error::Error;
 pub use identity::Identity;
-// pub use view_model::ViewModel;
 
 pub type Result<T> = std::result::Result<T, error::Error>;
 
@@ -51,7 +49,6 @@ impl AppContext<'static> {
         let config = Config::from_env()?;
 
         let mut connection_opt = ConnectOptions::new(&config.database_url);
-        //let mut connection_opt = ConnectOptions::new("sqlite://test.sqlite?mode=rwc");
         connection_opt.sqlx_logging(false);
 
         let connection = Database::connect(connection_opt).await?;
@@ -63,9 +60,6 @@ impl AppContext<'static> {
         handlebars.set_dev_mode(cfg!(debug_assertions));
         handlebars.register_templates_directory("./templates", Default::default())?;
         handlebars.register_helper("dateFmt", Box::new(date));
-        handlebars.register_helper("timestampFmt", Box::new(timestamp));
-        handlebars.register_helper("simplePercent", Box::new(simple_percent));
-        handlebars.register_helper("urlencode", Box::new(urlencode));
 
         // mailer
         let mailer = if let Some(url) = config.email_url.as_ref() {
@@ -126,9 +120,6 @@ impl AppContext<'static> {
         handlebars.set_dev_mode(cfg!(debug_assertions));
         handlebars.register_templates_directory("./templates", Default::default())?;
         handlebars.register_helper("dateFmt", Box::new(date));
-        handlebars.register_helper("timestampFmt", Box::new(timestamp));
-        handlebars.register_helper("simplePercent", Box::new(simple_percent));
-        handlebars.register_helper("urlencode", Box::new(urlencode));
 
         let (notifications, _notifications_rx) = mpsc::unbounded_channel();
 
@@ -158,13 +149,6 @@ async fn main() -> anyhow::Result<()> {
 
     let ctx = AppContext::new().await?;
 
-    let query_style_config = QsQueryConfig::default()
-        // .error_handler(|err, req| {
-        //     // <- create custom error response
-        //     error::InternalError::from_response(err, HttpResponse::Conflict().finish()).into()
-        // })
-        .qs_config(QsConfig::new(10, false));
-
     let bind_addr = ctx.config.bind_addr;
 
     log::info!("Starting http server. Listen: {}", bind_addr);
@@ -172,14 +156,12 @@ async fn main() -> anyhow::Result<()> {
     let cookie_secret = Key::from(&ctx.config.cookie_secret);
 
     HttpServer::new(move || {
-        let cors = Cors::default()
-            .allow_any_origin()
-            .allow_any_header()
-            .allowed_methods(vec!["OPTIONS", "POST", "GET", "DELETE"])
-            .max_age(3600);
-
         #[cfg(debug_assertions)]
-        let cors = cors.supports_credentials();
+        let cors = if cfg!(debug_assertions) {
+            Cors::permissive()
+        } else {
+            Cors::default().allowed_methods(vec!["POST", "GET"])
+        };
 
         App::new()
             .wrap(HtmxMiddleware)
@@ -191,17 +173,13 @@ async fn main() -> anyhow::Result<()> {
                     .build(),
             )
             .app_data(web::Data::new(ctx.clone()))
-            .app_data(query_style_config.clone())
-            .service(Files::new("/static", "./static").prefer_utf8(true))
-            .service(index)
             .service(web::scope("/api").configure(handlers::routes))
+            .service(
+                Files::new("/", "./frontend/dist")
+                    .index_file("index.html")
+                    .prefer_utf8(true),
+            )
             .configure(handlers::ingress::routes)
-            // .configure(handlers::auth::routes)
-            // .configure(handlers::reports::routes)
-            // .configure(handlers::menu::routes)
-            // .configure(handlers::organizations::routes)
-            // .configure(handlers::account::routes)
-            // .configure(handlers::notifications::routes)
             .wrap(middleware::Logger::default())
     })
     .shutdown_timeout(10)
@@ -210,13 +188,6 @@ async fn main() -> anyhow::Result<()> {
     .await?;
 
     Ok(())
-}
-
-#[get("/")]
-async fn index() -> HttpResponse {
-    HttpResponse::TemporaryRedirect()
-        .insert_header((LOCATION, "/login"))
-        .finish()
 }
 
 fn date(h: &Helper, _: &Handlebars, _: &Context, _rc: &mut RenderContext, out: &mut dyn Output) -> HelperResult {
@@ -254,76 +225,6 @@ fn date(h: &Helper, _: &Handlebars, _: &Context, _rc: &mut RenderContext, out: &
     } else {
         out.write(&date_user.format("%e %b %Y @ %R").to_string())?;
     }
-
-    Ok(())
-}
-
-fn timestamp(h: &Helper, _: &Handlebars, _: &Context, _rc: &mut RenderContext, out: &mut dyn Output) -> HelperResult {
-    let timestamp_param = h
-        .hash_get("timestamp")
-        .map(|v| v.value())
-        .ok_or(RenderErrorReason::ParamNotFoundForIndex("timestampFmt", 0))?;
-
-    let tz_name_param = h
-        .hash_get("tz")
-        .map(|v| v.value())
-        .ok_or(RenderErrorReason::ParamNotFoundForIndex("timestampFmt", 1))?;
-    let format = h.hash_get("format").map(|v| v.value().render()).unwrap_or_default();
-
-    let timestamp: i64 = timestamp_param
-        .render()
-        .parse()
-        .map_err(|e| RenderErrorReason::NestedError(Box::new(e)))?;
-    let tz_name = tz_name_param.render();
-
-    let tz_name = if tz_name.is_empty() { "UTC".to_string() } else { tz_name };
-
-    let tz: Tz = tz_name
-        .parse()
-        .map_err(|e| RenderErrorReason::NestedError(Box::new(e)))?;
-
-    let date_user = chrono::DateTime::from_timestamp(timestamp, 0)
-        .ok_or_else(|| RenderErrorReason::Other("Cannot construct datetime from log timestamp".to_string()))?
-        .with_timezone(&tz);
-
-    let fmt = match format.as_str() {
-        "short" => "%d %b %T",
-        _ => "%A %B %e %T %Y",
-    };
-
-    out.write(&date_user.format(fmt).to_string())?;
-
-    Ok(())
-}
-
-fn simple_percent(
-    h: &Helper,
-    _: &Handlebars,
-    _: &Context,
-    _rc: &mut RenderContext,
-    out: &mut dyn Output,
-) -> HelperResult {
-    let count = h.hash_get("count").map(|v| v.value().render()).unwrap_or_default();
-    let total = h.hash_get("total").map(|v| v.value().render()).unwrap_or_default();
-
-    let count: f32 = count.parse::<i64>().unwrap_or_default() as f32;
-    let total: f32 = total.parse().unwrap_or(1) as f32;
-    let res = format!("{}", ((count / total) * 100.0).round());
-
-    out.write(&res)?;
-
-    Ok(())
-}
-
-fn urlencode(h: &Helper, _: &Handlebars, _: &Context, _rc: &mut RenderContext, out: &mut dyn Output) -> HelperResult {
-    let param = h
-        .param(0)
-        .map(|v| v.value())
-        .ok_or(RenderErrorReason::ParamNotFoundForIndex("urlencode", 0))?;
-
-    let param = param.render();
-
-    out.write(&urlencoding::encode(&param))?;
 
     Ok(())
 }

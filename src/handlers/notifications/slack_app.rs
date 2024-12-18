@@ -1,6 +1,6 @@
 use actix_web::{
     get, post,
-    web::{self, Data, Json, Path, Query},
+    web::{self, Data, Json, Path},
     Responder,
 };
 use sea_orm::{prelude::*, ActiveValue, IntoActiveModel};
@@ -8,12 +8,16 @@ use serde::{Deserialize, Serialize};
 use serde_json::json;
 use validator::Validate;
 
-use crate::entity::{prelude::*, projects};
+use crate::entity::prelude::*;
 
 use crate::{AppContext, Error, Identity, Result};
 
 pub fn routes(cfg: &mut web::ServiceConfig) {
-    cfg.service(app_config).service(save).service(delete).service(test);
+    cfg.service(config)
+        .service(config_save)
+        .service(save)
+        .service(delete)
+        .service(test);
 }
 
 #[derive(Serialize, Deserialize, Debug)]
@@ -28,18 +32,8 @@ struct SlackChannel {
     name: String,
 }
 
-#[derive(Deserialize, Debug)]
-struct SlackAuthParams {
-    code: Option<String>,
-}
-
 #[get("/config")]
-async fn app_config(
-    ctx: Data<AppContext<'_>>,
-    path: Path<u32>,
-    id: Identity,
-    query: Query<SlackAuthParams>,
-) -> Result<impl Responder> {
+async fn config(ctx: Data<AppContext<'_>>, path: Path<u32>, id: Identity) -> Result<impl Responder> {
     let project_id = path.into_inner();
     let project = Projects::find_by_id(project_id)
         .one(&ctx.db)
@@ -51,12 +45,6 @@ async fn app_config(
         .role(&ctx.db, project.organization_id)
         .await?
         .ok_or(Error::LoginRequired)?;
-
-    if let Some(code) = query.into_inner().code {
-        if let Err(e) = authorize_slack(&ctx, project.clone(), code).await {
-            log::error!("Error authorizing slack: {:?}", e);
-        }
-    }
 
     let mut chats = vec![];
 
@@ -86,11 +74,19 @@ async fn app_config(
         ctx.config.scheme, ctx.config.base_url, project.project_id
     );
 
+    // chats = vec![];
+
     Ok(Json(json!({
+        "project_id": project.project_id,
         "slack_chats": chats,
         "slack_redirect_uri": redirect_uri,
         "slack_client_id": ctx.config.slack_client_id,
     })))
+}
+
+#[derive(Deserialize, Debug)]
+struct SlackAuthParams {
+    code: String,
 }
 
 #[derive(Deserialize, Debug)]
@@ -100,11 +96,33 @@ struct SlackAccessResponse {
     error: Option<String>,
 }
 
-async fn authorize_slack(ctx: &AppContext<'_>, project: projects::Model, code: String) -> Result<()> {
+#[post("/config")]
+async fn config_save(
+    ctx: Data<AppContext<'_>>,
+    path: Path<u32>,
+    id: Identity,
+    input: Json<SlackAuthParams>,
+) -> Result<impl Responder> {
+    let project_id = path.into_inner();
+    let project = Projects::find_by_id(project_id)
+        .one(&ctx.db)
+        .await?
+        .ok_or(Error::NotFound)?;
+
+    let user = id.user(&ctx).await?;
+    let _ = user
+        .role(&ctx.db, project.organization_id)
+        .await?
+        .ok_or(Error::LoginRequired)?;
+
+    let code = input.into_inner().code;
+
     let redirect_uri = format!(
         "{}://{}/reports/notifications?project_id={}",
         ctx.config.scheme, ctx.config.base_url, project.project_id
     );
+
+    // let redirect_uri = format!("https://localhost:8080/reports/notifications?project_id=10");
 
     let client_id = ctx
         .config
@@ -142,7 +160,7 @@ async fn authorize_slack(ctx: &AppContext<'_>, project: projects::Model, code: S
     project_model.slack_bot_token = ActiveValue::set(result.access_token);
     project_model.save(&ctx.db).await?;
 
-    Ok(())
+    Ok(Json(()))
 }
 
 #[derive(Deserialize, Validate)]

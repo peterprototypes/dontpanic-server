@@ -6,7 +6,7 @@ import { useSearchParams } from "react-router";
 import { useSnackbar } from "notistack";
 import { FormProvider, useForm } from "react-hook-form";
 import { yupResolver } from '@hookform/resolvers/yup';
-import { Paper, SvgIcon, Typography, Stack, Box, Button, Dialog, DialogTitle, DialogContent, IconButton, DialogActions, Menu, MenuItem, Divider, ListItemText, ListItemIcon, DialogContentText, CircularProgress, Link } from "@mui/material";
+import { Paper, SvgIcon, Typography, Stack, Box, Button, Dialog, DialogTitle, DialogContent, IconButton, DialogActions, Menu, MenuItem, Divider, ListItemText, ListItemIcon, DialogContentText, CircularProgress, Link, LinearProgress, Alert } from "@mui/material";
 
 import RadioButtonCheckedIcon from '@mui/icons-material/RadioButtonChecked';
 import RadioButtonUncheckedIcon from '@mui/icons-material/RadioButtonUnchecked';
@@ -21,16 +21,13 @@ import { LoadingButton } from "@mui/lab";
 
 const SlackApp = ({ project }) => {
   const { enqueueSnackbar } = useSnackbar();
-  const [searchParams, setSearchParams] = useSearchParams();
-
-  const code = searchParams.get('code');
 
   const [menuOpen, setMenuOpen] = React.useState(null);
   const [dialogOpen, setDialogOpen] = React.useState(false);
 
   const { mutate } = useSWRConfig();
 
-  const { data: config, isLoading, error: configError } = useSWR(`/api/notifications/${project.project_id}/slack-app/config${code ? `?code=${code}` : ''}`);
+  const { data: config, isLoading, error: configError, mutate: configMutate } = useSWR(`/api/notifications/${project.project_id}/slack-app/config`);
 
   const { trigger: triggerRemove, isMutating: isRemoving } = useSWRMutation(`/api/notifications/${project.project_id}/slack-app/delete`);
   const { trigger: triggerTest, isMutating: isTesting } = useSWRMutation(`/api/notifications/${project.project_id}/slack-app/test`);
@@ -41,18 +38,9 @@ const SlackApp = ({ project }) => {
     resolver: yupResolver(SlackAppSchema),
     errors: error?.fields,
     values: {
-      slack_channel: project?.slack_channel || "",
+      slack_channel: project?.slack_channel || config?.slack_chats[0]?.id || "",
     },
   });
-
-  useEffect(() => {
-    if (code) {
-      searchParams.delete('code');
-      setSearchParams(searchParams);
-      setDialogOpen(true);
-      mutate(`/api/notifications/project/${project.project_id}`);
-    }
-  }, [code, mutate, project.project_id, searchParams, setSearchParams]);
 
   const onSubmit = (data) => {
     setMenuOpen(null);
@@ -71,6 +59,7 @@ const SlackApp = ({ project }) => {
   const onRemove = () => {
     triggerRemove({})
       .then(() => {
+        configMutate();
         mutate(`/api/notifications/project/${project.project_id}`);
         enqueueSnackbar("Slack webhook removed", { variant: 'success' });
       });
@@ -86,10 +75,6 @@ const SlackApp = ({ project }) => {
   };
 
   const loading = isMutating || isRemoving || isTesting || isLoading;
-
-  if (isLoading) {
-    return <CircularProgress />;
-  }
 
   if (configError) {
     return <Typography color="error">{configError.toString()}</Typography>;
@@ -108,10 +93,10 @@ const SlackApp = ({ project }) => {
 
           <Box>
             <Typography variant="h6">Slack App</Typography>
-            <Typography color="textSecondary">Slack messages are a great way to promptly inform the entire team of a panic or error log.</Typography>
+            <Typography color="textSecondary">Slack messages are a great way to promptly inform the entire team of a panic or error.</Typography>
           </Box>
 
-          {!project.slack_bot_token && <AppNotAdded config={config} />}
+          {!isLoading && !project.slack_bot_token && <AppNotAdded config={config} onAppAdded={() => setDialogOpen(true)} />}
 
           {project.slack_bot_token && !project.slack_channel && <ChannelNotSet onClick={() => setDialogOpen(true)} />}
 
@@ -154,7 +139,7 @@ const SlackApp = ({ project }) => {
             name="slack_channel"
             label="Slack Channel"
           >
-            {config.slack_chats.map((chat) => (
+            {config?.slack_chats.map((chat) => (
               <MenuItem key={chat.id} value={chat.id}>{chat.name}</MenuItem>
             ))}
           </ControlledTextField>
@@ -162,6 +147,13 @@ const SlackApp = ({ project }) => {
           <DialogContentText sx={{ mt: 2, minWidth: '400px' }}>
             Select which Slack channel to send messages to
           </DialogContentText>
+
+          {config?.slack_chats.length === 0 && (
+            <Alert color="warning" sx={{ mt: 2 }} action={<Button color="inherit" size="small" onClick={() => configMutate()}>Refresh</Button>}>
+              No channels found. Please type <pre>{`/invite @Don't Panic`}</pre> in the channel intended to receive notifications.
+
+            </Alert>
+          )}
         </DialogContent>
         <DialogActions sx={{ justifyContent: 'space-between' }}>
           <Button onClick={() => setDialogOpen(false)} color="inherit">Cancel</Button>
@@ -179,7 +171,36 @@ const SlackApp = ({ project }) => {
   );
 };
 
-const AppNotAdded = ({ config }) => {
+const AppNotAdded = ({ config, onAppAdded }) => {
+  const { enqueueSnackbar } = useSnackbar();
+  const [searchParams, setSearchParams] = useSearchParams();
+  const code = searchParams.get('code');
+
+  const { mutate } = useSWRConfig();
+
+  const { trigger, isMutating } = useSWRMutation(`/api/notifications/${config.project_id}/slack-app/config`);
+
+  useEffect(() => {
+    if (!code) return;
+
+    // we end up here from Slacks OAuth2 redirect with code parameter
+
+    searchParams.delete('code');
+    setSearchParams(searchParams);
+
+    trigger({ code }).then(() => {
+      mutate(`/api/notifications/project/${config.project_id}`);
+      onAppAdded();
+    }).catch((e) => {
+      enqueueSnackbar(e.message, { variant: 'error' });
+    });
+
+  }, [code, trigger, searchParams, setSearchParams, enqueueSnackbar, onAppAdded, mutate, config.project_id]);
+
+  if (isMutating) {
+    return <LinearProgress />;
+  }
+
   return (
     <Button
       variant="outlined"

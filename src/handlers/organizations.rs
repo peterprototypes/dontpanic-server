@@ -71,7 +71,7 @@ async fn list(ctx: web::Data<AppContext<'_>>, identity: Identity) -> Result<impl
             .all(&ctx.db)
             .await?;
 
-        let todo_reset_date = org.requests_count_start.map(|date| date + Days::new(30));
+        let _todo_reset_date = org.requests_count_start.map(|date| date + Days::new(30));
 
         let org = Organization {
             organization_id: org.organization_id,
