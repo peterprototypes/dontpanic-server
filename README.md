@@ -117,14 +117,20 @@ volumes:
 
 ## Development
 
-One liner to start hacking. This creates a sqlite database in the current dir and a user:
+In one console start the frontend:
+```bash
+cd frontend
+npm i
+npm run dev
+```
 
+In another start the project:
 ```bash
 DATABASE_URL="sqlite://localdev.sqlite?mode=rwc" DEFAULT_USER_EMAIL=dev@example.com DEFAULT_USER_PASSWORD=$DEFAULT_USER_EMAIL cargo run
 ```
 
-http://localhost:8080
-User: `dev@example.com`
+http://localhost:8080  
+User: `dev@example.com`  
 Pass: `dev@example.com`
 
 ### Database changes
