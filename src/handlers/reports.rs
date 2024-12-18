@@ -1,23 +1,31 @@
 use std::collections::HashMap;
 
-use actix_web::{delete, get, post, web};
-use anyhow::anyhow;
+use actix_web::{
+    get, post,
+    web::{self, Data, Json, Path, Query},
+    Responder,
+};
 use chrono::prelude::*;
-use sea_orm::{prelude::*, ActiveValue, Condition, IntoActiveModel, JoinType, Order, QueryOrder, QuerySelect, QueryTrait};
+use sea_orm::{
+    prelude::*, ActiveValue, Condition, IntoActiveModel, JoinType, Order, QueryOrder, QuerySelect, QueryTrait,
+};
 use serde::{Deserialize, Serialize};
-use serde_qs::actix::QsForm;
+use serde_json::json;
 
-use crate::entity::{organization_users, organizations, prelude::*, project_environments, project_report_events, project_reports, projects};
+use crate::entity::{
+    organization_users, organizations, prelude::*, project_environments, project_report_events, project_reports,
+    projects,
+};
 
 use crate::event::EventData;
-use crate::{AppContext, Error, Identity, Result, ViewModel};
+use crate::{AppContext, Error, Identity, Result};
 
 pub fn routes(cfg: &mut web::ServiceConfig) {
-    cfg.service(reports)
-        .service(report_view)
-        .service(report_event)
-        .service(reports_delete)
-        .service(reports_resolve);
+    cfg.service(list)
+        .service(delete)
+        .service(resolve)
+        .service(get_report)
+        .service(get_event);
 }
 
 #[derive(Serialize)]
@@ -27,35 +35,39 @@ struct ReportSummary {
     env: Option<project_environments::Model>,
 }
 
-#[derive(Deserialize)]
+#[derive(Serialize)]
+struct ListResult {
+    reports: Vec<ReportSummary>,
+    next: Option<String>,
+}
+
+#[derive(Serialize, Deserialize, Clone, Copy, Debug)]
+struct Cursor {
+    project_report_id: u32,
+    seen: i8,
+    last_seen: NaiveDateTime,
+}
+
+#[derive(Deserialize, Debug)]
 struct ReportsQuery {
-    page: Option<u64>,
+    cursor: Option<String>,
     project_id: Option<u32>,
     term: Option<String>,
     resolved: Option<u32>,
 }
 
-#[get("/reports")]
-async fn reports(ctx: web::Data<AppContext<'_>>, identity: Identity, query: web::Query<ReportsQuery>) -> Result<ViewModel> {
-    let mut view = ViewModel::with_template("reports/list");
+#[get("")]
+async fn list(ctx: Data<AppContext<'_>>, id: Identity, q: Query<ReportsQuery>) -> Result<impl Responder> {
+    let q = q.into_inner();
 
-    let resolved = query.resolved.unwrap_or_default();
+    let resolved = q.resolved.unwrap_or_default();
+    let cursor = q.cursor.as_ref().and_then(|v| serde_json::from_str::<Cursor>(v).ok());
 
-    view.set("project_id", query.project_id);
-    view.set("term", query.term.clone());
-    view.set("resolved", resolved);
-
-    let mut page = query.page.unwrap_or(1);
-    let reports_per_page = 10;
-
-    let user = Users::find_by_id(identity.user_id).one(&ctx.db).await?.ok_or(Error::LoginRequired)?;
-    view.set("user", user);
-
-    let reports_paginator = ProjectReports::find()
-        .filter(organization_users::Column::UserId.eq(identity.user_id))
+    let reports_and_envs = ProjectReports::find()
+        .filter(organization_users::Column::UserId.eq(id.user_id))
         .filter(project_reports::Column::IsResolved.eq(resolved))
-        .apply_if(query.project_id, |query, v| query.filter(projects::Column::ProjectId.eq(v)))
-        .apply_if(query.term.as_ref().filter(|v| !v.is_empty()), |query, v| {
+        .apply_if(q.project_id, |query, v| query.filter(projects::Column::ProjectId.eq(v)))
+        .apply_if(q.term.as_ref().filter(|v| !v.is_empty()), |query, v| {
             query.filter(
                 Condition::any()
                     .add(project_reports::Column::Title.contains(v))
@@ -69,38 +81,109 @@ async fn reports(ctx: web::Data<AppContext<'_>>, identity: Identity, query: web:
         .order_by(project_reports::Column::LastSeen, Order::Desc)
         .order_by(project_reports::Column::ProjectReportId, Order::Desc)
         .find_also_related(ProjectEnvironments)
-        .paginate(&ctx.db, reports_per_page);
-
-    let num_pages = reports_paginator.num_pages().await?;
-
-    if page > num_pages {
-        page = 1;
-    }
+        .apply_if(cursor, |query, cursor| {
+            query.filter(
+                Condition::any()
+                    .add(project_reports::Column::IsSeen.gt(cursor.seen))
+                    .add(
+                        Condition::all()
+                            .add(project_reports::Column::IsSeen.eq(cursor.seen))
+                            .add(project_reports::Column::LastSeen.lt(cursor.last_seen)),
+                    )
+                    .add(
+                        Condition::all()
+                            .add(project_reports::Column::IsSeen.eq(cursor.seen))
+                            .add(project_reports::Column::LastSeen.eq(cursor.last_seen))
+                            .add(project_reports::Column::ProjectReportId.lt(cursor.project_report_id)),
+                    ),
+            )
+        })
+        .limit(11)
+        .all(&ctx.db)
+        .await?;
 
     let mut reports: Vec<ReportSummary> = vec![];
 
-    for (report, env) in reports_paginator.fetch_page(page - 1).await? {
-        let project = if query.project_id.is_none() {
+    let mut next = None;
+
+    let count = reports_and_envs.len();
+
+    for (report, env) in reports_and_envs.into_iter().take(10) {
+        let project = if q.project_id.is_none() {
             report.find_related(Projects).one(&ctx.db).await?
         } else {
             None
         };
 
+        next = Some(serde_json::to_string(&Cursor {
+            project_report_id: report.project_report_id,
+            seen: report.is_seen,
+            last_seen: report.last_seen,
+        })?);
+
         reports.push(ReportSummary { report, env, project });
     }
 
-    view.set("reports", reports);
-    view.set("page", page);
-
-    if page > 1 {
-        view.set("prev_page", page - 1);
+    if count < 11 {
+        next = None;
     }
 
-    if page < num_pages {
-        view.set("next_page", page + 1);
-    }
+    Ok(Json(ListResult { reports, next }))
+}
 
-    Ok(view)
+#[post("/delete")]
+async fn delete(ctx: Data<AppContext<'_>>, id: Identity, report_ids: Json<Vec<u32>>) -> Result<impl Responder> {
+    let report_ids = report_ids.into_inner();
+
+    // make sure the user owns those reports
+    let owned_reports: Vec<u32> = ProjectReports::find()
+        .select_only()
+        .column(project_reports::Column::ProjectReportId)
+        .filter(project_reports::Column::ProjectReportId.is_in(report_ids))
+        .filter(organization_users::Column::UserId.eq(id.user_id))
+        .join(JoinType::InnerJoin, project_reports::Relation::Projects.def())
+        .join(JoinType::InnerJoin, projects::Relation::Organizations.def())
+        .join(JoinType::InnerJoin, organizations::Relation::OrganizationUsers.def())
+        .into_tuple()
+        .all(&ctx.db)
+        .await?;
+
+    let res = ProjectReports::delete_many()
+        .filter(project_reports::Column::ProjectReportId.is_in(owned_reports))
+        .exec(&ctx.db)
+        .await?;
+
+    Ok(Json(serde_json::json!({
+        "deleted": res.rows_affected,
+    })))
+}
+
+#[post("/resolve")]
+async fn resolve(ctx: Data<AppContext<'_>>, id: Identity, report_ids: Json<Vec<u32>>) -> Result<impl Responder> {
+    let report_ids = report_ids.into_inner();
+
+    // make sure the user owns those reports
+    let owned_reports: Vec<u32> = ProjectReports::find()
+        .select_only()
+        .column(project_reports::Column::ProjectReportId)
+        .filter(project_reports::Column::ProjectReportId.is_in(report_ids))
+        .filter(organization_users::Column::UserId.eq(id.user_id))
+        .join(JoinType::InnerJoin, project_reports::Relation::Projects.def())
+        .join(JoinType::InnerJoin, projects::Relation::Organizations.def())
+        .join(JoinType::InnerJoin, organizations::Relation::OrganizationUsers.def())
+        .into_tuple()
+        .all(&ctx.db)
+        .await?;
+
+    let res = ProjectReports::update_many()
+        .col_expr(project_reports::Column::IsResolved, Expr::value(1))
+        .filter(project_reports::Column::ProjectReportId.is_in(owned_reports))
+        .exec(&ctx.db)
+        .await?;
+
+    Ok(Json(serde_json::json!({
+        "deleted": res.rows_affected,
+    })))
 }
 
 #[derive(Serialize)]
@@ -115,25 +198,12 @@ struct WeekEvents {
     days: Vec<DayEvents>,
 }
 
-#[derive(Deserialize)]
-struct ReportViewQuery {
-    event_id: Option<u32>,
-    back_url: Option<String>,
-}
-
-#[get("/reports/view/{project_report_id}")]
-async fn report_view(ctx: web::Data<AppContext<'_>>, identity: Identity, project_report_id: web::Path<u32>, query: web::Query<ReportViewQuery>) -> Result<ViewModel> {
-    let mut view = ViewModel::with_template("reports/view");
-
-    let user = Users::find_by_id(identity.user_id).one(&ctx.db).await?.ok_or(Error::LoginRequired)?;
-    view.set("user", user);
-
-    view.set("event_id", query.event_id.unwrap_or_default());
-
-    let report_id = project_report_id.into_inner();
+#[get("/{report_id}")]
+async fn get_report(ctx: Data<AppContext<'_>>, id: Identity, path: Path<u32>) -> Result<impl Responder> {
+    let report_id = path.into_inner();
 
     let report = ProjectReports::find_by_id(report_id)
-        .filter(organization_users::Column::UserId.eq(identity.user_id))
+        .filter(organization_users::Column::UserId.eq(id.user_id))
         .join(JoinType::InnerJoin, project_reports::Relation::Projects.def())
         .join(JoinType::InnerJoin, projects::Relation::Organizations.def())
         .join(JoinType::InnerJoin, organizations::Relation::OrganizationUsers.def())
@@ -147,16 +217,14 @@ async fn report_view(ctx: web::Data<AppContext<'_>>, identity: Identity, project
         report_model.save(&ctx.db).await?;
     }
 
-    view.set("back_url", query.back_url.clone().unwrap_or_else(|| format!("/reports?project_id={}", report.project_id)));
+    let project = report
+        .find_related(Projects)
+        .one(&ctx.db)
+        .await?
+        .ok_or(Error::NotFound)?;
 
-    let env = report.find_related(ProjectEnvironments).one(&ctx.db).await?;
-    let project = report.find_related(Projects).one(&ctx.db).await?.ok_or(anyhow!("Report project not found"))?;
     let org = project.find_related(Organizations).one(&ctx.db).await?;
-
-    view.set("report", report);
-    view.set("env", env);
-    view.set("project", project);
-    view.set("org", org);
+    let env = report.find_related(ProjectEnvironments).one(&ctx.db).await?;
 
     // last year stats
     let stats: HashMap<String, i64> = ProjectReportEvents::find()
@@ -202,35 +270,41 @@ async fn report_view(ctx: web::Data<AppContext<'_>>, identity: Identity, project
     }
 
     weeks.reverse();
-    view.set("occurrences", weeks);
-    view.set("max_occurrences", max_events);
 
-    Ok(view)
+    Ok(Json(serde_json::json!({
+        "report": report,
+        "env": env,
+        "project": project,
+        "org": org,
+        "occurrences": weeks,
+        "max_occurrences": max_events,
+    })))
 }
 
-#[get("/reports/{report_id}/get-event")]
-async fn report_event(ctx: web::Data<AppContext<'_>>, identity: Identity, path: web::Path<u32>, query: web::Query<ReportViewQuery>) -> Result<ViewModel> {
-    let mut view = ViewModel::with_template("reports/event");
+#[derive(Deserialize, Debug)]
+struct EventQuery {
+    event_id: Option<u32>,
+}
 
-    let user = Users::find_by_id(identity.user_id).one(&ctx.db).await?.ok_or(Error::LoginRequired)?;
-    view.set("user", user);
-
+#[get("/{report_id}/get-event")]
+async fn get_event(
+    ctx: Data<AppContext<'_>>,
+    id: Identity,
+    path: Path<u32>,
+    q: Query<EventQuery>,
+) -> Result<impl Responder> {
     let report_id = path.into_inner();
-    let event_id = query.event_id.filter(|id| *id != 0);
-
-    view.set("report_id", report_id);
+    let event_id = q.event_id.filter(|id| *id != 0);
 
     // make sure this report exists and is owned by the currently logged user
-    let report = ProjectReports::find_by_id(report_id)
-        .filter(organization_users::Column::UserId.eq(identity.user_id))
+    let _ = ProjectReports::find_by_id(report_id)
+        .filter(organization_users::Column::UserId.eq(id.user_id))
         .join(JoinType::InnerJoin, project_reports::Relation::Projects.def())
         .join(JoinType::InnerJoin, projects::Relation::Organizations.def())
         .join(JoinType::InnerJoin, organizations::Relation::OrganizationUsers.def())
         .one(&ctx.db)
         .await?
         .ok_or(Error::NotFound)?;
-
-    view.set("back_url", query.back_url.clone().unwrap_or_else(|| format!("/reports?project_id={}", report.project_id)));
 
     let maybe_event = if let Some(event_id) = event_id {
         ProjectReportEvents::find_by_id(event_id)
@@ -246,7 +320,7 @@ async fn report_event(ctx: web::Data<AppContext<'_>>, identity: Identity, path: 
     };
 
     let Some(event) = maybe_event else {
-        return Ok(ViewModel::with_template("reports/no_event"));
+        return Ok(Json(json!({})));
     };
 
     let events_count: u64 = ProjectReportEvents::find()
@@ -254,88 +328,18 @@ async fn report_event(ctx: web::Data<AppContext<'_>>, identity: Identity, path: 
         .count(&ctx.db)
         .await?;
 
-    view.set("events_count", events_count);
-
     let event_pos: u64 = ProjectReportEvents::find()
         .filter(project_report_events::Column::ProjectReportId.eq(report_id))
         .filter(project_report_events::Column::ProjectReportEventId.lte(event.project_report_event_id))
         .count(&ctx.db)
         .await?;
 
-    view.set("event_pos", event_pos);
-
     let data: EventData = serde_json::from_str(&event.event_data)?;
 
-    view.set("data", data);
-    view.set("event", event);
-
-    Ok(view)
-}
-
-#[derive(Deserialize, Debug)]
-struct ReportsList {
-    report_ids: Option<Vec<u32>>,
-}
-
-#[delete("/reports")]
-async fn reports_delete(ctx: web::Data<AppContext<'_>>, identity: Identity, form: QsForm<ReportsList>) -> Result<ViewModel> {
-    let mut view = ViewModel::default();
-
-    let form = form.into_inner();
-
-    if let Some(ids) = form.report_ids {
-        // make sure the user owns those reports
-        let owned_reports: Vec<u32> = ProjectReports::find()
-            .select_only()
-            .column(project_reports::Column::ProjectReportId)
-            .filter(project_reports::Column::ProjectReportId.is_in(ids))
-            .filter(organization_users::Column::UserId.eq(identity.user_id))
-            .join(JoinType::InnerJoin, project_reports::Relation::Projects.def())
-            .join(JoinType::InnerJoin, projects::Relation::Organizations.def())
-            .join(JoinType::InnerJoin, organizations::Relation::OrganizationUsers.def())
-            .into_tuple()
-            .all(&ctx.db)
-            .await?;
-
-        let res = ProjectReports::delete_many()
-            .filter(project_reports::Column::ProjectReportId.is_in(owned_reports))
-            .exec(&ctx.db)
-            .await?;
-
-        view.message(format!("{} reports deleted", res.rows_affected));
-    }
-
-    Ok(view)
-}
-
-#[post("/reports/resolve")]
-async fn reports_resolve(ctx: web::Data<AppContext<'_>>, identity: Identity, form: QsForm<ReportsList>) -> Result<ViewModel> {
-    let mut view = ViewModel::default();
-
-    let form = form.into_inner();
-
-    if let Some(ids) = form.report_ids {
-        // make sure the user owns those reports
-        let owned_reports: Vec<u32> = ProjectReports::find()
-            .select_only()
-            .column(project_reports::Column::ProjectReportId)
-            .filter(project_reports::Column::ProjectReportId.is_in(ids))
-            .filter(organization_users::Column::UserId.eq(identity.user_id))
-            .join(JoinType::InnerJoin, project_reports::Relation::Projects.def())
-            .join(JoinType::InnerJoin, projects::Relation::Organizations.def())
-            .join(JoinType::InnerJoin, organizations::Relation::OrganizationUsers.def())
-            .into_tuple()
-            .all(&ctx.db)
-            .await?;
-
-        let res = ProjectReports::update_many()
-            .col_expr(project_reports::Column::IsResolved, Expr::value(1))
-            .filter(project_reports::Column::ProjectReportId.is_in(owned_reports))
-            .exec(&ctx.db)
-            .await?;
-
-        view.message(format!("{} reports resolved", res.rows_affected));
-    }
-
-    Ok(view)
+    Ok(Json(json!({
+        "data": data,
+        "event": event,
+        "events_count": events_count,
+        "event_pos": event_pos,
+    })))
 }

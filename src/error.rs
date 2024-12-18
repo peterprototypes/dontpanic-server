@@ -1,31 +1,53 @@
+use std::borrow::Cow;
+use std::collections::HashMap;
 use std::fmt;
 
-use actix_htmx::Htmx;
 use actix_session::SessionGetError;
 use actix_web::{
-    body::BoxBody,
-    dev::ServiceResponse,
-    http::{
-        header::{ContentType, ToStrError, LOCATION},
-        StatusCode,
-    },
-    middleware::{ErrorHandlerResponse, ErrorHandlers},
-    web, HttpMessage, HttpResponse,
+    http::{header::ToStrError, StatusCode},
+    HttpResponse,
 };
+use serde::Serialize;
+use validator::{ValidationError, ValidationErrors};
 
-use crate::AppContext;
+#[derive(Serialize, Debug, Clone)]
+pub struct ErrorMessage {
+    r#type: Option<String>,
+    message: String,
+}
 
-#[derive(Debug)]
+#[derive(Serialize, Debug)]
+#[serde(rename_all = "camelCase")]
 pub enum Error {
     NotFound,
     LoginRequired,
-    UserMessage(String),
+    User(ErrorMessage),
+    Fields(HashMap<String, ErrorMessage>),
+    #[serde(skip)]
     Internal(anyhow::Error),
 }
 
 impl Error {
     pub fn new(message: impl Into<String>) -> Self {
-        Self::UserMessage(message.into())
+        Self::User(ErrorMessage {
+            r#type: None,
+            message: message.into(),
+        })
+    }
+
+    pub fn new_with_type(r#type: impl Into<String>, message: impl Into<String>) -> Self {
+        Self::User(ErrorMessage {
+            r#type: Some(r#type.into()),
+            message: message.into(),
+        })
+    }
+
+    pub fn field(name: &'static str, message: Cow<'static, str>) -> Self {
+        let mut errors = ValidationErrors::new();
+
+        errors.add(name, ValidationError::new("server_validation").with_message(message));
+
+        Self::from(errors)
     }
 }
 
@@ -35,8 +57,9 @@ impl fmt::Display for Error {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match self {
             Self::NotFound => write!(f, "Not Found"),
-            Self::UserMessage(msg) => write!(f, "{}", msg),
+            Self::User(msg) => write!(f, "{}", msg.message),
             Self::LoginRequired => write!(f, "Unauthorized"),
+            Self::Fields(_) => write!(f, "Bad Request"),
             Self::Internal(_) => write!(f, "An internal error occurred. Please try again later."),
         }
     }
@@ -44,25 +67,30 @@ impl fmt::Display for Error {
 
 impl actix_web::error::ResponseError for Error {
     fn error_response(&self) -> HttpResponse {
-        let mut res = HttpResponse::build(self.status_code());
-        res.insert_header(ContentType::html());
-
-        if let Self::LoginRequired = self {
-            res.insert_header((LOCATION, "/login"));
-        }
-
+        // log error if it is internal
         if let Self::Internal(e) = self {
             log::error!("{:?}", e);
         }
 
-        res.body(self.to_string())
+        let mut builder = HttpResponse::build(self.status_code());
+
+        // since Error::Internal(anyhow::Error) cannot be serialized we need to transform it to UserMessage
+        if let Self::Internal(_) = self {
+            return builder.json(Self::User(ErrorMessage {
+                r#type: Some("internal_server_error".into()),
+                message: self.to_string(),
+            }));
+        }
+
+        builder.json(self)
     }
 
     fn status_code(&self) -> StatusCode {
         match *self {
             Self::NotFound => StatusCode::NOT_FOUND,
-            Self::LoginRequired => StatusCode::TEMPORARY_REDIRECT,
-            Self::UserMessage(_) => StatusCode::BAD_REQUEST,
+            Self::LoginRequired => StatusCode::UNAUTHORIZED,
+            Self::User(_) => StatusCode::BAD_REQUEST,
+            Self::Fields(_) => StatusCode::BAD_REQUEST,
             Self::Internal(_) => StatusCode::INTERNAL_SERVER_ERROR,
         }
     }
@@ -152,62 +180,28 @@ impl From<reqwest::Error> for Error {
     }
 }
 
-// Custom error handlers, to return HTML responses when an error occurs.
-pub fn error_handlers() -> ErrorHandlers<BoxBody> {
-    ErrorHandlers::new()
-        .handler(StatusCode::NOT_FOUND, not_found_handler)
-        .default_handler(default_error_handler)
-}
+impl From<validator::ValidationErrors> for Error {
+    fn from(value: validator::ValidationErrors) -> Self {
+        let field_errors = value
+            .field_errors()
+            .into_iter()
+            .map(|(field, errors)| {
+                let message = errors
+                    .iter()
+                    .filter_map(|e| e.message.clone())
+                    .collect::<Vec<_>>()
+                    .join(", ");
 
-fn not_found_handler<B>(res: ServiceResponse<B>) -> actix_web::Result<ErrorHandlerResponse<BoxBody>> {
-    let response = get_error_response(&res, "Page not found");
-    Ok(ErrorHandlerResponse::Response(ServiceResponse::new(res.into_parts().0, response.map_into_left_body())))
-}
+                (
+                    field.to_string(),
+                    ErrorMessage {
+                        r#type: Some("server".to_string()),
+                        message,
+                    },
+                )
+            })
+            .collect();
 
-fn default_error_handler<B>(res: ServiceResponse<B>) -> actix_web::Result<ErrorHandlerResponse<BoxBody>> {
-    let msg = res
-        .response()
-        .error()
-        .map(|e| e.to_string())
-        .unwrap_or_else(|| String::from("An error occurred. Please try again later."));
-
-    let response = get_error_response(&res, &msg);
-    Ok(ErrorHandlerResponse::Response(ServiceResponse::new(res.into_parts().0, response.map_into_left_body())))
-}
-
-fn get_error_response<B>(res: &ServiceResponse<B>, error: &str) -> HttpResponse<BoxBody> {
-    let request = res.request();
-
-    if request.content_type() == ContentType::json().to_string() {
-        return HttpResponse::build(res.status())
-            .content_type(ContentType::json())
-            .body(serde_json::json!({"error": error}).to_string());
-    }
-
-    // Provide a fallback to a simple plain text response in case an error occurs during the
-    // rendering of the error page.
-    let fallback = |err: &str| HttpResponse::build(res.status()).content_type(ContentType::plaintext()).body(err.to_string());
-
-    let ctx = request.app_data::<web::Data<AppContext<'_>>>();
-
-    match ctx {
-        Some(ctx) => {
-            let is_htmx = request.extensions().get::<Htmx>().map(|htmx| htmx.is_htmx).unwrap_or_default();
-
-            let data = serde_json::json!({
-                "error": error,
-                "status_code": res.status().as_str(),
-                "layout": "layout_auth",
-                "is_htmx": is_htmx
-            });
-
-            let body = ctx.hb.render("error", &data);
-
-            match body {
-                Ok(body) => HttpResponse::build(res.status()).content_type(ContentType::html()).body(body),
-                Err(_) => fallback(error),
-            }
-        }
-        None => fallback(error),
+        Self::Fields(field_errors)
     }
 }

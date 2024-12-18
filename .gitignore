@@ -13,7 +13,7 @@ target/
 /target
 
 # Ignore environment configuration
-.env
+.env*
 
 # Local sqlite db used for development
 localdev.sqlite

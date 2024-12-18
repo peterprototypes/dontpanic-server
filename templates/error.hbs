@@ -1,9 +1,0 @@
-{{#*inline "content"}}
-    <h3>{{status_code}} {{error}}</h3>
-{{/inline}}
-
-{{#if is_htmx}}
-    {{> content}}
-{{else}}
-    {{> (lookup this "layout")}}
-{{/if}}
