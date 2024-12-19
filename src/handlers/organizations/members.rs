@@ -4,6 +4,8 @@ use actix_web::{
     Responder,
 };
 use lettre::AsyncTransport;
+use rand::distributions::Alphanumeric;
+use rand::Rng;
 use sea_orm::{prelude::*, ActiveValue, FromQueryResult, IntoActiveModel, JoinType, QuerySelect, TryIntoModel};
 use serde::{Deserialize, Serialize};
 use serde_json::json;
@@ -207,17 +209,6 @@ async fn invite(
 
     input.validate_with_args(&user_role)?;
 
-    // check if invite exists
-    let maybe_invite = OrganizationInvitations::find()
-        .filter(organization_invitations::Column::Email.eq(&input.email))
-        .filter(organization_invitations::Column::OrganizationId.eq(organization_id))
-        .one(&ctx.db)
-        .await?;
-
-    if maybe_invite.is_some() {
-        return Err(Error::field("email", "Email already invited".into()));
-    }
-
     let maybe_user = Users::find()
         .filter(users::Column::Email.eq(&input.email))
         .one(&ctx.db)
@@ -268,10 +259,27 @@ async fn invite(
             mailer.send(email).await?;
         }
     } else {
+        let maybe_invite = OrganizationInvitations::find()
+            .filter(organization_invitations::Column::Email.eq(&input.email))
+            .filter(organization_invitations::Column::OrganizationId.eq(organization_id))
+            .one(&ctx.db)
+            .await?;
+
+        if maybe_invite.is_some() {
+            return Err(Error::field("email", "Email already invited".into()));
+        }
+
+        let slug: String = rand::thread_rng()
+            .sample_iter(&Alphanumeric)
+            .take(64)
+            .map(char::from)
+            .collect();
+
         let org_invitation = organization_invitations::ActiveModel {
             organization_id: ActiveValue::set(organization_id),
             email: ActiveValue::set(input.email.clone()),
             role: ActiveValue::set(input.role),
+            slug: ActiveValue::set(slug.clone()),
             ..Default::default()
         };
 
@@ -300,7 +308,8 @@ async fn invite(
                     "base_url": ctx.config.base_url,
                     "scheme": ctx.config.scheme,
                     "organization": organization,
-                    "added_by": user
+                    "added_by": user,
+                    "slug": slug
                 }),
             )?)?;
 

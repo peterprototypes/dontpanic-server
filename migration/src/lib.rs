@@ -4,6 +4,7 @@ pub use sea_orm_migration::prelude::*;
 mod m20220101_000001_users_and_crates;
 mod m20240830_153930_project_slack_webhhok;
 mod m20240908_063351_webhook_integration;
+mod m20241219_101859_invitation_slug;
 
 pub struct Migrator;
 
@@ -14,6 +15,7 @@ impl MigratorTrait for Migrator {
             Box::new(m20220101_000001_users_and_crates::Migration),
             Box::new(m20240830_153930_project_slack_webhhok::Migration),
             Box::new(m20240908_063351_webhook_integration::Migration),
+            Box::new(m20241219_101859_invitation_slug::Migration),
         ]
     }
 }

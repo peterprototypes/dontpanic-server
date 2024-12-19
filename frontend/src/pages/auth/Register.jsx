@@ -1,7 +1,7 @@
 import React from 'react';
 import * as yup from "yup";
 import useSWRMutation from 'swr/mutation';
-import { Link as RouterLink } from "react-router";
+import { Link as RouterLink, useSearchParams } from "react-router";
 import { yupResolver } from '@hookform/resolvers/yup';
 import { useForm, FormProvider } from "react-hook-form";
 import { LoadingButton } from "@mui/lab";
@@ -18,6 +18,7 @@ const RegisterSchema = yup.object({
 }).required();
 
 const Register = () => {
+  const [searchParams] = useSearchParams();
   const [success, setSuccess] = React.useState("");
 
   const { trigger, error, isMutating } = useSWRMutation('/api/auth/register');
@@ -35,7 +36,7 @@ const Register = () => {
   });
 
   const onSubmit = (data) => {
-    trigger(data)
+    trigger({ ...data, invite_slug: searchParams.get("slug") })
       .then((response) => setSuccess(response.require_email_verification ? "email_verification" : "login"))
       .catch((e) => methods.setError('root.serverError', { message: e.message }));
   };

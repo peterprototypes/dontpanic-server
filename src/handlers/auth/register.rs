@@ -4,7 +4,7 @@ use chrono_tz::Tz;
 use lettre::AsyncTransport;
 use rand::distributions::Alphanumeric;
 use rand::Rng;
-use sea_orm::{prelude::*, ActiveValue, TryIntoModel};
+use sea_orm::{prelude::*, ActiveValue, Condition, TryIntoModel};
 use serde::Deserialize;
 use serde_json::json;
 use validator::Validate;
@@ -29,6 +29,7 @@ struct RegistrationRequest {
     name: Option<String>,
     company: Option<String>,
     iana_timezone_name: Option<String>,
+    invite_slug: Option<String>,
 }
 
 #[post("/register")]
@@ -93,7 +94,14 @@ async fn create_user(ctx: web::Data<AppContext<'_>>, data: RegistrationRequest) 
 
     // get invitations
     let invitations = OrganizationInvitations::find()
-        .filter(organization_invitations::Column::Email.eq(&data.email))
+        .filter(
+            Condition::any()
+                .add(organization_invitations::Column::Email.eq(&data.email))
+                .add_option(
+                    data.invite_slug
+                        .map(|slug| organization_invitations::Column::Slug.eq(slug)),
+                ),
+        )
         .all(&ctx.db)
         .await?;
 
