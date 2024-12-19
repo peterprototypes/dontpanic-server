@@ -9,12 +9,6 @@ import { TableContainer, Tooltip, Typography, TableCell, TableRow, Table, TableH
 
 import { BackIcon, NextIcon, DeleteIcon, ResolveIcon } from 'components/ConsistentIcons';
 
-function getRectArea(width, height) {
-  if (isNaN(width) || isNaN(height)) {
-    throw new Error('Parameter is not a number!');
-  }
-}
-
 const ReportsList = ({ resolved = false }) => {
   const confirm = useConfirm();
   const navigate = useNavigate();
@@ -62,8 +56,6 @@ const ReportsList = ({ resolved = false }) => {
       setSelected([]);
     }
   };
-
-  getRectArea(3, 'A');
 
   const onDelete = () => {
     let config = {
