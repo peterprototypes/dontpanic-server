@@ -13,14 +13,26 @@ enum Projects {
 impl MigrationTrait for Migration {
     async fn up(&self, manager: &SchemaManager) -> Result<(), DbErr> {
         manager
-            .alter_table(Table::alter().table(Projects::Table).add_column(string_null(Projects::Webhook)).to_owned())
+            .alter_table(
+                Table::alter()
+                    .table(Projects::Table)
+                    .add_column(string_null(Projects::Webhook))
+                    .to_owned(),
+            )
             .await?;
 
         Ok(())
     }
 
     async fn down(&self, manager: &SchemaManager) -> Result<(), DbErr> {
-        manager.alter_table(Table::alter().table(Projects::Table).drop_column(Projects::Webhook).to_owned()).await?;
+        manager
+            .alter_table(
+                Table::alter()
+                    .table(Projects::Table)
+                    .drop_column(Projects::Webhook)
+                    .to_owned(),
+            )
+            .await?;
 
         Ok(())
     }

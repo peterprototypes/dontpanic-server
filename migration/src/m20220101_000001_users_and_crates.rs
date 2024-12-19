@@ -118,7 +118,13 @@ impl MigrationTrait for Migration {
                     .table(Users::Table)
                     .if_not_exists()
                     .apply_defaults(manager)
-                    .col(ColumnDef::new(Users::UserId).unsigned().not_null().auto_increment().primary_key())
+                    .col(
+                        ColumnDef::new(Users::UserId)
+                            .unsigned()
+                            .not_null()
+                            .auto_increment()
+                            .primary_key(),
+                    )
                     .col(ColumnDef::new(Users::Email).string_len(320).not_null())
                     .col(ColumnDef::new(Users::Password).binary_len(60).not_null())
                     .col(ColumnDef::new(Users::Name).string_len(100).null())
@@ -127,8 +133,18 @@ impl MigrationTrait for Migration {
                     .col(ColumnDef::new(Users::EmailVerificationHash).char_len(64).null())
                     .col(ColumnDef::new(Users::EmailVerificationHashCreated).date_time().null())
                     .col(ColumnDef::new(Users::TotpSecret).char_len(32).null())
-                    .col(ColumnDef::new(Users::IanaTimezoneName).string_len(32).not_null().default("UTC"))
-                    .col(ColumnDef::new(Users::Created).date_time().not_null().default(Expr::current_timestamp()))
+                    .col(
+                        ColumnDef::new(Users::IanaTimezoneName)
+                            .string_len(32)
+                            .not_null()
+                            .default("UTC"),
+                    )
+                    .col(
+                        ColumnDef::new(Users::Created)
+                            .date_time()
+                            .not_null()
+                            .default(Expr::current_timestamp()),
+                    )
                     .to_owned(),
             )
             .await?;
@@ -139,13 +155,29 @@ impl MigrationTrait for Migration {
                     .table(Organizations::Table)
                     .if_not_exists()
                     .apply_defaults(manager)
-                    .col(ColumnDef::new(Organizations::OrganizationId).unsigned().not_null().auto_increment().primary_key())
+                    .col(
+                        ColumnDef::new(Organizations::OrganizationId)
+                            .unsigned()
+                            .not_null()
+                            .auto_increment()
+                            .primary_key(),
+                    )
                     .col(ColumnDef::new(Organizations::Name).string_len(80).not_null())
                     .col(ColumnDef::new(Organizations::RequestsLimit).unsigned().null())
                     .col(ColumnDef::new(Organizations::RequestsCount).unsigned().null())
                     .col(ColumnDef::new(Organizations::RequestsCountStart).date_time().null())
-                    .col(ColumnDef::new(Organizations::IsEnabled).boolean().not_null().default(true))
-                    .col(ColumnDef::new(Organizations::Created).date_time().not_null().default(Expr::current_timestamp()))
+                    .col(
+                        ColumnDef::new(Organizations::IsEnabled)
+                            .boolean()
+                            .not_null()
+                            .default(true),
+                    )
+                    .col(
+                        ColumnDef::new(Organizations::Created)
+                            .date_time()
+                            .not_null()
+                            .default(Expr::current_timestamp()),
+                    )
                     .to_owned(),
             )
             .await?;
@@ -159,8 +191,18 @@ impl MigrationTrait for Migration {
                     .col(ColumnDef::new(OrganizationUsers::UserId).unsigned().not_null())
                     .col(ColumnDef::new(OrganizationUsers::OrganizationId).unsigned().not_null())
                     .col(ColumnDef::new(OrganizationUsers::Role).string_len(20).not_null())
-                    .col(ColumnDef::new(OrganizationUsers::Created).date_time().not_null().default(Expr::current_timestamp()))
-                    .primary_key(Index::create().name("PRIMARY").col(OrganizationUsers::UserId).col(OrganizationUsers::OrganizationId))
+                    .col(
+                        ColumnDef::new(OrganizationUsers::Created)
+                            .date_time()
+                            .not_null()
+                            .default(Expr::current_timestamp()),
+                    )
+                    .primary_key(
+                        Index::create()
+                            .name("PRIMARY")
+                            .col(OrganizationUsers::UserId)
+                            .col(OrganizationUsers::OrganizationId),
+                    )
                     .foreign_key(
                         ForeignKey::create()
                             .name("fk_organization_members_1")
@@ -187,13 +229,24 @@ impl MigrationTrait for Migration {
                     .table(Projects::Table)
                     .if_not_exists()
                     .apply_defaults(manager)
-                    .col(ColumnDef::new(Projects::ProjectId).unsigned().not_null().primary_key().auto_increment())
+                    .col(
+                        ColumnDef::new(Projects::ProjectId)
+                            .unsigned()
+                            .not_null()
+                            .primary_key()
+                            .auto_increment(),
+                    )
                     .col(ColumnDef::new(Projects::OrganizationId).unsigned().not_null())
                     .col(ColumnDef::new(Projects::Name).string_len(80).not_null())
                     .col(ColumnDef::new(Projects::ApiKey).char_len(32).not_null())
                     .col(ColumnDef::new(Projects::SlackBotToken).string_len(255).null())
                     .col(ColumnDef::new(Projects::SlackChannel).string_len(255).null())
-                    .col(ColumnDef::new(Projects::Created).date_time().not_null().default(Expr::current_timestamp()))
+                    .col(
+                        ColumnDef::new(Projects::Created)
+                            .date_time()
+                            .not_null()
+                            .default(Expr::current_timestamp()),
+                    )
                     .foreign_key(
                         ForeignKey::create()
                             .name("fk_projects_1")
@@ -207,7 +260,14 @@ impl MigrationTrait for Migration {
             .await?;
 
         manager
-            .create_index(Index::create().name("ApiKey").table(Projects::Table).col(Projects::ApiKey).unique().to_owned())
+            .create_index(
+                Index::create()
+                    .name("ApiKey")
+                    .table(Projects::Table)
+                    .col(Projects::ApiKey)
+                    .unique()
+                    .to_owned(),
+            )
             .await?;
 
         manager
@@ -219,7 +279,12 @@ impl MigrationTrait for Migration {
                     .col(ColumnDef::new(ProjectUserSettings::ProjectId).unsigned().not_null())
                     .col(ColumnDef::new(ProjectUserSettings::UserId).unsigned().not_null())
                     .col(ColumnDef::new(ProjectUserSettings::NotifyEmail).boolean().not_null())
-                    .primary_key(Index::create().name("PRIMARY").col(ProjectUserSettings::ProjectId).col(ProjectUserSettings::UserId))
+                    .primary_key(
+                        Index::create()
+                            .name("PRIMARY")
+                            .col(ProjectUserSettings::ProjectId)
+                            .col(ProjectUserSettings::UserId),
+                    )
                     .foreign_key(
                         ForeignKey::create()
                             .name("fk_project_member_settings_1")
@@ -273,14 +338,39 @@ impl MigrationTrait for Migration {
                     .table(ProjectReports::Table)
                     .if_not_exists()
                     .apply_defaults(manager)
-                    .col(ColumnDef::new(ProjectReports::ProjectReportId).unsigned().not_null().primary_key().auto_increment())
+                    .col(
+                        ColumnDef::new(ProjectReports::ProjectReportId)
+                            .unsigned()
+                            .not_null()
+                            .primary_key()
+                            .auto_increment(),
+                    )
                     .col(ColumnDef::new(ProjectReports::ProjectId).unsigned().not_null())
                     .col(ColumnDef::new(ProjectReports::ProjectEnvironmentId).unsigned().null())
                     .col(ColumnDef::new(ProjectReports::Title).string_len(500).not_null())
-                    .col(ColumnDef::new(ProjectReports::LastSeen).not_null().date_time().default(Expr::current_timestamp()))
-                    .col(ColumnDef::new(ProjectReports::IsSeen).not_null().boolean().default(false))
-                    .col(ColumnDef::new(ProjectReports::IsResolved).not_null().boolean().default(false))
-                    .col(ColumnDef::new(ProjectReports::Created).date_time().default(Expr::current_timestamp()))
+                    .col(
+                        ColumnDef::new(ProjectReports::LastSeen)
+                            .not_null()
+                            .date_time()
+                            .default(Expr::current_timestamp()),
+                    )
+                    .col(
+                        ColumnDef::new(ProjectReports::IsSeen)
+                            .not_null()
+                            .boolean()
+                            .default(false),
+                    )
+                    .col(
+                        ColumnDef::new(ProjectReports::IsResolved)
+                            .not_null()
+                            .boolean()
+                            .default(false),
+                    )
+                    .col(
+                        ColumnDef::new(ProjectReports::Created)
+                            .date_time()
+                            .default(Expr::current_timestamp()),
+                    )
                     .foreign_key(
                         ForeignKey::create()
                             .name("fk_project_reports_1")
@@ -314,11 +404,19 @@ impl MigrationTrait for Migration {
                             .primary_key()
                             .auto_increment(),
                     )
-                    .col(ColumnDef::new(ProjectReportEvents::ProjectReportId).unsigned().not_null())
+                    .col(
+                        ColumnDef::new(ProjectReportEvents::ProjectReportId)
+                            .unsigned()
+                            .not_null(),
+                    )
                     .col(ColumnDef::new(ProjectReportEvents::PrevEventId).unsigned().null())
                     .col(ColumnDef::new(ProjectReportEvents::NextEventId).unsigned().null())
                     .col(ColumnDef::new(ProjectReportEvents::EventData).text().not_null())
-                    .col(ColumnDef::new(ProjectReportEvents::Created).date_time().default(Expr::current_timestamp()))
+                    .col(
+                        ColumnDef::new(ProjectReportEvents::Created)
+                            .date_time()
+                            .default(Expr::current_timestamp()),
+                    )
                     .foreign_key(
                         ForeignKey::create()
                             .name("fk_project_report_events_1")
@@ -360,10 +458,22 @@ impl MigrationTrait for Migration {
                             .primary_key()
                             .auto_increment(),
                     )
-                    .col(ColumnDef::new(OrganizationInvitations::OrganizationId).unsigned().not_null())
-                    .col(ColumnDef::new(OrganizationInvitations::Email).string_len(320).not_null())
+                    .col(
+                        ColumnDef::new(OrganizationInvitations::OrganizationId)
+                            .unsigned()
+                            .not_null(),
+                    )
+                    .col(
+                        ColumnDef::new(OrganizationInvitations::Email)
+                            .string_len(320)
+                            .not_null(),
+                    )
                     .col(ColumnDef::new(OrganizationInvitations::Role).string_len(20).not_null())
-                    .col(ColumnDef::new(OrganizationInvitations::Created).date_time().default(Expr::current_timestamp()))
+                    .col(
+                        ColumnDef::new(OrganizationInvitations::Created)
+                            .date_time()
+                            .default(Expr::current_timestamp()),
+                    )
                     .foreign_key(
                         ForeignKey::create()
                             .name("fk_organization_invitations_1")
@@ -380,15 +490,31 @@ impl MigrationTrait for Migration {
     }
 
     async fn down(&self, manager: &SchemaManager) -> Result<(), DbErr> {
-        manager.drop_table(Table::drop().table(OrganizationInvitations::Table).to_owned()).await?;
-        manager.drop_table(Table::drop().table(ProjectReportEvents::Table).to_owned()).await?;
-        manager.drop_table(Table::drop().table(ProjectReports::Table).to_owned()).await?;
-        manager.drop_table(Table::drop().table(ProjectEnvironments::Table).to_owned()).await?;
-        manager.drop_table(Table::drop().table(Projects::Table).to_owned()).await?;
-        manager.drop_table(Table::drop().table(OrganizationUsers::Table).to_owned()).await?;
-        manager.drop_table(Table::drop().table(Organizations::Table).to_owned()).await?;
+        manager
+            .drop_table(Table::drop().table(OrganizationInvitations::Table).to_owned())
+            .await?;
+        manager
+            .drop_table(Table::drop().table(ProjectReportEvents::Table).to_owned())
+            .await?;
+        manager
+            .drop_table(Table::drop().table(ProjectReports::Table).to_owned())
+            .await?;
+        manager
+            .drop_table(Table::drop().table(ProjectEnvironments::Table).to_owned())
+            .await?;
+        manager
+            .drop_table(Table::drop().table(Projects::Table).to_owned())
+            .await?;
+        manager
+            .drop_table(Table::drop().table(OrganizationUsers::Table).to_owned())
+            .await?;
+        manager
+            .drop_table(Table::drop().table(Organizations::Table).to_owned())
+            .await?;
         manager.drop_table(Table::drop().table(Users::Table).to_owned()).await?;
-        manager.drop_table(Table::drop().table(SeaqlMigrations::Table).to_owned()).await?;
+        manager
+            .drop_table(Table::drop().table(SeaqlMigrations::Table).to_owned())
+            .await?;
 
         Ok(())
     }

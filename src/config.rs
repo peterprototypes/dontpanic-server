@@ -77,7 +77,10 @@ impl Config {
         };
 
         Ok(Self {
-            bind_addr: get_var("BIND_ADDRESS").ok().unwrap_or_else(|| "0.0.0.0:8080".into()).parse()?,
+            bind_addr: get_var("BIND_ADDRESS")
+                .ok()
+                .unwrap_or_else(|| "0.0.0.0:8080".into())
+                .parse()?,
             cookie_secret,
             #[cfg(test)]
             database_url: "sqlite::memory:".into(),
@@ -85,7 +88,10 @@ impl Config {
             database_url: get_var("DATABASE_URL")?,
             base_url: get_var("BASE_URL").ok().unwrap_or_else(|| "localhost".into()),
             scheme: get_var("SCHEME").ok().unwrap_or_else(|| "http".into()),
-            email_from: get_var("EMAIL_FROM").ok().unwrap_or_else(|| "no-rely@dontpanic.rs".into()).parse()?,
+            email_from: get_var("EMAIL_FROM")
+                .ok()
+                .unwrap_or_else(|| "no-rely@dontpanic.rs".into())
+                .parse()?,
             email_url: get_var("EMAIL_URL").ok(),
             slack_client_id,
             slack_client_secret,
@@ -93,7 +99,10 @@ impl Config {
             default_user_email: get_var("DEFAULT_USER_EMAIL").ok(),
             default_user_password,
             default_user_organization: get_var("DEFAULT_USER_ORGANIZATION").ok(),
-            organization_requests_limit: get_var("ORGANIZATION_REQUESTS_LIMIT").ok().map(|limit| limit.parse()).transpose()?,
+            organization_requests_limit: get_var("ORGANIZATION_REQUESTS_LIMIT")
+                .ok()
+                .map(|limit| limit.parse())
+                .transpose()?,
             registration_enabled: get_bool_var("REGISTRATION_ENABLED")?.unwrap_or(true),
             require_email_verification: get_bool_var("REQUIRE_EMAIL_VERIFICATION")?.unwrap_or(true),
         })

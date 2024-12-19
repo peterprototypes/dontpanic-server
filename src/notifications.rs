@@ -4,7 +4,9 @@ use sea_orm::prelude::*;
 use serde::{Deserialize, Serialize};
 use serde_json::json;
 
-use crate::entity::{prelude::*, project_environments, project_report_events, project_reports, project_user_settings, projects, users};
+use crate::entity::{
+    prelude::*, project_environments, project_report_events, project_reports, project_user_settings, projects, users,
+};
 use crate::AppContext;
 
 #[derive(Serialize, Deserialize, Debug, Clone, Copy, Eq, PartialEq)]
@@ -29,7 +31,10 @@ pub async fn send(ctx: &AppContext<'_>, notification: &Notification) -> Result<(
         .all(&ctx.db)
         .await?;
 
-    let report_url = format!("{}://{}/reports/view/{}", ctx.config.scheme, ctx.config.base_url, notification.report.project_report_id);
+    let report_url = format!(
+        "{}://{}/reports/view/{}",
+        ctx.config.scheme, ctx.config.base_url, notification.report.project_report_id
+    );
 
     for (user, maybe_settings) in users {
         if let Some(settings) = maybe_settings {
@@ -68,7 +73,11 @@ pub async fn send_slack(_ctx: &AppContext<'_>, notification: &Notification, repo
     params["channel"] = channel.into();
 
     let client = reqwest::Client::new();
-    client.post("https://slack.com/api/chat.postMessage").form(&params).send().await?;
+    client
+        .post("https://slack.com/api/chat.postMessage")
+        .form(&params)
+        .send()
+        .await?;
 
     // TODO: log error response
 
@@ -96,15 +105,27 @@ pub async fn send_slack_webhook(_ctx: &AppContext<'_>, notification: &Notificati
 
 fn get_slack_blocks(notification: &Notification, report_url: &str) -> serde_json::Value {
     let mut title = if notification.status == ReportStatus::New {
-        format!(":boom: New report on {} received {}", notification.project.name, notification.report.title)
+        format!(
+            ":boom: New report on {} received {}",
+            notification.project.name, notification.report.title
+        )
     } else {
-        format!("Resolved report on {} reappeared: {}", notification.project.name, notification.report.title)
+        format!(
+            "Resolved report on {} reappeared: {}",
+            notification.project.name, notification.report.title
+        )
     };
 
     let mut markdown = if notification.status == ReportStatus::New {
-        format!(":boom: New report on *{}* received {}", notification.project.name, notification.report.title)
+        format!(
+            ":boom: New report on *{}* received {}",
+            notification.project.name, notification.report.title
+        )
     } else {
-        format!("Resolved report on *{}* reappeared: {}", notification.project.name, notification.report.title)
+        format!(
+            "Resolved report on *{}* reappeared: {}",
+            notification.project.name, notification.report.title
+        )
     };
 
     if let Some(environment) = notification.environment.as_ref() {
@@ -163,7 +184,12 @@ pub async fn send_webhook(_ctx: &AppContext<'_>, notification: &Notification, re
     Ok(())
 }
 
-pub async fn send_email(ctx: &AppContext<'_>, notification: &Notification, user: users::Model, report_url: &str) -> Result<()> {
+pub async fn send_email(
+    ctx: &AppContext<'_>,
+    notification: &Notification,
+    user: users::Model,
+    report_url: &str,
+) -> Result<()> {
     let template = if notification.status == ReportStatus::New {
         "email/new_report"
     } else {
@@ -171,9 +197,15 @@ pub async fn send_email(ctx: &AppContext<'_>, notification: &Notification, user:
     };
 
     let mut title = if notification.status == ReportStatus::New {
-        format!("New report on {} received '{}'", notification.project.name, notification.report.title)
+        format!(
+            "New report on {} received '{}'",
+            notification.project.name, notification.report.title
+        )
     } else {
-        format!("Resolved report on {} reappeared: '{}'", notification.project.name, notification.report.title)
+        format!(
+            "Resolved report on {} reappeared: '{}'",
+            notification.project.name, notification.report.title
+        )
     };
 
     if let Some(environment) = notification.environment.as_ref() {
