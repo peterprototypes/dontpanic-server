@@ -1,4 +1,4 @@
-import { Container, GlobalStyles, Typography, Box, Divider, Stack, Link } from "@mui/material";
+import { Container, GlobalStyles, Typography, Box, Divider, Stack } from "@mui/material";
 
 const NotFound = () => {
   return (
