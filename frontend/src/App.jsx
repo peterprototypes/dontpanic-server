@@ -29,6 +29,8 @@ import ReportsList from "./pages/project/ReportsList";
 import Notifications from "./pages/project/Notifications";
 import Report from "./pages/Report";
 
+import NotFound from "./pages/NotFound";
+
 const App = () => {
   return (
     <Box height="100vh" display="flex" flexDirection="column">
@@ -37,6 +39,8 @@ const App = () => {
 
         <BrowserRouter>
           <Routes>
+            <Route path='*' element={<NotFound />} />
+
             <Route element={<AppLayout />}>
               <Route path="reports" element={<Project />}>
                 <Route index element={<ReportsList />} />
