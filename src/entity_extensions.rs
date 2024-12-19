@@ -17,14 +17,20 @@ impl users::Model {
 
 impl Organizations {
     pub async fn delete(db: &DatabaseConnection, org_id: u32) -> Result<()> {
-        let org = Organizations::find_by_id(org_id).one(db).await?.ok_or(anyhow!("Organization not found"))?;
+        let org = Organizations::find_by_id(org_id)
+            .one(db)
+            .await?
+            .ok_or(anyhow!("Organization not found"))?;
 
         OrganizationUsers::delete_many()
             .filter(organization_users::Column::OrganizationId.eq(org_id))
             .exec(db)
             .await?;
 
-        Projects::delete_many().filter(projects::Column::OrganizationId.eq(org_id)).exec(db).await?;
+        Projects::delete_many()
+            .filter(projects::Column::OrganizationId.eq(org_id))
+            .exec(db)
+            .await?;
 
         org.delete(db).await?;
 
