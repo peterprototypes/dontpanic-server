@@ -4,6 +4,7 @@ import { useSearchParams } from "react-router";
 import { Divider, Stack, Typography, Link } from '@mui/material';
 
 import EmailNotifications from "components/EmailNotifications";
+import LoadingPage from "components/LoadingPage";
 
 import Webhook from "components/integrations/Webhook";
 import SlackWebhook from "components/integrations/SlackWebhook";
@@ -16,7 +17,7 @@ const Notifications = () => {
   const { data: project, isLoading } = useSWR(`/api/notifications/project/${projectId}`);
 
   if (isLoading) {
-    return <>Loading...</>;
+    return <LoadingPage />;
   }
 
   return (

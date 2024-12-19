@@ -37,7 +37,10 @@ struct Event {
 async fn ingress(ctx: web::Data<AppContext<'static>>, event: web::Json<Event>) -> Result<HttpResponse> {
     let event = event.into_inner();
 
-    let maybe_project = Projects::find().filter(projects::Column::ApiKey.eq(&event.api_key)).one(&ctx.db).await?;
+    let maybe_project = Projects::find()
+        .filter(projects::Column::ApiKey.eq(&event.api_key))
+        .one(&ctx.db)
+        .await?;
 
     let Some(project) = maybe_project else {
         return Err(Error::new("API key not found or organization disabled"));
@@ -48,7 +51,11 @@ async fn ingress(ctx: web::Data<AppContext<'static>>, event: web::Json<Event>) -
 
     // limits check
     // ideally this check should not be in the hot path - it should happen on a timer once an hour and disable all projects in the org
-    let org = project.find_related(Organizations).one(&ctx.db).await?.expect("Each project must have organization");
+    let org = project
+        .find_related(Organizations)
+        .one(&ctx.db)
+        .await?
+        .expect("Each project must have organization");
 
     if let Some(request_limit) = org.requests_limit {
         let mut request_count = org.requests_count.unwrap_or_default();
@@ -86,7 +93,10 @@ async fn ingress(ctx: web::Data<AppContext<'static>>, event: web::Json<Event>) -
 
     // find environment or create id
     let environment = if let Some(env_ident) = event.env_ident {
-        let maybe_env = ProjectEnvironments::find().filter(project_environments::Column::Name.eq(&env_ident)).one(&ctx.db).await?;
+        let maybe_env = ProjectEnvironments::find()
+            .filter(project_environments::Column::Name.eq(&env_ident))
+            .one(&ctx.db)
+            .await?;
 
         let environment = match maybe_env {
             Some(env_row) => env_row,
@@ -107,7 +117,10 @@ async fn ingress(ctx: web::Data<AppContext<'static>>, event: web::Json<Event>) -
     };
 
     // find relevant report or create it
-    let maybe_report = ProjectReports::find().filter(project_reports::Column::Title.eq(&event.name)).one(&ctx.db).await?;
+    let maybe_report = ProjectReports::find()
+        .filter(project_reports::Column::Title.eq(&event.name))
+        .one(&ctx.db)
+        .await?;
 
     let mut report_status: Option<ReportStatus> = None;
 

@@ -5,8 +5,8 @@ import { Box, Divider, Grid2 as Grid, Link, Typography, Stack, Tooltip, Button, 
 import { styled } from '@mui/system';
 
 import SideMenu from 'components/SideMenu';
-import { BackIcon } from 'components/ConsistentIcons';
-import { NextIcon } from '../components/ConsistentIcons';
+import { BackIcon, NextIcon } from 'components/ConsistentIcons';
+import LoadingPage from 'components/LoadingPage';
 
 const Report = () => {
   const { id } = useParams();
@@ -15,65 +15,88 @@ const Report = () => {
   let eventId = searchParams.get('event_id');
 
   const { data, isLoading, error } = useSWR(`/api/reports/${id}`);
-  const { data: event } = useSWR(`/api/reports/${id}/get-event${eventId ? `?event_id=${eventId}` : ''}`);
+  const { data: event, isLoading: isEventLoading } = useSWR(`/api/reports/${id}/get-event${eventId ? `?event_id=${eventId}` : ''}`);
 
-  if (isLoading) return <Box>Loading...</Box>;
+  if (isLoading) {
+    return (
+      <ReportPage><LoadingPage /></ReportPage>
+    );
+  }
 
   if (error) return <Box>Error: {error.message}</Box>;
 
+  return (
+    <ReportPage>
+      <Link component={RouterLink} to={`/reports?project_id=${data.report.project_id}`} color="primary" sx={{ display: 'flex', alignItems: 'center', mb: 2 }}>
+        <BackIcon />
+        Back to reports
+      </Link>
+
+      <Stack direction="row" spacing={2} alignItems="center">
+        <Typography variant="h6" sx={{ mt: 2 }} color="textSecondary">#{data.report.project_report_id}</Typography>
+        <Typography variant="h6" sx={{ mt: 2, fontWeight: '600', fontSize: '15px' }}>{data.report.title}</Typography>
+      </Stack>
+
+      <Divider sx={{ my: 2 }} />
+
+      <Stack direction="row" justifyContent="space-between" sx={{ mb: 2 }}>
+        <Stack>
+          <Typography variant="h6" sx={{ fontSize: '15px' }}>Project</Typography>
+          <Typography variant="body2" sx={{ fontWeight: '500', mb: 1 }} color="textSecondary">{data.project.name}</Typography>
+        </Stack>
+        <Stack>
+          <Typography variant="h6" sx={{ fontSize: '15px' }}>Environment</Typography>
+          <Typography variant="body2" sx={{ fontWeight: '500', mb: 1 }} color="textSecondary">{data?.env.name ?? '-'}</Typography>
+        </Stack>
+        <Stack>
+          <Typography variant="h6" sx={{ fontSize: '15px' }}>Last Seen</Typography>
+          <Typography variant="body2" sx={{ fontWeight: '500', mb: 1 }} color="textSecondary"><DateTimeDisplay value={data.report.last_seen} /></Typography>
+        </Stack>
+        <Stack>
+          <Typography variant="h6" sx={{ fontSize: '15px' }}>Created</Typography>
+          <Typography variant="body2" sx={{ fontWeight: '500', mb: 1 }} color="textSecondary"><DateTimeDisplay value={data.report.created} /></Typography>
+        </Stack>
+      </Stack>
+
+      <Occurrences occurrences={data.occurrences} maxOccurrences={data.max_occurrences} />
+
+      {<Event reportEvent={event} setSearchParams={setSearchParams} isLoading={isEventLoading} />}
+    </ReportPage>
+  );
+};
+
+const ReportPage = ({ children }) => {
   return (
     <Grid container spacing={2}>
       <Grid size={3}>
         <SideMenu />
       </Grid>
       <Grid size={9} sx={{ mt: 2 }}>
-        <Link component={RouterLink} to={`/reports?project_id=${data.report.project_id}`} color="primary" sx={{ display: 'flex', alignItems: 'center', mb: 2 }}>
-          <BackIcon />
-          Back to reports
-        </Link>
-
-        <Stack direction="row" spacing={2} alignItems="center">
-          <Typography variant="h6" sx={{ mt: 2 }} color="textSecondary">#{data.report.project_report_id}</Typography>
-          <Typography variant="h6" sx={{ mt: 2, fontWeight: '600', fontSize: '15px' }}>{data.report.title}</Typography>
-        </Stack>
-
-        <Divider sx={{ my: 2 }} />
-
-        <Stack direction="row" justifyContent="space-between" sx={{ mb: 2 }}>
-          <Stack>
-            <Typography variant="h6" sx={{ fontSize: '15px' }}>Project</Typography>
-            <Typography variant="body2" sx={{ fontWeight: '500', mb: 1 }} color="textSecondary">{data.project.name}</Typography>
-          </Stack>
-          <Stack>
-            <Typography variant="h6" sx={{ fontSize: '15px' }}>Environment</Typography>
-            <Typography variant="body2" sx={{ fontWeight: '500', mb: 1 }} color="textSecondary">{data?.env.name ?? '-'}</Typography>
-          </Stack>
-          <Stack>
-            <Typography variant="h6" sx={{ fontSize: '15px' }}>Last Seen</Typography>
-            <Typography variant="body2" sx={{ fontWeight: '500', mb: 1 }} color="textSecondary"><DateTimeDisplay value={data.report.last_seen} /></Typography>
-          </Stack>
-          <Stack>
-            <Typography variant="h6" sx={{ fontSize: '15px' }}>Created</Typography>
-            <Typography variant="body2" sx={{ fontWeight: '500', mb: 1 }} color="textSecondary"><DateTimeDisplay value={data.report.created} /></Typography>
-          </Stack>
-        </Stack>
-
-        <Occurrences occurrences={data.occurrences} maxOccurrences={data.max_occurrences} />
-
-        {event && <Event reportEvent={event} setSearchParams={setSearchParams} />}
+        {children}
       </Grid>
     </Grid>
   );
 };
 
-const Event = ({ reportEvent, setSearchParams }) => {
-  let data = JSON.parse(reportEvent.event.event_data);
+const Event = ({ reportEvent, isLoading, setSearchParams }) => {
+  if (isLoading) {
+    return <LoadingPage />;
+  }
+
+  let data = reportEvent ? JSON.parse(reportEvent.event.event_data) : null;
 
   return (
     <Box sx={{ my: 4 }}>
       <Stack direction="row" spacing={2} alignItems="center" justifyContent="space-between">
         <Typography variant="h6" sx={{ fontWeight: '600', fontSize: '15px' }}>
-          Event {reportEvent.event_pos} / {reportEvent.events_count} received at {DateTime.fromISO(reportEvent.event.created, { zone: 'UTC' }).toLocaleString(DateTime.DATETIME_FULL)}
+          {reportEvent ? (
+            <>Event {reportEvent.event_pos} / {reportEvent.events_count} received at {DateTime.fromISO(reportEvent.event.created, { zone: 'UTC' }).toLocaleString(DateTime.DATETIME_FULL)}</>
+          ) : (
+            <>
+              Loading
+            </>
+          )}
+
         </Typography>
         <Stack direction="row" spacing={1}>
           <Button

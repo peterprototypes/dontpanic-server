@@ -2,17 +2,19 @@ import React from "react";
 import { Navigate } from "react-router";
 import useSWR from "swr";
 
+import LoadingPage from "components/LoadingPage";
+
 const UserContext = React.createContext();
 
 export const UserProvider = ({ children }) => {
-  const { data, error } = useSWR("/api/account");
+  const { data, error, isLoading } = useSWR("/api/account");
 
   if (error) {
     return <Navigate to="/auth/login" replace />;
   }
 
-  if (!data) {
-    return <div>Loading...</div>;
+  if (isLoading) {
+    return <LoadingPage />;
   }
 
   return (

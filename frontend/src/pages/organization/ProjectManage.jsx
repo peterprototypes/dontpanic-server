@@ -70,6 +70,7 @@ const ProjectManage = () => {
             color="grey"
             component={RouterLink}
             to={`/organization/${organizationId}/projects`}
+            disabled={isMutating || isLoading}
           >
             Cancel
           </Button>

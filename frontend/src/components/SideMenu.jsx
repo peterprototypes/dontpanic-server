@@ -7,6 +7,7 @@ import ListItemIcon from '@mui/material/ListItemIcon';
 import ListItemText from '@mui/material/ListItemText';
 import ListItem from '@mui/material/ListItem';
 import Button from '@mui/material/Button';
+import LinearProgress from '@mui/material/LinearProgress';
 import { styled } from '@mui/material/styles';
 import CircleIcon from '@mui/icons-material/Circle';
 
@@ -14,7 +15,7 @@ import { OrganizationIcon } from './ConsistentIcons';
 
 const SideMenu = () => {
   const [searchParams] = useSearchParams();
-  const { data: organizations } = useSWR('/api/organizations');
+  const { data: organizations, isLoading } = useSWR('/api/organizations');
 
   const organizationPage = useMatch('/organization/:id/:page/*');
   const selectedOrganizationId = organizationPage?.params.id ?? null;
@@ -27,6 +28,8 @@ const SideMenu = () => {
       <ListItemButton component={Link} to="/reports" divider selected={reportsPage && !selectedProjectId}>
         <ListItemText primary="All Reports" />
       </ListItemButton>
+
+      {isLoading && <LinearProgress />}
 
       {organizations?.map((org) => (
         <React.Fragment key={org.organization_id}>

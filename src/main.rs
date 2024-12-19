@@ -176,6 +176,7 @@ async fn main() -> anyhow::Result<()> {
                     .build(),
             )
             .app_data(web::Data::new(ctx.clone()))
+            .configure(handlers::ingress::routes)
             .service(web::scope("/api").configure(handlers::routes))
             .service(
                 Files::new("/", "./frontend/dist")
@@ -188,7 +189,6 @@ async fn main() -> anyhow::Result<()> {
                         Ok(ServiceResponse::new(req, res))
                     })),
             )
-            .configure(handlers::ingress::routes)
             .wrap(middleware::Logger::default())
     })
     .shutdown_timeout(10)

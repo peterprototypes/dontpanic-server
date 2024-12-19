@@ -18,8 +18,6 @@ const Members = () => {
 
   if (error) return <Alert severity="error">{error.message}</Alert>;
 
-  if (isLoading) return null;
-
   return (
     <Stack spacing={2}>
       <OrganizationMembers
