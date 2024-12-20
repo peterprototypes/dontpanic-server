@@ -83,6 +83,15 @@ const Event = ({ reportEvent, isLoading, setSearchParams }) => {
     return <LoadingPage />;
   }
 
+  if (!reportEvent?.event) {
+    return (
+      <Box sx={{ my: 4 }}>
+        <Typography variant="h6" align="center" sx={{ fontWeight: '600', fontSize: '15px' }}>No Events Found</Typography>
+        <Divider sx={{ my: 2 }} />
+      </Box>
+    );
+  }
+
   let data = reportEvent ? JSON.parse(reportEvent.event.event_data) : null;
 
   return (
