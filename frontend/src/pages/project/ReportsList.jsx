@@ -6,6 +6,7 @@ import { useConfirm } from "material-ui-confirm";
 import { Link as RouterLink, useNavigate, useSearchParams } from 'react-router';
 import { DateTime } from "luxon";
 import { TableContainer, Tooltip, Typography, TableCell, TableRow, Table, TableHead, TableBody, Checkbox, Paper, Stack, Button, Box, Grow, LinearProgress } from '@mui/material';
+import { styled } from '@mui/system';
 
 import { BackIcon, NextIcon, DeleteIcon, ResolveIcon } from 'components/ConsistentIcons';
 import LoadingPage from 'components/LoadingPage';
@@ -110,7 +111,7 @@ const ReportsList = ({ resolved = false }) => {
         </TableHead>
         <TableBody>
           {data?.reports.map((row) => (
-            <TableRow key={row.report.project_report_id} onClick={() => navigate(`/view-report/${row.report.project_report_id}`)}>
+            <ReportRow key={row.report.project_report_id} onClick={() => navigate(`/view-report/${row.report.project_report_id}`)}>
               <TableCell onClick={(e) => e.stopPropagation()}>
                 <Checkbox onChange={() => toggle(row.report.project_report_id)} checked={selected.includes(row.report.project_report_id)} />
               </TableCell>
@@ -122,7 +123,7 @@ const ReportsList = ({ resolved = false }) => {
                   <Typography variant="body2" noWrap>{DateTime.fromISO(row.report.last_seen, { zone: 'UTC' }).toRelative()}</Typography>
                 </Tooltip>
               </TableCell>
-            </TableRow>
+            </ReportRow>
           ))}
         </TableBody>
       </Table>
@@ -213,5 +214,12 @@ const NoResolved = () => {
     </Paper>
   );
 };
+
+const ReportRow = styled(TableRow)(({ theme }) => ({
+  cursor: 'pointer',
+  '&:hover': {
+    backgroundColor: theme.palette.action.hover
+  }
+}));
 
 export default ReportsList;
