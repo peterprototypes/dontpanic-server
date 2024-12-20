@@ -7,6 +7,7 @@ import { ConfirmProvider } from "material-ui-confirm";
 
 import App from './App.jsx';
 import theme from './theme';
+import { ConfigProvider } from './context/config.jsx';
 
 const fetcher = async (url, data) => {
   const api_url = import.meta.env.DEV ? "http://localhost:8080" : "";
@@ -57,7 +58,9 @@ createRoot(document.getElementById('root')).render(
       <CssBaseline />
       <SnackbarProvider anchorOrigin={{ horizontal: 'right', vertical: 'bottom' }}>
         <ConfirmProvider>
-          <App />
+          <ConfigProvider>
+            <App />
+          </ConfigProvider>
         </ConfirmProvider>
       </SnackbarProvider>
     </ThemeProvider>

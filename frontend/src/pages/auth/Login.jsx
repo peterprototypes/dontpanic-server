@@ -8,6 +8,7 @@ import { LoadingButton } from "@mui/lab";
 import { Stack, Typography, Link } from "@mui/material";
 import ChevronRightIcon from '@mui/icons-material/ChevronRight';
 
+import { useConfig } from "context/config";
 import Logo from "components/Logo";
 import ResendVerificationEmail from 'components/ResendVerificationEmail';
 import { FormServerError, ControlledTextField } from "components/form";
@@ -19,6 +20,7 @@ const LoginSchema = yup.object({
 
 const Login = () => {
   let navigate = useNavigate();
+  let { config } = useConfig();
 
   const [showResendVerification, setShowResendVerification] = React.useState(false);
 
@@ -69,11 +71,13 @@ const Login = () => {
 
         {showResendVerification && <ResendVerificationEmail email={methods.watch("email")} initialWait={10} variant="text" />}
 
-        <Typography align="center" sx={{ my: 1 }}>
-          Don&lsquo;t have an account?
-          {' '}
-          <Link component={RouterLink} to="/auth/register">Register</Link>
-        </Typography>
+        {config?.registration_enabled && (
+          <Typography align="center" sx={{ my: 1 }}>
+            Don&lsquo;t have an account?
+            {' '}
+            <Link component={RouterLink} to="/auth/register">Register</Link>
+          </Typography>
+        )}
 
         <Link component={RouterLink} to="/auth/request-password-reset">Forgot your password?</Link>
       </Stack>

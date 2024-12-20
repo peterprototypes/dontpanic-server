@@ -1,6 +1,11 @@
-use actix_web::{web, HttpResponse};
+use actix_web::{
+    get,
+    web::{self, Data, Json},
+    HttpResponse, Responder,
+};
+use serde_json::json;
 
-use crate::Error;
+use crate::{AppContext, Error};
 
 pub mod account;
 pub mod auth;
@@ -16,5 +21,15 @@ pub fn routes(cfg: &mut web::ServiceConfig) {
     cfg.service(web::scope("/reports").configure(reports::routes));
     cfg.service(web::scope("/notifications").configure(notifications::routes));
 
+    cfg.service(config);
+
     cfg.default_service(web::route().to(|| async { Err::<HttpResponse, _>(Error::new("Not Found")) }));
+}
+
+#[get("/config")]
+pub async fn config(ctx: Data<AppContext<'_>>) -> impl Responder {
+    Json(json!({
+        "version": env!("CARGO_PKG_VERSION"),
+        "registration_enabled": ctx.config.registration_enabled,
+    }))
 }
