@@ -1,5 +1,6 @@
 use actix_session::Session;
 use actix_web::{http, post, web, HttpRequest, Responder};
+use google_authenticator::GoogleAuthenticator;
 use lettre::AsyncTransport;
 use sea_orm::prelude::*;
 use serde::Deserialize;
@@ -19,6 +20,7 @@ struct LoginRequest {
     email: String,
     #[validate(length(min = 8, message = "Must be at least 8 characters long"))]
     password: String,
+    totp: Option<String>,
 }
 
 #[post("/login")]
@@ -28,6 +30,7 @@ pub async fn login(
     session: Session,
     form: web::Json<LoginRequest>,
 ) -> Result<impl Responder> {
+    let form = form.into_inner();
     form.validate()?;
 
     let user = Users::find()
@@ -52,6 +55,23 @@ pub async fn login(
             "email_unverified",
             "Your email is not yet verified.",
         ));
+    }
+
+    if let Some(secret) = user.totp_secret.as_ref() {
+        let totp_code = form.totp.map(|c| c.trim().to_string()).filter(|c| !c.is_empty());
+
+        let Some(totp_code) = totp_code else {
+            return Err(Error::new_with_type(
+                "totp_required",
+                "Two-factor authentication is required for this account.",
+            ));
+        };
+
+        let ga = GoogleAuthenticator::new();
+
+        if !ga.verify_code(secret, &totp_code, 30, 0) {
+            return Err(Error::new("Invalid or expired code."));
+        }
     }
 
     session.insert("uid", user.user_id)?;

@@ -11,6 +11,10 @@ import { useUser } from 'context/user';
 import { ControlledTextField, FormServerError } from "./form";
 import { SendEmailIcon } from "./ConsistentIcons";
 
+const ChangeEmailSchema = yup.object({
+  new_email: yup.string().required("Email is required").email("Please enter a valid email address"),
+}).required();
+
 const RequestEmailChange = () => {
   const { enqueueSnackbar } = useSnackbar();
   const [open, setOpen] = React.useState(false);
@@ -96,9 +100,5 @@ const RequestEmailChange = () => {
     </FormProvider>
   );
 };
-
-const ChangeEmailSchema = yup.object({
-  new_email: yup.string().required("Email is required").email("Please enter a valid email address"),
-}).required();
 
 export default RequestEmailChange;

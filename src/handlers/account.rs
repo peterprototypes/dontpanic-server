@@ -1,6 +1,6 @@
 use actix_web::{
     get, post,
-    web::{self, Json},
+    web::{self, Data, Json},
     Responder,
 };
 use lettre::AsyncTransport;
@@ -16,12 +16,15 @@ use crate::entity::users;
 use crate::handlers::auth::EmailChangePayload;
 use crate::{AppContext, Error, Identity, Result};
 
+mod totp;
+
 pub fn routes(cfg: &mut web::ServiceConfig) {
     cfg.service(get)
         .service(update)
         .service(update_email)
         .service(delete)
-        .service(update_password);
+        .service(update_password)
+        .service(web::scope("/totp").configure(totp::routes));
 }
 
 #[derive(Clone, Debug, Serialize, Validate)]
@@ -30,6 +33,7 @@ struct AccountResponse {
     email: String,
     name: Option<String>,
     iana_timezone_name: String,
+    totp_enabled: bool,
     created: DateTime,
 }
 
@@ -40,13 +44,14 @@ impl From<users::Model> for AccountResponse {
             email: value.email,
             name: value.name,
             iana_timezone_name: value.iana_timezone_name,
+            totp_enabled: value.totp_secret.is_some(),
             created: value.created,
         }
     }
 }
 
 #[get("")]
-async fn get(ctx: web::Data<AppContext<'_>>, id: Identity) -> Result<impl Responder> {
+async fn get(ctx: Data<AppContext<'_>>, id: Identity) -> Result<impl Responder> {
     let user = id.user(&ctx).await?;
     Ok(Json(AccountResponse::from(user)))
 }
@@ -57,7 +62,7 @@ struct InfoInput {
 }
 
 #[post("")]
-async fn update(ctx: web::Data<AppContext<'_>>, id: Identity, input: Json<InfoInput>) -> Result<impl Responder> {
+async fn update(ctx: Data<AppContext<'_>>, id: Identity, input: Json<InfoInput>) -> Result<impl Responder> {
     let mut user = id.user(&ctx).await?.into_active_model();
     user.name = ActiveValue::set(input.into_inner().name.filter(|s| !s.is_empty()));
     let user = user.save(&ctx.db).await?.try_into_model()?;
@@ -72,11 +77,7 @@ struct EmailUpdate {
 }
 
 #[post("/update-email")]
-async fn update_email(
-    ctx: web::Data<AppContext<'_>>,
-    id: Identity,
-    input: Json<EmailUpdate>,
-) -> Result<impl Responder> {
+async fn update_email(ctx: Data<AppContext<'_>>, id: Identity, input: Json<EmailUpdate>) -> Result<impl Responder> {
     input.validate()?;
 
     let user = id.user(&ctx).await?;
@@ -126,7 +127,7 @@ async fn update_email(
 }
 
 #[post("/delete")]
-async fn delete(ctx: web::Data<AppContext<'_>>, id: Identity) -> Result<impl Responder> {
+async fn delete(ctx: Data<AppContext<'_>>, id: Identity) -> Result<impl Responder> {
     let user = id.user(&ctx).await?;
 
     let user_owned_organizations = user
@@ -177,7 +178,7 @@ struct PasswordUpdate {
 
 #[post("/update-password")]
 async fn update_password(
-    ctx: web::Data<AppContext<'_>>,
+    ctx: Data<AppContext<'_>>,
     id: Identity,
     input: Json<PasswordUpdate>,
 ) -> Result<impl Responder> {

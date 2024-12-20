@@ -57,7 +57,7 @@ const ControlledTextField = ({
             endAdornment={endAdornment}
             {...props}
           />
-          <FormHelperText>
+          <FormHelperText error={!!fieldState.error}>
             {fieldState.error?.message || helperText}
           </FormHelperText>
         </FormControl>

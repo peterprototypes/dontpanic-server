@@ -19,8 +19,10 @@ const LoginSchema = yup.object({
 }).required();
 
 const Login = () => {
-  let navigate = useNavigate();
-  let { config } = useConfig();
+  const navigate = useNavigate();
+  const { config } = useConfig();
+
+  const [totpRequired, setTotpRequired] = React.useState(false);
 
   const [showResendVerification, setShowResendVerification] = React.useState(false);
 
@@ -32,6 +34,7 @@ const Login = () => {
     defaultValues: {
       email: "",
       password: "",
+      totp: "",
     },
   });
 
@@ -41,6 +44,11 @@ const Login = () => {
     trigger(data)
       .then(() => navigate("/reports"))
       .catch((e) => {
+        if (e?.user?.type === 'totp_required') {
+          setTotpRequired(true);
+          return;
+        }
+
         methods.setError('root.serverError', { message: e.message });
         setShowResendVerification(e?.user?.type === 'email_unverified');
       });
@@ -55,6 +63,16 @@ const Login = () => {
         <ControlledTextField name="email" type="email" label="Email" placeholder="user@example.com" fullWidth />
 
         <ControlledTextField name="password" type="password" label="Password" placeholder="••••••" fullWidth />
+
+        {totpRequired && (
+          <ControlledTextField
+            name="totp"
+            label="Two-factor authentication code"
+            placeholder="123456"
+            fullWidth
+            helperText="Please enter the 6-digit code from your authenticator app"
+          />
+        )}
 
         <LoadingButton
           type="submit"

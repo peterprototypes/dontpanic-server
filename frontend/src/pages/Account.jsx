@@ -14,6 +14,7 @@ import { SaveIcon } from 'components/ConsistentIcons';
 import DeleteAccount from 'components/DeleteAccount';
 import PasswordChange from 'components/PasswordChange';
 import RequestEmailChange from 'components/RequestEmailChange';
+import Manage2FA from 'components/Manage2FA';
 
 const Account = () => {
   const { user } = useUser();
@@ -68,6 +69,10 @@ const Account = () => {
             <FormServerError sx={{ width: '100%' }} />
           </Stack>
         </FormProvider>
+
+        <Divider sx={{ mt: 4 }} />
+
+        <Manage2FA />
 
         <Divider sx={{ mt: 4 }} />
 
