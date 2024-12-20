@@ -82,6 +82,13 @@ impl actix_web::error::ResponseError for Error {
             }));
         }
 
+        if let Self::NotFound = self {
+            return builder.json(Self::User(ErrorMessage {
+                r#type: Some("not_found".into()),
+                message: "The requested resource was not found on the server.".into(),
+            }));
+        }
+
         builder.json(self)
     }
 

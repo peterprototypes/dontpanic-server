@@ -24,8 +24,8 @@ const fetcher = async (url, data) => {
     const data = await res.json();
 
     const error = new Error(data?.user?.message ?? '');
-    error.user = data.user;
-    error.fields = data.fields;
+    error.user = data?.user;
+    error.fields = data?.fields;
     error.status = res.status;
     throw error;
   }

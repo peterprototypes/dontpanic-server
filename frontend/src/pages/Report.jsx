@@ -23,7 +23,20 @@ const Report = () => {
     );
   }
 
-  if (error) return <Box>Error: {error.message}</Box>;
+  if (error) {
+    return (
+      <ReportPage>
+        <Link component={RouterLink} to="/reports" color="primary" sx={{ display: 'flex', alignItems: 'center', mb: 2 }}>
+          <BackIcon />
+          Back to reports
+        </Link>
+
+        <Typography variant="h6" sx={{ mt: 2 }} color="error">{error.status} - {error.message}</Typography>
+
+        <Divider sx={{ my: 2 }} />
+      </ReportPage>
+    );
+  }
 
   return (
     <ReportPage>
@@ -86,7 +99,7 @@ const Event = ({ reportEvent, isLoading, setSearchParams }) => {
   if (!reportEvent?.event) {
     return (
       <Box sx={{ my: 4 }}>
-        <Typography variant="h6" align="center" sx={{ fontWeight: '600', fontSize: '15px' }}>No Events Found</Typography>
+        <Typography variant="h6" align="center" sx={{ fontWeight: '600', fontSize: '15px' }}>Event Not Found</Typography>
         <Divider sx={{ my: 2 }} />
       </Box>
     );
