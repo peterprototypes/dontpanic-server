@@ -12,6 +12,7 @@ import Register from "./pages/auth/Register";
 import PasswordResetRequest from "./pages/auth/PasswordResetRequest";
 import PasswordReset from "./pages/auth/PasswordReset";
 import VerifyEmail from "./pages/auth/VerifyEmail";
+import ChangeEmail from "./pages/auth/ChangeEmail";
 
 import Account from "./pages/Account";
 
@@ -71,6 +72,7 @@ const App = () => {
               <Route path="verify-email/:hash" element={<VerifyEmail />} />
               <Route path="request-password-reset" element={<PasswordResetRequest />} />
               <Route path="password-reset/:hash" element={<PasswordReset />} />
+              <Route path="change-email" element={<ChangeEmail />} />
             </Route>
           </Routes>
         </BrowserRouter >

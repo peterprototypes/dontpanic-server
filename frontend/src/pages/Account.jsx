@@ -13,6 +13,7 @@ import { FormServerError, ControlledTextField } from "components/form";
 import { SaveIcon } from 'components/ConsistentIcons';
 import DeleteAccount from 'components/DeleteAccount';
 import PasswordChange from 'components/PasswordChange';
+import RequestEmailChange from 'components/RequestEmailChange';
 
 const Account = () => {
   const { user } = useUser();
@@ -44,7 +45,11 @@ const Account = () => {
           <Typography variant="h4">Account</Typography>
           <Typography variant="body1">{user.email}</Typography>
         </Box>
-        <Divider />
+
+        <Divider sx={{ mb: 2 }} />
+
+        <RequestEmailChange />
+
         <FormProvider {...methods}>
           <Stack component="form" spacing={2} sx={{ mt: 2 }} onSubmit={methods.handleSubmit(onSubmit)} noValidate useFlexGap alignItems="flex-start">
 

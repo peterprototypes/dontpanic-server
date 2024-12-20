@@ -1,0 +1,45 @@
+{{#*inline "content"}}
+<span class="preheader">
+    We&lsquo;ve received a request to change the email address associated with your account.
+</span>
+
+<table role="presentation" border="0" cellpadding="0" cellspacing="0" class="main">
+
+    <tr>
+        <td class="wrapper">
+            <p>Hello,</p>
+            <p>
+                We&lsquo;ve received a request to change the email address associated with your account.
+                By clicking on the link bellow, you'll update your Don't Panic login email address from {{old_email}} to
+                {{new_email}}.
+            </p>
+            <p>
+                If you didn&lsquo;t initiate this request, please contact support and we'll help you secure your
+                account.
+            </p>
+            <table role="presentation" border="0" cellpadding="0" cellspacing="0" class="btn btn-primary">
+                <tbody>
+                    <tr>
+                        <td align="left">
+                            <table role="presentation" border="0" cellpadding="0" cellspacing="0">
+                                <tbody>
+                                    <tr>
+                                        <td>
+                                            <a href="{{scheme}}://{{base_url}}/auth/change-email?{{payload}}"
+                                                target="_blank">Update Email</a>
+                                        </td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </td>
+                    </tr>
+                </tbody>
+            </table>
+            <p>Best regards, <br /> Don't Panic Team.</p>
+        </td>
+    </tr>
+
+</table>
+{{/inline}}
+
+{{> email/layout}}

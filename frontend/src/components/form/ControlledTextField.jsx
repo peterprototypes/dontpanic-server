@@ -1,6 +1,6 @@
 import React from "react";
 import { Controller, useWatch } from "react-hook-form";
-import { TextField, FormControl, FormLabel, IconButton, InputAdornment } from "@mui/material";
+import { OutlinedInput, FormControl, FormLabel, IconButton, InputAdornment, FormHelperText } from "@mui/material";
 
 import Visibility from '@mui/icons-material/Visibility';
 import VisibilityOff from '@mui/icons-material/VisibilityOff';
@@ -26,25 +26,22 @@ const ControlledTextField = ({
     event.preventDefault();
   };
 
-  const slotProps = {
-    input: {
-      endAdornment: type == 'password' &&
-        <InputAdornment position="end">
-          <IconButton
-            aria-label={
-              showPassword ? 'hide the password' : 'display the password'
-            }
-            onClick={handleClickShowPassword}
-            onMouseDown={handleMouseDownPassword}
-            onMouseUp={handleMouseUpPassword}
-            edge="end"
-            tabIndex={-1}
-          >
-            {showPassword ? <VisibilityOff /> : <Visibility />}
-          </IconButton>
-        </InputAdornment>
-    }
-  };
+  const endAdornment = type == 'password' && (
+    <InputAdornment position="end">
+      <IconButton
+        aria-label={
+          showPassword ? 'hide the password' : 'display the password'
+        }
+        onClick={handleClickShowPassword}
+        onMouseDown={handleMouseDownPassword}
+        onMouseUp={handleMouseUpPassword}
+        edge="end"
+        tabIndex={-1}
+      >
+        {showPassword ? <VisibilityOff /> : <Visibility />}
+      </IconButton>
+    </InputAdornment>
+  );
 
   return (
     <Controller
@@ -53,14 +50,16 @@ const ControlledTextField = ({
       render={({ field, fieldState }) => (
         <FormControl fullWidth={fullWidth}>
           <FormLabel required={required} sx={{ mb: 1 }}>{label}</FormLabel>
-          <TextField
+          <OutlinedInput
             {...field}
             type={type == 'password' ? (showPassword ? 'text' : 'password') : type}
             error={!!fieldState.error}
-            helperText={fieldState.error?.message || helperText}
-            slotProps={slotProps}
+            endAdornment={endAdornment}
             {...props}
           />
+          <FormHelperText>
+            {fieldState.error?.message || helperText}
+          </FormHelperText>
         </FormControl>
       )}
     />
