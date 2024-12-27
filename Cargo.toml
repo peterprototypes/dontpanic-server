@@ -29,7 +29,6 @@ key-lock = "0.1"
 
 actix-web = "4"
 actix-files = "0.6"
-actix-htmx = "0.3"
 actix-cors = "0.7"
 actix-session = { version = "0.10", features = ["cookie-session"] }
 

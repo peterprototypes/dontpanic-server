@@ -2,7 +2,6 @@ use std::sync::Arc;
 
 use actix_cors::Cors;
 use actix_files::{Files, NamedFile};
-use actix_htmx::HtmxMiddleware;
 use actix_session::{storage::CookieSessionStore, SessionMiddleware};
 use actix_web::{
     cookie::Key,
@@ -167,7 +166,6 @@ async fn main() -> anyhow::Result<()> {
         };
 
         App::new()
-            .wrap(HtmxMiddleware)
             .wrap(middleware::Compress::default())
             .wrap(cors)
             .wrap(
