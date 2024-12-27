@@ -204,3 +204,73 @@ async fn delete(ctx: Data<AppContext<'_>>, id: Identity, path: Path<u32>) -> Res
 
     Ok(Json(()))
 }
+
+#[cfg(test)]
+mod tests {
+    use actix_web::test;
+    use serde_json::Value;
+
+    #[actix_web::test]
+    async fn test_crud() {
+        let (app, sess) = crate::test_app_with_auth().await.unwrap();
+
+        // create
+        let req = test::TestRequest::post()
+            .uri("/api/organizations")
+            .cookie(sess.clone())
+            .set_json(serde_json::json!({
+                "name": "Test Organization",
+            }))
+            .to_request();
+
+        let resp: Value = test::call_and_read_body_json(&app, req).await;
+        let org_id = resp["organization_id"].as_u64().unwrap();
+
+        // edit
+        let req = test::TestRequest::post()
+            .uri(&format!("/api/organizations/{}", org_id))
+            .cookie(sess.clone())
+            .set_json(serde_json::json!({
+                "name": "Test Organization Updated",
+            }))
+            .to_request();
+
+        test::call_service(&app, req).await;
+
+        // list
+        let req = test::TestRequest::get()
+            .uri("/api/organizations")
+            .cookie(sess.clone())
+            .to_request();
+
+        let resp: Value = test::call_and_read_body_json(&app, req).await;
+
+        resp.as_array()
+            .unwrap()
+            .iter()
+            .find(|o| o["name"] == "Test Organization Updated" && o["organization_id"] == org_id)
+            .unwrap();
+
+        //delete
+        let req = test::TestRequest::post()
+            .uri(&format!("/api/organizations/{}/delete", org_id))
+            .cookie(sess.clone())
+            .to_request();
+
+        test::call_service(&app, req).await;
+
+        // check deleted
+        let req = test::TestRequest::get()
+            .uri("/api/organizations")
+            .cookie(sess)
+            .to_request();
+
+        let resp: Value = test::call_and_read_body_json(&app, req).await;
+
+        assert!(!resp
+            .as_array()
+            .unwrap()
+            .iter()
+            .any(|o| o["name"] == "Test Organization Updated" && o["organization_id"] == org_id));
+    }
+}

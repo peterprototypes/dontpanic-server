@@ -308,3 +308,37 @@ async fn create_default_user(db: &DatabaseConnection, config: &Config) -> Result
 
     Ok(())
 }
+
+#[cfg(test)]
+pub async fn test_app_with_auth() -> Result<(
+    impl actix_web::dev::Service<actix_http::Request, Response = ServiceResponse, Error = actix_web::Error>,
+    actix_web::cookie::Cookie<'static>,
+)> {
+    let ctx = crate::AppContext::testing().await.unwrap();
+
+    let signing_key = Key::generate();
+
+    let app = actix_web::test::init_service(
+        App::new()
+            .wrap(SessionMiddleware::builder(CookieSessionStore::default(), signing_key.clone()).build())
+            .app_data(web::Data::new(ctx))
+            .service(web::scope("/api").configure(handlers::routes)),
+    )
+    .await;
+
+    let req = actix_web::test::TestRequest::post()
+        .uri("/api/auth/login")
+        .set_json(serde_json::json!({
+            "email": "testing@dontpanic.rs",
+            "password": "password"
+        }))
+        .to_request();
+
+    let resp = actix_web::test::call_service(&app, req).await;
+    let sess = resp.response().cookies().next().unwrap().to_owned();
+    assert!(resp.status().is_success());
+
+    let sess = actix_web::cookie::Cookie::parse(sess.to_string()).unwrap();
+
+    Ok((app, sess))
+}

@@ -193,3 +193,75 @@ async fn delete(ctx: web::Data<AppContext<'_>>, path: web::Path<(u32, u32)>, id:
 
     Ok(Json(()))
 }
+
+#[cfg(test)]
+mod tests {
+    use actix_web::test;
+    use serde_json::Value;
+
+    #[actix_web::test]
+    async fn test_crud() {
+        let (app, sess) = crate::test_app_with_auth().await.unwrap();
+
+        // create
+        let req = test::TestRequest::post()
+            .uri("/api/organizations/1/projects")
+            .cookie(sess.clone())
+            .set_json(serde_json::json!({
+                "name": "Test Project",
+            }))
+            .to_request();
+
+        let resp: Value = test::call_and_read_body_json(&app, req).await;
+        let project_id = resp["project_id"].as_u64().unwrap();
+
+        // get single
+        let req = test::TestRequest::get()
+            .uri(&format!("/api/organizations/1/projects/{}", project_id))
+            .cookie(sess.clone())
+            .to_request();
+
+        let resp: Value = test::call_and_read_body_json(&app, req).await;
+        assert_eq!(resp["name"], "Test Project");
+        assert_eq!(resp["project_id"], project_id);
+
+        // edit
+        let req = test::TestRequest::post()
+            .uri("/api/organizations/1/projects")
+            .cookie(sess.clone())
+            .set_json(serde_json::json!({
+                "project_id": project_id,
+                "name": "Test Project Updated",
+            }))
+            .to_request();
+
+        test::call_service(&app, req).await;
+
+        // list
+        let req = test::TestRequest::get()
+            .uri("/api/organizations/1/projects")
+            .cookie(sess.clone())
+            .to_request();
+
+        let resp: Value = test::call_and_read_body_json(&app, req).await;
+        assert_eq!(resp[0]["name"], "Test Project Updated");
+        assert_eq!(resp[0]["project_id"], project_id);
+
+        //delete
+        let req = test::TestRequest::post()
+            .uri(&format!("/api/organizations/1/projects/delete/{}", project_id))
+            .cookie(sess.clone())
+            .to_request();
+
+        test::call_service(&app, req).await;
+
+        // check deleted
+        let req = test::TestRequest::get()
+            .uri("/api/organizations/1/projects")
+            .cookie(sess.clone())
+            .to_request();
+
+        let resp: Value = test::call_and_read_body_json(&app, req).await;
+        assert!(resp.as_array().unwrap().is_empty());
+    }
+}

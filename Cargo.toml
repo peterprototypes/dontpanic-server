@@ -61,3 +61,6 @@ features = [
     "with-chrono",
     "debug-print",
 ]
+
+[dev-dependencies]
+actix-http = "3.9.0"
