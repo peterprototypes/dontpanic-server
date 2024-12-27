@@ -14,29 +14,17 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v3
-
       - uses: Swatinem/rust-cache@v2
-
-      - name: setup toolchain
-        uses: hecrj/setup-rust-action@v1
-        with:
-          rust-version: stable
-
+      - uses: actions-rust-lang/setup-rust-toolchain@v1
       - name: cargo test
         run: cargo test --all-features
-
-      - name: rustfmt
-        run: cargo fmt --all -- --check
-
-      - name: clippy
-        run: cargo clippy --all --all-features --tests -- -D warnings
 
   validate_format:
     name: Rustfmt and Clippy
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v3
-      - uses: actions-rs/toolchain@v1
+      - uses: actions-rust-lang/setup-rust-toolchain@v1
         with:
           toolchain: nightly
           override: true
