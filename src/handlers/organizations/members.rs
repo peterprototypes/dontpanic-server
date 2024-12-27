@@ -419,3 +419,66 @@ fn validate_role_choice(role: &str, user_role: &String) -> std::result::Result<(
         _ => Err(ValidationError::new("forbidden").with_message("Unknown role".into())),
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use actix_web::test;
+    use serde_json::Value;
+
+    #[actix_web::test]
+    async fn test_invites() {
+        let (app, sess) = crate::test_app_with_auth().await.unwrap();
+
+        // create
+        let req = test::TestRequest::post()
+            .uri("/api/organizations/1/members/invite")
+            .cookie(sess.clone())
+            .set_json(serde_json::json!({
+                "email": "test@example.com",
+                "role": "member",
+            }))
+            .to_request();
+
+        let resp = test::call_service(&app, req).await;
+        assert!(resp.status().is_success());
+
+        let req = test::TestRequest::post()
+            .uri("/api/organizations/1/members/resend-invite/test@example.com")
+            .cookie(sess.clone())
+            .to_request();
+
+        let resp = test::call_service(&app, req).await;
+        assert!(resp.status().is_success());
+
+        let req = test::TestRequest::post()
+            .uri("/api/organizations/1/members/resend-invite/non-invited-email@example.com")
+            .cookie(sess.clone())
+            .to_request();
+
+        let resp = test::call_service(&app, req).await;
+        assert!(!resp.status().is_success());
+
+        let req = test::TestRequest::get()
+            .uri("/api/organizations/1/members")
+            .cookie(sess.clone())
+            .to_request();
+
+        let resp: Value = test::call_and_read_body_json(&app, req).await;
+        assert_eq!(resp["invitations"][0]["email"], "test@example.com");
+
+        let req = test::TestRequest::post()
+            .uri("/api/organizations/1/members/delete-invite/1")
+            .cookie(sess.clone())
+            .to_request();
+
+        test::call_service(&app, req).await;
+
+        let req = test::TestRequest::get()
+            .uri("/api/organizations/1/members")
+            .cookie(sess.clone())
+            .to_request();
+
+        let resp: Value = test::call_and_read_body_json(&app, req).await;
+        assert!(resp["invitations"].as_array().unwrap().is_empty());
+    }
+}
