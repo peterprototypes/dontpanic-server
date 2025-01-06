@@ -21,7 +21,7 @@
 
 List of panic!()s and error!()s                | Individual report
 :---------------------------------------------:|:--------------------------------------------------:
-![](/static/img/screenshot_list.png?raw=true)  |  ![](/static/img/screenshot_report.png?raw=true)
+![](/frontend/public/screenshot_list.png?raw=true)  |  ![](/frontend/public/screenshot_report.png?raw=true)
 
 ## Running via docker compose
 
