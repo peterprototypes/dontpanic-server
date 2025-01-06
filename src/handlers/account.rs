@@ -82,6 +82,17 @@ async fn update_email(ctx: Data<AppContext<'_>>, id: Identity, input: Json<Email
 
     let user = id.user(&ctx).await?;
 
+    // check if user with the new email exists
+    let user_exists = Users::find()
+        .filter(users::Column::Email.eq(&input.new_email))
+        .one(&ctx.db)
+        .await?
+        .is_some();
+
+    if user_exists {
+        return Err(Error::field("new_email", "Email is already in use".into()));
+    }
+
     // Instead of saving the new email in a special database field or passing it as a clear text param,
     // we will store it in an encoded cookie. This way in the confirmation endpoint we can be
     // sure that it was the email the user entered here. This can be done with a JWT too, but

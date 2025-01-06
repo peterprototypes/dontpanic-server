@@ -7,6 +7,7 @@ use serde::Deserialize;
 use crate::{AppContext, Error, Result};
 
 use crate::entity::prelude::*;
+use crate::entity::users;
 use crate::handlers::auth::EmailChangePayload;
 
 #[derive(Debug, Deserialize)]
@@ -28,6 +29,17 @@ async fn change_email(ctx: web::Data<AppContext<'_>>, query: Query<ChangeEmailQu
     };
 
     let payload: EmailChangePayload = serde_json::from_str(res.value())?;
+
+    // check if user with the new email exists
+    let user_exists = Users::find()
+        .filter(users::Column::Email.eq(&payload.new_email))
+        .one(&ctx.db)
+        .await?
+        .is_some();
+
+    if user_exists {
+        return Err(Error::new("Another account with the same email is already registered"));
+    }
 
     let user = Users::find_by_id(payload.id)
         .one(&ctx.db)
