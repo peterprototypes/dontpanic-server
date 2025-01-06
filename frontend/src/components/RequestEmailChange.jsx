@@ -3,11 +3,13 @@ import useSWRMutation from "swr/mutation";
 import * as yup from "yup";
 import { yupResolver } from '@hookform/resolvers/yup';
 import { useForm, FormProvider } from "react-hook-form";
+import { useConfirm } from "material-ui-confirm";
 import { useSnackbar } from 'notistack';
-import { FormControl, FormLabel, InputAdornment, Button, OutlinedInput, FormHelperText, Dialog, DialogTitle, DialogContent, DialogContentText, DialogActions } from "@mui/material";
+import { FormControl, FormLabel, InputAdornment, Button, OutlinedInput, FormHelperText, Dialog, DialogTitle, DialogContent, DialogContentText, DialogActions, Link } from "@mui/material";
 import { LoadingButton } from "@mui/lab";
 
 import { useUser } from 'context/user';
+import { useConfig } from "context/config";
 import { ControlledTextField, FormServerError } from "./form";
 import { SendEmailIcon } from "./ConsistentIcons";
 
@@ -16,6 +18,8 @@ const ChangeEmailSchema = yup.object({
 }).required();
 
 const RequestEmailChange = () => {
+  const { config } = useConfig();
+  const confirm = useConfirm();
   const { enqueueSnackbar } = useSnackbar();
   const [open, setOpen] = React.useState(false);
   const { user } = useUser();
@@ -40,7 +44,21 @@ const RequestEmailChange = () => {
   };
 
   const handleClickOpen = () => {
-    setOpen(true);
+    if (!config?.can_send_emails) {
+      confirm({
+        title: 'Emails are disabled',
+        description: <>
+          Email sending is not configured.
+          Changing emails requires a confirmation email to be sent.
+          Please set <strong>EMAIL_URL</strong> environment variable
+          (<Link href="https://github.com/peterprototypes/dontpanic-server/tree/main?tab=readme-ov-file#environment-variables" target="_blank">README</Link>).
+        </>,
+        confirmationText: 'Close',
+        hideCancelButton: true
+      });
+    } else {
+      setOpen(true);
+    }
   };
 
   const handleClose = () => {

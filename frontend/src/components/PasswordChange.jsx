@@ -10,6 +10,7 @@ import { useSnackbar } from 'notistack';
 
 import { SaveIcon } from 'components/ConsistentIcons';
 import { useUser } from 'context/user';
+import { useConfig } from "context/config";
 
 const PasswordChange = () => {
   const { enqueueSnackbar } = useSnackbar();
@@ -89,6 +90,7 @@ const PasswordChangeSchema = yup.object().shape({
 });
 
 const ForgotPasswordLink = () => {
+  const { config } = useConfig();
   const { user } = useUser();
   const confirm = useConfirm();
   const methods = useFormContext();
@@ -97,7 +99,23 @@ const ForgotPasswordLink = () => {
   const { trigger, isMutating } = useSWRMutation('/api/auth/request-password-reset');
 
   const onForgotPassword = () => {
-    let config = {
+    if (!config?.can_send_emails) {
+      confirm({
+        title: 'Emails are disabled',
+        description: <>
+          Email sending is not configured.
+          Recovering a password requires an email to be sent.
+          Please set <strong>EMAIL_URL</strong> environment variable
+          (<Link href="https://github.com/peterprototypes/dontpanic-server/tree/main?tab=readme-ov-file#environment-variables" target="_blank">README</Link>).
+        </>,
+        confirmationText: 'Close',
+        hideCancelButton: true
+      });
+
+      return;
+    }
+
+    let confirmConfig = {
       title: 'Forgotten Password',
       description: (
         <Typography>
@@ -109,7 +127,7 @@ const ForgotPasswordLink = () => {
       confirmationText: 'Send Instructions'
     };
 
-    confirm(config)
+    confirm(confirmConfig)
       .then(() => trigger({})
         .then(() => enqueueSnackbar(`Email sent to ${user.email}`, { variant: 'success' }))
         .catch((e) => methods.setError('root.serverError', { message: e.message })))

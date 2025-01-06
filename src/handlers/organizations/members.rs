@@ -315,6 +315,8 @@ async fn invite(
 
         if let Some(mailer) = ctx.mailer.as_ref() {
             mailer.send(email).await?;
+        } else {
+            return Err(Error::new("Email sending is not configured"));
         }
     }
 

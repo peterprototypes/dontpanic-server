@@ -3,12 +3,14 @@ import useSWR from "swr";
 import useSWRMutation from 'swr/mutation';
 import { useSnackbar } from 'notistack';
 import { useNavigate, Link as RouterLink } from "react-router";
-import { TableContainer, Typography, TableCell, TableRow, Table, TableHead, TableBody, Checkbox, Link, Stack } from '@mui/material';
+import { TableContainer, Typography, TableCell, TableRow, Table, TableHead, TableBody, Checkbox, Link, Stack, Alert } from '@mui/material';
 import { LoadingButton } from "@mui/lab";
 
+import { useConfig } from "context/config";
 import { SaveIcon } from "components/ConsistentIcons";
 
 const EmailNotifications = ({ projectId }) => {
+  const { config } = useConfig();
   const navigate = useNavigate();
   const { enqueueSnackbar } = useSnackbar();
 
@@ -75,10 +77,21 @@ const EmailNotifications = ({ projectId }) => {
           loadingPosition="end"
           endIcon={<SaveIcon />}
           onClick={onSave}
+          disabled={!config.can_send_emails}
         >
           Save Preferences
         </LoadingButton>
       </Stack>
+      {!config.can_send_emails && (
+        <Alert severity="warning" sx={{ mt: 2 }}>
+          Email notifications are disabled due to missing <strong>EMAIL_URL</strong> environment variable. See the
+          {' '}
+          <Link href="https://github.com/peterprototypes/dontpanic-server/tree/main?tab=readme-ov-file#environment-variables" target="_blank">README</Link>
+          {' '}
+          for more information.
+        </Alert>
+      )}
+
     </TableContainer >
   );
 };

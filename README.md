@@ -110,7 +110,7 @@ volumes:
 | `DEFAULT_USER_TIMEZONE`       | IANA Timezone name for the default user and for all new registrations.                                                                | `UTC`
 | `DEFAULT_USER_ORGANIZATION`   | Organization name to use when creating the default user.                                                                              | `Default Organization`
 | `REGISTRATION_ENABLED`        | Enable/disable account creation. `yes`, `1`, `true` all count as true, anything else is false. Care must be taken when setting this to yes. Anyone with access to the server can register. | `true`
-| `REQUIRE_EMAIL_VERIFICATION`  | Require new users to verify their email address before they can login. A working `EMAIL_URL` configuration is required.               | `true`
+| `REQUIRE_EMAIL_VERIFICATION`  | Require new users to verify their email address before they can login. A working `EMAIL_URL` configuration is required.               | `true` if `EMAIL_URL` is set, `false` otherwise.
 | `ORGANIZATION_REQUESTS_LIMIT` | Limits the number of reports events each new organization can submit each month across all of its projects. Not set - unlimited       | None
 | `SLACK_CLIENT_ID`             | Slack app client id. Required for Slack notifications to work. See [this](https://api.slack.com/quickstart)                           | None
 | `SLACK_CLIENT_SECRET`         | Slack app client secret. Keep this secure.                                                                                            | None

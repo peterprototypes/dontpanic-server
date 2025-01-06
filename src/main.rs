@@ -152,6 +152,11 @@ async fn main() -> anyhow::Result<()> {
 
     let ctx = AppContext::new().await?;
 
+    if ctx.config.require_email_verification && ctx.mailer.is_none() {
+        log::error!("Email verification is required but no email transport is configured");
+        return Err(Error::new("Email verification is required but no email transport is configured").into());
+    }
+
     let bind_addr = ctx.config.bind_addr;
 
     log::info!("Starting http server. Listen: {}", bind_addr);

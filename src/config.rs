@@ -76,6 +76,8 @@ impl Config {
             data
         };
 
+        let email_url = get_var("EMAIL_URL").ok();
+
         Ok(Self {
             bind_addr: get_var("BIND_ADDRESS")
                 .ok()
@@ -92,7 +94,6 @@ impl Config {
                 .ok()
                 .unwrap_or_else(|| "no-rely@dontpanic.rs".into())
                 .parse()?,
-            email_url: get_var("EMAIL_URL").ok(),
             slack_client_id,
             slack_client_secret,
             default_user_timezone,
@@ -104,7 +105,8 @@ impl Config {
                 .map(|limit| limit.parse())
                 .transpose()?,
             registration_enabled: get_bool_var("REGISTRATION_ENABLED")?.unwrap_or(true),
-            require_email_verification: get_bool_var("REQUIRE_EMAIL_VERIFICATION")?.unwrap_or(true),
+            require_email_verification: get_bool_var("REQUIRE_EMAIL_VERIFICATION")?.unwrap_or(email_url.is_some()),
+            email_url,
         })
     }
 }

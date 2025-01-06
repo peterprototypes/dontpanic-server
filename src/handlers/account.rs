@@ -121,6 +121,8 @@ async fn update_email(ctx: Data<AppContext<'_>>, id: Identity, input: Json<Email
         if let Err(e) = mailer.send(email).await {
             log::error!("Error sending email change request email: {:?}", e);
         }
+    } else {
+        return Err(Error::new("Email sending is not configured"));
     }
 
     Ok(Json(()))
