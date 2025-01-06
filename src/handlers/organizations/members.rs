@@ -316,6 +316,7 @@ async fn invite(
         if let Some(mailer) = ctx.mailer.as_ref() {
             mailer.send(email).await?;
         } else {
+            #[cfg(not(debug_assertions))]
             return Err(Error::new("Email sending is not configured"));
         }
     }
@@ -401,6 +402,9 @@ async fn resend_invite(
 
     if let Some(mailer) = ctx.mailer.as_ref() {
         mailer.send(email).await?;
+    } else {
+        #[cfg(not(debug_assertions))]
+        return Err(Error::new("Email sending is not configured"));
     }
 
     Ok(Json(()))
