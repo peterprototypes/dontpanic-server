@@ -53,6 +53,7 @@ const MemberInvite = () => {
           label="Email"
           placeholder="john.doe@example.com"
           helperText="We'll send an email to this address with an invitation link."
+          autoFocus
         />
 
         <ControlledTextField

@@ -32,7 +32,7 @@ const ResendVerificationEmail = ({ email, initialWait = 60, ...rest }) => {
       {...rest}
     >
       Resend Verification Email
-      {waitTime > 0 && ` in ${waitTime}s`}
+      {waitTime > 0 && `(${waitTime}s)`}
     </LoadingButton>
   );
 };

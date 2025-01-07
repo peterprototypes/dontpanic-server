@@ -1,6 +1,6 @@
 import React from "react";
 import { Controller, useWatch } from "react-hook-form";
-import { OutlinedInput, FormControl, FormLabel, IconButton, InputAdornment, FormHelperText } from "@mui/material";
+import { OutlinedInput, FormControl, FormLabel, IconButton, InputAdornment, FormHelperText, Select } from "@mui/material";
 
 import Visibility from '@mui/icons-material/Visibility';
 import VisibilityOff from '@mui/icons-material/VisibilityOff';
@@ -12,6 +12,7 @@ const ControlledTextField = ({
   required = false,
   label = "",
   type = "text",
+  select = false,
   ...props
 }) => {
   const { control } = useWatch(name);
@@ -50,13 +51,21 @@ const ControlledTextField = ({
       render={({ field, fieldState }) => (
         <FormControl fullWidth={fullWidth}>
           <FormLabel required={required} sx={{ mb: 1 }}>{label}</FormLabel>
-          <OutlinedInput
-            {...field}
-            type={type == 'password' ? (showPassword ? 'text' : 'password') : type}
-            error={!!fieldState.error}
-            endAdornment={endAdornment}
-            {...props}
-          />
+          {select ? (
+            <Select
+              {...field}
+              error={!!fieldState.error}
+              {...props}
+            />
+          ) : (
+            <OutlinedInput
+              {...field}
+              type={type == 'password' ? (showPassword ? 'text' : 'password') : type}
+              error={!!fieldState.error}
+              endAdornment={endAdornment}
+              {...props}
+            />
+          )}
           <FormHelperText error={!!fieldState.error}>
             {fieldState.error?.message || helperText}
           </FormHelperText>
