@@ -4,14 +4,16 @@ import { useNavigate, useParams, Link as RouterLink } from 'react-router';
 import { useSnackbar } from 'notistack';
 import { useForm, FormProvider } from 'react-hook-form';
 import { yupResolver } from '@hookform/resolvers/yup';
-import { Stack, Typography, MenuItem, Button } from '@mui/material';
+import { Stack, Typography, MenuItem, Button, Alert } from '@mui/material';
 import { LoadingButton } from "@mui/lab";
 
+import { useUser } from 'context/user';
 import { FormServerError, ControlledTextField } from "components/form";
 import { SendEmailIcon } from 'components/ConsistentIcons';
 
 const MemberInvite = () => {
   const { id: organizationId } = useParams();
+  const { user } = useUser();
 
   const navigate = useNavigate();
   const { enqueueSnackbar } = useSnackbar();
@@ -35,6 +37,14 @@ const MemberInvite = () => {
       })
       .catch((e) => methods.setError('root.serverError', { message: e.message }));
   };
+
+  if (user.getRole(organizationId) === 'member') {
+    return (
+      <Alert severity="warning" action={<Button component={RouterLink} color="inherit" to={`/organization/${organizationId}/members`}>Back</Button>}>
+        You do not have permission to invite members to this organization.
+      </Alert>
+    );
+  }
 
   return (
     <FormProvider {...methods}>

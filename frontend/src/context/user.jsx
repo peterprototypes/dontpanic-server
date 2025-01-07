@@ -17,8 +17,13 @@ export const UserProvider = ({ children }) => {
     return <LoadingPage />;
   }
 
+  const user = {
+    getRole: (orgId) => data.org_roles[orgId],
+    ...data,
+  };
+
   return (
-    <UserContext.Provider value={{ user: data }}>
+    <UserContext.Provider value={{ user }}>
       {children}
     </UserContext.Provider>
   );

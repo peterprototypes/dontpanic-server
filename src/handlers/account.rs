@@ -1,3 +1,5 @@
+use std::collections::HashMap;
+
 use actix_web::{
     get, post,
     web::{self, Data, Json},
@@ -35,25 +37,35 @@ struct AccountResponse {
     iana_timezone_name: String,
     totp_enabled: bool,
     created: DateTime,
+    org_roles: HashMap<u32, String>,
 }
 
-impl From<users::Model> for AccountResponse {
-    fn from(value: users::Model) -> Self {
-        Self {
-            user_id: value.user_id,
-            email: value.email,
-            name: value.name,
-            iana_timezone_name: value.iana_timezone_name,
-            totp_enabled: value.totp_secret.is_some(),
-            created: value.created,
-        }
+impl AccountResponse {
+    pub async fn new(db: &DatabaseConnection, user: &users::Model) -> Result<Self> {
+        let org_roles = user
+            .find_related(OrganizationUsers)
+            .all(db)
+            .await?
+            .into_iter()
+            .map(|ou| (ou.organization_id, ou.role))
+            .collect();
+
+        Ok(Self {
+            user_id: user.user_id,
+            email: user.email.clone(),
+            name: user.name.clone(),
+            iana_timezone_name: user.iana_timezone_name.clone(),
+            totp_enabled: user.totp_secret.is_some(),
+            created: user.created,
+            org_roles,
+        })
     }
 }
 
 #[get("")]
 async fn get(ctx: Data<AppContext<'_>>, id: Identity) -> Result<impl Responder> {
     let user = id.user(&ctx).await?;
-    Ok(Json(AccountResponse::from(user)))
+    Ok(Json(AccountResponse::new(&ctx.db, &user).await?))
 }
 
 #[derive(Serialize, Deserialize, Clone)]
@@ -67,7 +79,7 @@ async fn update(ctx: Data<AppContext<'_>>, id: Identity, input: Json<InfoInput>)
     user.name = ActiveValue::set(input.into_inner().name.filter(|s| !s.is_empty()));
     let user = user.save(&ctx.db).await?.try_into_model()?;
 
-    Ok(Json(AccountResponse::from(user)))
+    Ok(Json(AccountResponse::new(&ctx.db, &user).await?))
 }
 
 #[derive(Clone, Deserialize, Validate)]

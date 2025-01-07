@@ -100,8 +100,13 @@ async fn get_member(
     }))
 }
 
+struct MemberInputValidationContext {
+    user_role: String,
+    from_role: String,
+}
+
 #[derive(Debug, Deserialize, Validate)]
-#[validate(context = String)]
+#[validate(context = MemberInputValidationContext)]
 struct MemberInput {
     #[validate(custom(function = "validate_role_choice", use_context))]
     role: String,
@@ -134,7 +139,10 @@ async fn manage(
         .await?
         .ok_or(Error::NotFound)?;
 
-    input.validate_with_args(&user_role)?;
+    input.validate_with_args(&MemberInputValidationContext {
+        user_role: user_role.clone(),
+        from_role: org_member.role.clone(),
+    })?;
 
     let mut org_member_model = org_member.into_active_model();
     org_member_model.role = ActiveValue::set(input.role);
@@ -179,7 +187,7 @@ async fn delete(ctx: web::Data<AppContext<'_>>, path: web::Path<(u32, u32)>, id:
 }
 
 #[derive(Debug, Deserialize, Validate)]
-#[validate(context = String)]
+#[validate(context = MemberInputValidationContext)]
 struct InviteInput {
     #[validate(
         email(message = "A valid email address is required"),
@@ -207,7 +215,10 @@ async fn invite(
         .await?
         .ok_or(Error::NotFound)?;
 
-    input.validate_with_args(&user_role)?;
+    input.validate_with_args(&MemberInputValidationContext {
+        user_role: user_role.clone(),
+        from_role: "member".into(),
+    })?;
 
     let maybe_user = Users::find()
         .filter(users::Column::Email.eq(&input.email))
@@ -410,9 +421,15 @@ async fn resend_invite(
     Ok(Json(()))
 }
 
-fn validate_role_choice(role: &str, user_role: &String) -> std::result::Result<(), ValidationError> {
-    match user_role.as_ref() {
-        "member" => Err(ValidationError::new("forbidden").with_message("Only admins and owners can set roles".into())),
+fn validate_role_choice(role: &str, ctx: &MemberInputValidationContext) -> std::result::Result<(), ValidationError> {
+    if ctx.user_role == "admin" && ctx.from_role == "owner" {
+        return Err(ValidationError::new("forbidden").with_message("Only owners can downgrade owners".into()));
+    }
+
+    match ctx.user_role.as_ref() {
+        "member" => {
+            Err(ValidationError::new("forbidden").with_message("Only admins and owners can change roles".into()))
+        }
         "admin" => match role {
             "member" | "admin" => Ok(()),
             "owner" => Err(ValidationError::new("forbidden").with_message("Only owners set other owners".into())),

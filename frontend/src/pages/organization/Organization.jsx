@@ -1,9 +1,11 @@
 import { Outlet, useMatch, Link } from 'react-router';
 import { Box, Divider, Grid2 as Grid, Typography, Tab, Tabs } from '@mui/material';
 
+import { useUser } from 'context/user';
 import SideMenu from 'components/SideMenu';
 
 const Organization = () => {
+  const { user } = useUser();
   const { params } = useMatch('/organization/:id/:page/*');
 
   return (
@@ -17,7 +19,7 @@ const Organization = () => {
           <Tabs value={params.page}>
             <Tab label="Projects" value="projects" component={Link} to={`/organization/${params.id}/projects`} />
             <Tab label="Members" value="members" component={Link} to={`/organization/${params.id}/members`} />
-            <Tab label="Settings" value="settings" component={Link} to={`/organization/${params.id}/settings`} />
+            {user.getRole(params.id) == 'owner' && <Tab label="Settings" value="settings" component={Link} to={`/organization/${params.id}/settings`} />}
           </Tabs>
         </Box>
         <Divider sx={{ mb: 2 }} />

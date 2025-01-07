@@ -8,6 +8,7 @@ import { useParams, Link as RouterLink } from 'react-router';
 import { Stack, Typography, Button, Alert, CircularProgress, Tooltip } from '@mui/material';
 import { DataGrid, GridActionsCellItem } from '@mui/x-data-grid';
 
+import { useUser } from 'context/user';
 import NoRowsOverlay from 'components/NoRowsOverlay';
 import { EditIcon, DeleteIcon, SendEmailIcon } from 'components/ConsistentIcons';
 
@@ -21,6 +22,7 @@ const Members = () => {
   return (
     <Stack spacing={2}>
       <OrganizationMembers
+        organizationId={organizationId}
         data={data?.members}
         mutate={mutate}
         isLoading={isLoading}
@@ -47,7 +49,11 @@ const Members = () => {
   );
 };
 
-const OrganizationMembers = ({ data, mutate, isLoading }) => {
+const OrganizationMembers = ({ data, mutate, isLoading, organizationId }) => {
+  const { user } = useUser();
+
+  const canEdit = user.getRole(organizationId) !== 'member';
+
   const columns = React.useMemo(() => [
     { field: 'email', headerName: 'Email', flex: 2 },
     { field: 'name', headerName: 'Name', flex: 1 },
@@ -67,11 +73,12 @@ const OrganizationMembers = ({ data, mutate, isLoading }) => {
           icon={<Tooltip title="Edit member"><EditIcon /></Tooltip>}
           component={RouterLink}
           to={`/organization/${params.row.organization_id}/members/manage/${params.row.user_id}`}
+          disabled={!canEdit}
         />,
-        <DeleteMember key="delete" member={params.row} mutate={mutate} />
+        <DeleteMember key="delete" member={params.row} mutate={mutate} disabled={!canEdit} />
       ]
     }
-  ], [mutate]);
+  ], [mutate, canEdit]);
 
   return (
     <DataGrid
@@ -85,7 +92,7 @@ const OrganizationMembers = ({ data, mutate, isLoading }) => {
   );
 };
 
-const DeleteMember = ({ member, mutate }) => {
+const DeleteMember = ({ member, mutate, disabled }) => {
   const confirm = useConfirm();
   const { enqueueSnackbar } = useSnackbar();
 
@@ -114,6 +121,7 @@ const DeleteMember = ({ member, mutate }) => {
       label="Remove this member"
       icon={isMutating ? <CircularProgress size="14px" /> : <Tooltip title="Remove this member"><DeleteIcon /></Tooltip>}
       onClick={() => onDeleteMember()}
+      disabled={disabled}
     />
   );
 };
