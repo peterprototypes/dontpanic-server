@@ -21,8 +21,8 @@ mod slack_webhook;
 mod webhook;
 
 pub fn routes(cfg: &mut web::ServiceConfig) {
-    cfg.service(email)
-        .service(email_save)
+    cfg.service(per_user_notifications)
+        .service(per_user_save)
         .service(get_project)
         .service(web::scope("/{project_id}/slack-app").configure(slack_app::routes))
         .service(web::scope("/{project_id}/slack-webhook").configure(slack_webhook::routes))
@@ -36,10 +36,11 @@ struct NotificationsTable {
     role: String,
     name: Option<String>,
     notify_email: Option<bool>,
+    notify_pushover: Option<bool>,
 }
 
-#[get("/email/{project_id}")]
-async fn email(ctx: Data<AppContext<'_>>, id: Identity, path: Path<u32>) -> Result<impl Responder> {
+#[get("/per-user/{project_id}")]
+async fn per_user_notifications(ctx: Data<AppContext<'_>>, id: Identity, path: Path<u32>) -> Result<impl Responder> {
     let project_id = path.into_inner();
 
     let project = Projects::find_by_id(project_id)
@@ -53,13 +54,14 @@ async fn email(ctx: Data<AppContext<'_>>, id: Identity, path: Path<u32>) -> Resu
         .await?
         .ok_or(Error::LoginRequired)?;
 
-    let members: Vec<NotificationsTable> = Users::find()
+    let settings: Vec<NotificationsTable> = Users::find()
         .select_only()
         .column(users::Column::UserId)
         .column(users::Column::Email)
         .column(users::Column::Name)
         .column(organization_users::Column::Role)
         .column(project_user_settings::Column::NotifyEmail)
+        .column(project_user_settings::Column::NotifyPushover)
         .join(JoinType::InnerJoin, users::Relation::OrganizationUsers.def())
         .join(
             JoinType::LeftJoin,
@@ -78,21 +80,28 @@ async fn email(ctx: Data<AppContext<'_>>, id: Identity, path: Path<u32>) -> Resu
 
     Ok(Json(json!({
         "organization_id": project.organization_id,
-        "members": members,
+        "settings": settings,
     })))
 }
 
 #[derive(Serialize, Deserialize, Debug)]
-struct EmailSaveForm {
-    user_ids: Vec<u32>,
+struct UserNotificationSettings {
+    user_id: u32,
+    notify_email: Option<bool>,
+    notify_pushover: Option<bool>,
 }
 
-#[post("/email/{project_id}")]
-async fn email_save(
+#[derive(Serialize, Deserialize, Debug)]
+struct UserNotificationsForm {
+    settings: Vec<UserNotificationSettings>,
+}
+
+#[post("/per-user/{project_id}")]
+async fn per_user_save(
     ctx: Data<AppContext<'_>>,
     id: Identity,
     path: Path<u32>,
-    input: Json<EmailSaveForm>,
+    input: Json<UserNotificationsForm>,
 ) -> Result<impl Responder> {
     let project_id = path.into_inner();
 
@@ -112,9 +121,9 @@ async fn email_save(
         .exec(&ctx.db)
         .await?;
 
-    for user_id in input.into_inner().user_ids {
+    for user_settings in input.into_inner().settings {
         // make sure member is part of org
-        let org_member_search = OrganizationUsers::find_by_id((user_id, project.organization_id))
+        let org_member_search = OrganizationUsers::find_by_id((user_settings.user_id, project.organization_id))
             .one(&ctx.db)
             .await?;
 
@@ -124,8 +133,9 @@ async fn email_save(
 
         let project_member = project_user_settings::ActiveModel {
             project_id: ActiveValue::set(project_id),
-            user_id: ActiveValue::set(user_id),
-            notify_email: ActiveValue::set(1),
+            user_id: ActiveValue::set(user_settings.user_id),
+            notify_email: ActiveValue::set(user_settings.notify_email.unwrap_or_default() as i8),
+            notify_pushover: ActiveValue::set(user_settings.notify_pushover.unwrap_or_default() as i8),
         };
 
         project_member.insert(&ctx.db).await?;

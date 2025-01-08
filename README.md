@@ -114,6 +114,7 @@ volumes:
 | `ORGANIZATION_REQUESTS_LIMIT` | Limits the number of reports events each new organization can submit each month across all of its projects. Not set - unlimited       | None
 | `SLACK_CLIENT_ID`             | Slack app client id. Required for Slack notifications to work. See [this](https://api.slack.com/quickstart)                           | None
 | `SLACK_CLIENT_SECRET`         | Slack app client secret. Keep this secure.                                                                                            | None
+| `PUSHOVER_APP_TOKEN`          | Pushover app token will allow users to add pushover keys to their profiles. Register an app [here](https://pushover.net/apps/build)   | None
 
 ## Development
 

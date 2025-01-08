@@ -140,6 +140,7 @@ async fn manage(
             project_id: ActiveValue::set(project.project_id),
             user_id: ActiveValue::set(id.user_id),
             notify_email: ActiveValue::set(1),
+            notify_pushover: ActiveValue::set(if user.pushover_user_key.is_some() { 1 } else { 0 }),
         };
 
         project_user_settings.insert(&ctx.db).await?;

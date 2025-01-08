@@ -34,6 +34,7 @@ struct AccountResponse {
     user_id: u32,
     email: String,
     name: Option<String>,
+    pushover_user_key: Option<String>,
     iana_timezone_name: String,
     totp_enabled: bool,
     created: DateTime,
@@ -54,6 +55,7 @@ impl AccountResponse {
             user_id: user.user_id,
             email: user.email.clone(),
             name: user.name.clone(),
+            pushover_user_key: user.pushover_user_key.clone(),
             iana_timezone_name: user.iana_timezone_name.clone(),
             totp_enabled: user.totp_secret.is_some(),
             created: user.created,
@@ -71,12 +73,16 @@ async fn get(ctx: Data<AppContext<'_>>, id: Identity) -> Result<impl Responder> 
 #[derive(Serialize, Deserialize, Clone)]
 struct InfoInput {
     name: Option<String>,
+    pushover_user_key: Option<String>,
 }
 
 #[post("")]
 async fn update(ctx: Data<AppContext<'_>>, id: Identity, input: Json<InfoInput>) -> Result<impl Responder> {
+    let input = input.into_inner();
+
     let mut user = id.user(&ctx).await?.into_active_model();
-    user.name = ActiveValue::set(input.into_inner().name.filter(|s| !s.is_empty()));
+    user.name = ActiveValue::set(input.name.filter(|s| !s.is_empty()));
+    user.pushover_user_key = ActiveValue::set(input.pushover_user_key.filter(|s| !s.is_empty()));
     let user = user.save(&ctx.db).await?.try_into_model()?;
 
     Ok(Json(AccountResponse::new(&ctx.db, &user).await?))

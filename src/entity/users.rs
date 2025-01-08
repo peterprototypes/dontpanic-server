@@ -19,6 +19,7 @@ pub struct Model {
     pub totp_secret: Option<String>,
     pub iana_timezone_name: String,
     pub created: DateTime,
+    pub pushover_user_key: Option<String>,
 }
 
 #[derive(Copy, Clone, Debug, EnumIter, DeriveRelation)]

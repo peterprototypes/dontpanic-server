@@ -3,7 +3,7 @@ import useSWR from "swr";
 import { useSearchParams } from "react-router";
 import { Divider, Stack, Typography, Link } from '@mui/material';
 
-import EmailNotifications from "components/EmailNotifications";
+import UserNotifications from "components/UserNotifications";
 import LoadingPage from "components/LoadingPage";
 
 import Webhook from "components/integrations/Webhook";
@@ -22,7 +22,7 @@ const Notifications = () => {
 
   return (
     <Stack spacing={1} useFlexGap>
-      <EmailNotifications projectId={projectId} />
+      <UserNotifications projectId={projectId} />
 
       <Typography variant="h5" sx={{ mt: 5, fontWeight: 'bold' }}>Integrations</Typography>
       <Typography color="textSecondary">

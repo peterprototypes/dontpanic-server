@@ -32,5 +32,6 @@ pub async fn config(ctx: Data<AppContext<'_>>) -> impl Responder {
         "version": env!("CARGO_PKG_VERSION"),
         "registration_enabled": ctx.config.registration_enabled,
         "can_send_emails": ctx.mailer.is_some(),
+        "pushover_enabled": ctx.config.pushover_app_token.is_some(),
     }))
 }

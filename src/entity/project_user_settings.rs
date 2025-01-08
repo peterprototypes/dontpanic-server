@@ -11,6 +11,7 @@ pub struct Model {
     #[sea_orm(primary_key, auto_increment = false)]
     pub user_id: u32,
     pub notify_email: i8,
+    pub notify_pushover: i8,
 }
 
 #[derive(Copy, Clone, Debug, EnumIter, DeriveRelation)]

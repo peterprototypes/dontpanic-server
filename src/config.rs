@@ -23,6 +23,8 @@ pub struct Config {
     pub email_from: Address,
     pub email_url: Option<String>,
 
+    pub pushover_app_token: Option<String>,
+
     pub slack_client_id: Option<String>,
     pub slack_client_secret: Option<String>,
 
@@ -94,6 +96,7 @@ impl Config {
                 .ok()
                 .unwrap_or_else(|| "no-rely@dontpanic.rs".into())
                 .parse()?,
+            pushover_app_token: get_var("PUSHOVER_APP_TOKEN").ok(),
             slack_client_id,
             slack_client_secret,
             default_user_timezone,

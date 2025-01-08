@@ -9,19 +9,19 @@ import { LoadingButton } from "@mui/lab";
 import { useConfig } from "context/config";
 import { SaveIcon } from "components/ConsistentIcons";
 
-const EmailNotifications = ({ projectId }) => {
+const UserNotifications = ({ projectId }) => {
   const { config } = useConfig();
   const navigate = useNavigate();
   const { enqueueSnackbar } = useSnackbar();
 
-  const [userIds, setUserIds] = React.useState([]);
+  const [userSettings, setUserSettings] = React.useState([]);
 
-  const { trigger, isMutating } = useSWRMutation(`/api/notifications/email/${projectId}`);
-  const { data, isLoading, } = useSWR(`/api/notifications/email/${projectId}`);
+  const { trigger, isMutating } = useSWRMutation(`/api/notifications/per-user/${projectId}`);
+  const { data, isLoading, } = useSWR(`/api/notifications/per-user/${projectId}`);
 
   React.useEffect(() => {
     if (data) {
-      setUserIds(data?.members.filter((member) => member.notify_email !== null).map((member) => member.user_id));
+      setUserSettings(data?.settings);
     }
   }, [data]);
 
@@ -30,19 +30,35 @@ const EmailNotifications = ({ projectId }) => {
   }
 
   const onSave = () => {
-    trigger({ user_ids: userIds }).then(() => {
+    const settings = userSettings.map((e) => {
+      return {
+        user_id: e.user_id,
+        notify_email: e.notify_email,
+        notify_pushover: e.notify_pushover,
+      };
+    });
+
+    trigger({ settings }).then(() => {
       enqueueSnackbar("Preferences saved", { variant: 'success' });
     }).catch((e) => {
       enqueueSnackbar(e.message, { variant: 'error' });
     });
   };
 
-  const toggle = (user_id) => {
-    if (userIds.includes(user_id)) {
-      setUserIds(userIds.filter((id) => id !== user_id));
-    } else {
-      setUserIds([...userIds, user_id]);
-    }
+  const emailEnabled = (user_id) => {
+    return userSettings.find((e) => e.user_id == user_id)?.notify_email ?? false;
+  };
+
+  const toggleEmail = (user_id) => {
+    setUserSettings(userSettings.map((e) => e.user_id == user_id ? { ...e, notify_email: !emailEnabled(user_id) } : e));
+  };
+
+  const pushoverEnabled = (user_id) => {
+    return userSettings.find((e) => e.user_id == user_id)?.notify_pushover ?? false;
+  };
+
+  const togglePushover = (user_id) => {
+    setUserSettings(userSettings.map((e) => e.user_id == user_id ? { ...e, notify_pushover: !pushoverEnabled(user_id) } : e));
   };
 
   return (
@@ -52,16 +68,22 @@ const EmailNotifications = ({ projectId }) => {
           <TableRow>
             <TableCell>Organization Member</TableCell>
             <TableCell>Role</TableCell>
+            {config.pushover_enabled && <TableCell align="right">Pushover Notification?</TableCell>}
             <TableCell align="right">Send Email?</TableCell>
           </TableRow>
         </TableHead>
         <TableBody>
-          {data?.members.map((member) => (
+          {data?.settings.map((member) => (
             <TableRow key={member.user_id}>
               <TableCell sx={{ fontWeight: 'bold' }}>{member.name ?? member.email}</TableCell>
               <TableCell>{member.role}</TableCell>
+              {config.pushover_enabled && (
+                <TableCell align="right">
+                  <Checkbox checked={pushoverEnabled(member.user_id)} onChange={() => togglePushover(member.user_id)} />
+                </TableCell>
+              )}
               <TableCell align="right">
-                <Checkbox checked={userIds.includes(member.user_id)} onChange={() => toggle(member.user_id)} />
+                <Checkbox checked={emailEnabled(member.user_id)} onChange={() => toggleEmail(member.user_id)} disabled={!config.can_send_emails} />
               </TableCell>
             </TableRow>
           ))}
@@ -77,7 +99,6 @@ const EmailNotifications = ({ projectId }) => {
           loadingPosition="end"
           endIcon={<SaveIcon />}
           onClick={onSave}
-          disabled={!config.can_send_emails}
         >
           Save Preferences
         </LoadingButton>
@@ -96,4 +117,4 @@ const EmailNotifications = ({ projectId }) => {
   );
 };
 
-export default EmailNotifications;
+export default UserNotifications;

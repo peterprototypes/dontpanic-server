@@ -39,8 +39,14 @@ pub async fn send(ctx: &AppContext<'_>, notification: &Notification) -> Result<(
     for (user, maybe_settings) in users {
         if let Some(settings) = maybe_settings {
             if settings.notify_email > 0 {
-                if let Err(e) = send_email(ctx, notification, user, &report_url).await {
+                if let Err(e) = send_email(ctx, notification, &user, &report_url).await {
                     log::error!("Error sending notification email: {:?}", e);
+                }
+            }
+
+            if settings.notify_pushover > 0 {
+                if let Err(e) = send_pushover(ctx, notification, &user, &report_url).await {
+                    log::error!("Error sending pushover notification: {:?}", e);
                 }
             }
         }
@@ -187,7 +193,7 @@ pub async fn send_webhook(_ctx: &AppContext<'_>, notification: &Notification, re
 pub async fn send_email(
     ctx: &AppContext<'_>,
     notification: &Notification,
-    user: users::Model,
+    user: &users::Model,
     report_url: &str,
 ) -> Result<()> {
     let template = if notification.status == ReportStatus::New {
@@ -228,6 +234,58 @@ pub async fn send_email(
 
     if let Some(mailer) = ctx.mailer.as_ref() {
         mailer.send(email).await?;
+    }
+
+    Ok(())
+}
+
+pub async fn send_pushover(
+    ctx: &AppContext<'_>,
+    notification: &Notification,
+    user: &users::Model,
+    report_url: &str,
+) -> Result<()> {
+    let Some((token, user_key)) = ctx
+        .config
+        .pushover_app_token
+        .as_deref()
+        .zip(user.pushover_user_key.as_deref())
+    else {
+        return Ok(());
+    };
+
+    let mut message = if notification.status == ReportStatus::New {
+        format!(
+            "New report on {} received '{}'",
+            notification.project.name, notification.report.title
+        )
+    } else {
+        format!(
+            "Resolved report on {} reappeared: '{}'",
+            notification.project.name, notification.report.title
+        )
+    };
+
+    if let Some(environment) = notification.environment.as_ref() {
+        message.push_str(&format!(" in {}", environment.name));
+    }
+
+    let client = reqwest::Client::new();
+
+    let res = client
+        .post("https://api.pushover.net/1/messages.json")
+        .form(&[
+            ("token", token),
+            ("user", user_key),
+            ("message", &message),
+            ("url", report_url),
+        ])
+        .send()
+        .await?;
+
+    if !res.status().is_success() {
+        let body = res.text().await?;
+        log::error!("Error sending pushover notification: {}", body);
     }
 
     Ok(())
