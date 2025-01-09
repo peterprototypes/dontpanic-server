@@ -32,7 +32,7 @@ pub async fn send(ctx: &AppContext<'_>, notification: &Notification) -> Result<(
         .await?;
 
     let report_url = format!(
-        "{}://{}/reports/view/{}",
+        "{}://{}/view-report/{}",
         ctx.config.scheme, ctx.config.base_url, notification.report.project_report_id
     );
 
@@ -58,6 +58,10 @@ pub async fn send(ctx: &AppContext<'_>, notification: &Notification) -> Result<(
 
     if let Err(e) = send_slack_webhook(ctx, notification, &report_url).await {
         log::error!("Error sending slack message via webhook: {:?}", e);
+    }
+
+    if let Err(e) = send_teams_webhook(ctx, notification, &report_url).await {
+        log::error!("Error posting to MS Teams webhook: {:?}", e);
     }
 
     if let Err(e) = send_webhook(ctx, notification, &report_url).await {
@@ -286,6 +290,98 @@ pub async fn send_pushover(
     if !res.status().is_success() {
         let body = res.text().await?;
         log::error!("Error sending pushover notification: {}", body);
+    }
+
+    Ok(())
+}
+
+pub async fn send_teams_webhook(_ctx: &AppContext<'_>, notification: &Notification, report_url: &str) -> Result<()> {
+    let project = &notification.project;
+
+    let Some(webhook) = project.teams_webhook.as_ref() else {
+        return Ok(());
+    };
+
+    let title = if notification.status == ReportStatus::New {
+        format!("New report on {} received", notification.project.name)
+    } else {
+        format!("Resolved report on {} reappeared", notification.project.name)
+    };
+
+    let params = json!({
+        "type": "message",
+        "attachments": [
+            {
+                "contentType": "application/vnd.microsoft.card.adaptive",
+                "content": {
+                    "$schema": "http://adaptivecards.io/schemas/adaptive-card.json",
+                    "type": "AdaptiveCard",
+                    "version": "1.0",
+                    "body": [
+                        {
+                            "type": "ColumnSet",
+                            "columns": [
+                                {
+                                    "type": "Column",
+                                    "width": "auto",
+                                    "items": [
+                                        {
+                                            "type": "Image",
+                                            "url": "https://dontpanic.rs/static/favicon.png",
+                                            "size": "small",
+                                        }
+                                    ]
+                                },
+                                {
+                                    "type": "Column",
+                                    "width": "stretch",
+                                    "verticalContentAlignment": "center",
+                                    "items": [
+                                        {
+                                            "type": "TextBlock",
+                                            "text": title,
+                                            "size": "medium",
+                                            "weight": "bolder",
+                                            "style": "heading",
+                                        }
+                                    ]
+                                }
+                            ]
+                        },
+                        {
+                            "type": "TextBlock",
+                            "text": notification.report.title,
+                            "wrap": "true",
+                        },
+                        {
+                            "type": "FactSet",
+                            "facts": [
+                                {
+                                    "title": "Environment",
+                                    "value": notification.environment.as_ref().map(|e| e.name.as_str()).unwrap_or("Not Set"),
+                                }
+                            ]
+                        },
+                    ],
+                    "actions": [
+                        {
+                            "type": "Action.OpenUrl",
+                            "title": "View in Don't Panic",
+                            "url": report_url,
+                            "style": "positive"
+                        }
+                    ]
+                }
+            }
+        ]
+    });
+
+    let client = reqwest::Client::new();
+    let res = client.post(webhook).json(&params).send().await?;
+
+    if !res.status().is_success() {
+        let body = res.text().await?;
+        log::error!("Error posting to MS Teams webhook: {}", body);
     }
 
     Ok(())

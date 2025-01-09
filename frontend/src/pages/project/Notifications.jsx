@@ -7,6 +7,7 @@ import UserNotifications from "components/UserNotifications";
 import LoadingPage from "components/LoadingPage";
 
 import Webhook from "components/integrations/Webhook";
+import TeamsWebhook from "components/integrations/TeamsWebhook";
 import SlackWebhook from "components/integrations/SlackWebhook";
 import SlackApp from "components/integrations/SlackApp";
 
@@ -34,6 +35,8 @@ const Notifications = () => {
       <Webhook project={project} />
 
       <SlackApp project={project} />
+
+      <TeamsWebhook project={project} />
 
       <SlackWebhook project={project} />
     </Stack>

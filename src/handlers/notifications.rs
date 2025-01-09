@@ -18,6 +18,7 @@ use crate::{AppContext, Error, Identity, Result};
 
 mod slack_app;
 mod slack_webhook;
+mod teams_webhook;
 mod webhook;
 
 pub fn routes(cfg: &mut web::ServiceConfig) {
@@ -26,6 +27,7 @@ pub fn routes(cfg: &mut web::ServiceConfig) {
         .service(get_project)
         .service(web::scope("/{project_id}/slack-app").configure(slack_app::routes))
         .service(web::scope("/{project_id}/slack-webhook").configure(slack_webhook::routes))
+        .service(web::scope("/{project_id}/teams-webhook").configure(teams_webhook::routes))
         .service(web::scope("/{project_id}/webhook").configure(webhook::routes));
 }
 

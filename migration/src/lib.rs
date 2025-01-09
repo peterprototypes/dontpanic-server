@@ -6,6 +6,7 @@ mod m20240830_153930_project_slack_webhhok;
 mod m20240908_063351_webhook_integration;
 mod m20241219_101859_invitation_slug;
 mod m20250108_135710_pushover_integration;
+mod m20250109_082535_teams_integration;
 
 pub struct Migrator;
 
@@ -18,6 +19,7 @@ impl MigratorTrait for Migrator {
             Box::new(m20240908_063351_webhook_integration::Migration),
             Box::new(m20241219_101859_invitation_slug::Migration),
             Box::new(m20250108_135710_pushover_integration::Migration),
+            Box::new(m20250109_082535_teams_integration::Migration),
         ]
     }
 }

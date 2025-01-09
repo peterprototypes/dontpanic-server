@@ -17,6 +17,7 @@ pub struct Model {
     pub created: DateTime,
     pub slack_webhook: Option<String>,
     pub webhook: Option<String>,
+    pub teams_webhook: Option<String>,
 }
 
 #[derive(Copy, Clone, Debug, EnumIter, DeriveRelation)]
