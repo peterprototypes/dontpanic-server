@@ -15,6 +15,8 @@ pub struct Model {
     pub is_seen: i8,
     pub is_resolved: i8,
     pub created: Option<DateTime>,
+    #[sea_orm(unique)]
+    pub uid: String,
 }
 
 #[derive(Copy, Clone, Debug, EnumIter, DeriveRelation)]

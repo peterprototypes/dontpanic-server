@@ -1,9 +1,12 @@
+use std::hash::{DefaultHasher, Hash, Hasher};
+
 use actix_web::{post, web, HttpResponse};
 use chrono::Days;
 use chrono::TimeDelta;
 use chrono::Utc;
 use lettre::AsyncTransport;
-use sea_orm::{prelude::*, ActiveValue, IntoActiveModel, JoinType, Order, QueryOrder, QuerySelect, TryIntoModel};
+use sea_orm::prelude::*;
+use sea_orm::{ActiveValue, IntoActiveModel, JoinType, Order, QueryOrder, QuerySelect, TryIntoModel};
 use serde::Deserialize;
 
 use crate::entity::organization_users;
@@ -27,9 +30,8 @@ pub fn routes(cfg: &mut web::ServiceConfig) {
 struct Event {
     #[serde(rename(deserialize = "key"))]
     api_key: String,
-    #[serde(rename(deserialize = "env"))]
-    env_ident: Option<String>,
-    name: String,
+    env: Option<String>,
+    uid: String,
     data: EventData,
 }
 
@@ -92,7 +94,7 @@ async fn ingress(ctx: web::Data<AppContext<'static>>, event: web::Json<Event>) -
     }
 
     // find environment or create id
-    let environment = if let Some(env_ident) = event.env_ident {
+    let environment = if let Some(env_ident) = event.env {
         let maybe_env = ProjectEnvironments::find()
             .filter(project_environments::Column::Name.eq(&env_ident))
             .one(&ctx.db)
@@ -116,9 +118,21 @@ async fn ingress(ctx: web::Data<AppContext<'static>>, event: web::Json<Event>) -
         None
     };
 
+    let env_hash = {
+        let mut s = DefaultHasher::new();
+        environment
+            .as_ref()
+            .map(|e| e.name.as_str())
+            .unwrap_or_default()
+            .hash(&mut s);
+        s.finish()
+    };
+
+    let uid = format!("p{}-{}-{}", project.project_id, env_hash, event.uid);
+
     // find relevant report or create it
     let maybe_report = ProjectReports::find()
-        .filter(project_reports::Column::Title.eq(&event.name))
+        .filter(project_reports::Column::Uid.eq(&uid))
         .one(&ctx.db)
         .await?;
 
@@ -134,6 +148,7 @@ async fn ingress(ctx: web::Data<AppContext<'static>>, event: web::Json<Event>) -
             let mut report_model = report.into_active_model();
             report_model.last_seen = ActiveValue::set(Utc::now().naive_utc());
             report_model.is_resolved = ActiveValue::set(0);
+            report_model.is_seen = ActiveValue::set(0);
             report_model
         }
         None => {
@@ -142,7 +157,8 @@ async fn ingress(ctx: web::Data<AppContext<'static>>, event: web::Json<Event>) -
             // new issue
             project_reports::ActiveModel {
                 project_id: ActiveValue::set(project.project_id),
-                title: ActiveValue::set(event.name),
+                uid: ActiveValue::set(uid),
+                title: ActiveValue::set(event.data.title()),
                 project_environment_id: ActiveValue::set(environment.as_ref().map(|e| e.project_environment_id)),
                 ..Default::default()
             }

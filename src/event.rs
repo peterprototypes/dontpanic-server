@@ -32,6 +32,7 @@ pub struct LogEvent {
 
 #[derive(Serialize, Deserialize, Debug)]
 pub struct EventData {
+    title: String,
     #[serde(rename = "loc")]
     location: Option<EventFileLocation>,
     #[serde(rename = "ver")]
@@ -49,8 +50,13 @@ pub struct EventData {
 }
 
 impl EventData {
+    pub fn title(&self) -> String {
+        self.title.clone()
+    }
+
     pub fn example() -> Self {
         Self {
+            title: "called `Option::unwrap()` on a `None` value".into(),
             location: Some(EventFileLocation {
                 file: "stc/main.rs".into(),
                 line: 45,

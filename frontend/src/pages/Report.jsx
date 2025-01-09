@@ -107,50 +107,57 @@ const Event = ({ reportEvent, isLoading, setSearchParams }) => {
 
   let data = reportEvent ? JSON.parse(reportEvent.event.event_data) : null;
 
+
   return (
     <Box sx={{ my: 4 }}>
       <Stack direction="row" spacing={2} alignItems="center" justifyContent="space-between">
-        <Typography variant="h6" sx={{ fontWeight: '600', fontSize: '15px' }}>
-          {reportEvent ? (
-            <>Event {reportEvent.event_pos} / {reportEvent.events_count} received at {DateTime.fromISO(reportEvent.event.created, { zone: 'UTC' }).toLocaleString(DateTime.DATETIME_FULL)}</>
-          ) : (
-            <>
-              Loading
-            </>
-          )}
-
+        <Typography variant="h4" sx={{ fontWeight: '600', fontSize: '15px' }}>
+          {data?.title}
         </Typography>
-        <Stack direction="row" spacing={1}>
-          <Button
-            variant="outlined"
-            size="small"
-            startIcon={<BackIcon />}
-            disabled={!reportEvent.event.prev_event_id}
-            onClick={() => setSearchParams({ event_id: reportEvent.event.prev_event_id })}
-          >
-            Prev
-          </Button>
-          <Button
-            variant="outlined"
-            size="small"
-            endIcon={<NextIcon />}
-            disabled={!reportEvent.event.next_event_id}
-            onClick={() => setSearchParams({ event_id: reportEvent.event.next_event_id })}
-          >
-            Next
-          </Button>
+        <Stack>
+
+          <Typography variant="body2" color="textSecondary">
+            {reportEvent ? (
+              <>Event {reportEvent.event_pos} / {reportEvent.events_count}</>
+            ) : (
+              <>
+                Loading
+              </>
+            )}
+          </Typography>
+          <Stack direction="row" spacing={1}>
+            <Button
+              variant="outlined"
+              size="small"
+              startIcon={<BackIcon />}
+              disabled={!reportEvent.event.prev_event_id}
+              onClick={() => setSearchParams({ event_id: reportEvent.event.prev_event_id })}
+            >
+              Prev
+            </Button>
+            <Button
+              variant="outlined"
+              size="small"
+              endIcon={<NextIcon />}
+              disabled={!reportEvent.event.next_event_id}
+              onClick={() => setSearchParams({ event_id: reportEvent.event.next_event_id })}
+            >
+              Next
+            </Button>
+          </Stack>
         </Stack>
+
       </Stack>
 
       <Divider sx={{ my: 2 }} />
 
       <Stack direction="row" justifyContent="space-between">
-        <Stack>
+        {/* <Stack>
           <Typography variant="h6" sx={{ fontSize: '15px' }}>Location</Typography>
           <Typography variant="body2" sx={{ fontWeight: '500', mb: 1 }} color="textSecondary">
             {data.loc ? `${data.loc.f}:${data.loc.l}${data.loc.c ? ':' + data.loc.c : ''}` : 'Unknown'}
           </Typography>
-        </Stack>
+        </Stack> */}
         <Stack>
           <Typography variant="h6" sx={{ fontSize: '15px' }}>Version</Typography>
           <Typography variant="body2" sx={{ fontWeight: '500', mb: 1 }} color="textSecondary">{data?.ver ?? '-'}</Typography>
@@ -168,6 +175,12 @@ const Event = ({ reportEvent, isLoading, setSearchParams }) => {
             {data?.tid ? ` / ${data.tid}` : ''}
           </Typography>
         </Stack>
+        <Stack>
+          <Typography variant="h6" sx={{ fontSize: '15px' }}>Received</Typography>
+          <Typography variant="body2" sx={{ fontWeight: '500', mb: 1 }} color="textSecondary">
+            {DateTime.fromISO(reportEvent.event.created, { zone: 'UTC' }).toLocaleString(DateTime.DATETIME_FULL)}
+          </Typography>
+        </Stack>
       </Stack>
 
       <Typography variant="h6" sx={{ fontSize: '14px', mt: 4 }}>Stack Trace</Typography>
@@ -177,19 +190,16 @@ const Event = ({ reportEvent, isLoading, setSearchParams }) => {
 
       {data.log && <LogMessages log={data.log} />}
 
-      {!data.log && (
-        <Box sx={{ mt: 2 }}>
-          <Typography variant="h6" sx={{ fontSize: '15px' }}>No Log Messages Recorded</Typography>
-          <Typography variant="body2" sx={{ fontWeight: '500', mb: 1 }} color="textSecondary">
-            The dontpanic client library either isn&lsquo;t configured to record log messages or there were no log messages before the panic happened.
-          </Typography>
-        </Box>
-      )}
+      {!data.log && <NoLogMessages />}
     </Box>
   );
 };
 
 const LogMessages = ({ log }) => {
+  if (log.length === 0) {
+    return <NoLogMessages />;
+  }
+
   return (
     <Paper sx={{ p: 2, mt: 2 }}>
       <Box>
@@ -210,6 +220,15 @@ const LogMessages = ({ log }) => {
     </Paper>
   );
 };
+
+const NoLogMessages = () => (
+  <Box sx={{ mt: 2 }}>
+    <Typography variant="h6" sx={{ fontSize: '15px' }}>No Log Messages Recorded</Typography>
+    <Typography variant="body2" sx={{ fontWeight: '500', mb: 1 }} color="textSecondary">
+      The dontpanic client library either isn&lsquo;t configured to record log messages or there were no log messages before the panic happened.
+    </Typography>
+  </Box>
+);
 
 const DateTimeDisplay = ({ value }) => {
   return (
