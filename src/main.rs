@@ -124,7 +124,13 @@ impl AppContext<'static> {
         handlebars.register_templates_directory("./templates", Default::default())?;
         handlebars.register_helper("dateFmt", Box::new(date));
 
-        let (notifications, _notifications_rx) = mpsc::unbounded_channel();
+        let (notifications, mut notifications_rx) = mpsc::unbounded_channel();
+
+        actix_web::rt::spawn(async move {
+            while let Some(notification) = notifications_rx.recv().await {
+                dbg!(notification);
+            }
+        });
 
         let ctx = Self {
             config,
@@ -146,6 +152,7 @@ async fn main() -> anyhow::Result<()> {
     } else {
         "info"
     });
+
     env_logger::init_from_env(env);
 
     log::info!("Starting");
@@ -325,6 +332,7 @@ pub async fn test_app_with_auth() -> Result<(
         App::new()
             .wrap(SessionMiddleware::builder(CookieSessionStore::default(), signing_key.clone()).build())
             .app_data(web::Data::new(ctx))
+            .configure(handlers::ingress::routes)
             .service(web::scope("/api").configure(handlers::routes)),
     )
     .await;

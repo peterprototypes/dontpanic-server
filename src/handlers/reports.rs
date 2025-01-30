@@ -212,7 +212,7 @@ async fn get_report(ctx: Data<AppContext<'_>>, id: Identity, path: Path<u32>) ->
     let env = report.find_related(ProjectEnvironments).one(&ctx.db).await?;
 
     // number of events each day for the last 365 days
-    let daily_events: HashMap<DateTimeUtc, u64> = ProjectReportStats::find()
+    let daily_events: HashMap<DateTimeUtc, u32> = ProjectReportStats::find()
         .select_only()
         .column(project_report_stats::Column::Date)
         .column(project_report_stats::Column::Count)
@@ -220,7 +220,7 @@ async fn get_report(ctx: Data<AppContext<'_>>, id: Identity, path: Path<u32>) ->
         .filter(project_report_stats::Column::Category.eq("event"))
         .filter(project_report_stats::Column::Name.eq("total_count"))
         .filter(project_report_stats::Column::Date.gte(Utc::now().date_naive() - Days::new(365)))
-        .into_tuple::<(DateTimeUtc, u64)>()
+        .into_tuple::<(DateTimeUtc, u32)>()
         .all(&ctx.db)
         .await?
         .into_iter()
@@ -251,16 +251,21 @@ async fn get_report(ctx: Data<AppContext<'_>>, id: Identity, path: Path<u32>) ->
     })))
 }
 
+use sea_orm::sea_query::Alias;
+
 async fn get_dataset(
     db: &DatabaseConnection,
     report_id: u32,
     category: &str,
 ) -> Result<(Vec<serde_json::Map<String, serde_json::Value>>, HashSet<String>)> {
-    let os_rows: Vec<(DateTimeUtc, String, Decimal)> = ProjectReportStats::find()
+    let os_rows: Vec<(DateTimeUtc, String, i64)> = ProjectReportStats::find()
         .select_only()
         .column(project_report_stats::Column::Date)
         .column(project_report_stats::Column::Name)
-        .column_as(project_report_stats::Column::Count.sum(), "value")
+        .column_as(
+            project_report_stats::Column::Count.sum().cast_as(Alias::new("INTEGER")),
+            "value",
+        )
         .filter(project_report_stats::Column::ProjectReportId.eq(report_id))
         .filter(project_report_stats::Column::Category.eq(category))
         .group_by(project_report_stats::Column::Name)

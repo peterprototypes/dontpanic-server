@@ -40,7 +40,7 @@ pub struct EventData {
     pub os: String,
     pub arch: String,
     #[serde(rename = "tid")]
-    pub thread_id: String,
+    pub thread_id: Option<String>,
     #[serde(rename = "tname")]
     pub thread_name: Option<String>,
     #[serde(rename = "trace")]
@@ -65,7 +65,7 @@ impl EventData {
             version: Some("1.2.3".into()),
             os: "linux".into(),
             arch: "x86_64".into(),
-            thread_id: "ThreadId(1)".into(),
+            thread_id: Some("ThreadId(1)".into()),
             thread_name: Some("main".into()),
             backtrace: r#"stack backtrace:
 0: playground::main::h6849180917e9510b (0x55baf1676201)

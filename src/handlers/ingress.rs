@@ -290,3 +290,103 @@ async fn record_stat(db: &DatabaseConnection, report_id: u32, category: &str, na
 
     Ok(())
 }
+
+#[cfg(test)]
+mod tests {
+    use actix_web::{http::StatusCode, test};
+    use serde_json::Value;
+
+    #[actix_web::test]
+    async fn test_ingress_endpoint() {
+        let (app, sess) = crate::test_app_with_auth().await.unwrap();
+
+        // create
+        let req = test::TestRequest::post()
+            .uri("/api/organizations/1/projects")
+            .cookie(sess.clone())
+            .set_json(serde_json::json!({
+                "name": "Test Project",
+            }))
+            .to_request();
+
+        let res: Value = test::call_and_read_body_json(&app, req).await;
+        let project_id = res["project_id"].as_u64().unwrap();
+        let api_key = res["api_key"].as_str().unwrap();
+
+        // test bad request
+        let req = test::TestRequest::post()
+            .uri("/ingress")
+            .cookie(sess.clone())
+            .set_json(serde_json::json!({
+                "key": api_key,
+            }))
+            .to_request();
+
+        let res = test::call_service(&app, req).await;
+        assert_eq!(res.status(), StatusCode::BAD_REQUEST);
+
+        // test good request
+        let req = test::TestRequest::post()
+            .uri("/ingress")
+            .set_json(serde_json::json!({
+                "key": api_key,
+                "env": "production",
+                "data": {
+                    "title": "Test Error",
+                    "trace": "backtrace",
+                    "log": [
+                        {
+                            "msg": "Error message",
+                            "lvl": 3,
+                            "ts": 1738255164
+                        }
+                    ],
+                    "os": "linux",
+                    "arch": "x86_64",
+                    "ver": "1.0.0",
+                    "loc": {
+                        "f": "main.rs",
+                        "l": 10,
+                        "c": 5
+                    }
+                }
+            }))
+            .to_request();
+
+        let res = test::call_service(&app, req).await;
+        // let body = test::read_body(res).await;
+        assert_eq!(res.status(), StatusCode::OK);
+
+        // test getting reports
+        let req = test::TestRequest::get()
+            .uri(&format!("/api/reports?project_id={}", project_id))
+            .cookie(sess.clone())
+            .to_request();
+
+        let res: Value = test::call_and_read_body_json(&app, req).await;
+        let report_id = res["reports"][0]["report"]["project_report_id"].as_u64().unwrap();
+
+        assert_eq!(res["reports"][0]["report"]["title"], "Test Error");
+        assert_eq!(res["reports"][0]["env"]["name"], "production");
+
+        // get getting single report
+        let req = test::TestRequest::get()
+            .uri(&format!("/api/reports/{}", report_id))
+            .cookie(sess.clone())
+            .to_request();
+
+        let res: Value = test::call_and_read_body_json(&app, req).await;
+        let obj = res.as_object().unwrap();
+
+        assert!(obj.contains_key("project"));
+        assert!(obj.contains_key("report"));
+        assert!(obj.contains_key("env"));
+        assert!(obj.contains_key("org"));
+        assert!(obj.contains_key("daily_events"));
+        assert!(obj.contains_key("os_dataset"));
+        assert!(obj.contains_key("os_names"));
+        assert!(obj.contains_key("version_dataset"));
+        assert!(obj.contains_key("version_names"));
+        assert!(obj.contains_key("last_event"));
+    }
+}

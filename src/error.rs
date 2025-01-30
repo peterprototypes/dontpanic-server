@@ -70,6 +70,9 @@ impl actix_web::error::ResponseError for Error {
         // log error if it is internal
         if let Self::Internal(e) = self {
             log::error!("{:?}", e);
+
+            #[cfg(test)]
+            eprintln!("Internal error during testing: {:#?} - {:?}", e, e);
         }
 
         let mut builder = HttpResponse::build(self.status_code());
