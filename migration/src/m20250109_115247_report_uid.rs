@@ -16,7 +16,18 @@ impl MigrationTrait for Migration {
             .alter_table(
                 Table::alter()
                     .table(ProjectReports::Table)
-                    .add_column(string_len_uniq(ProjectReports::Uid, 64))
+                    .add_column(string_len(ProjectReports::Uid, 64))
+                    .to_owned(),
+            )
+            .await?;
+
+        manager
+            .create_index(
+                Index::create()
+                    .name("idx_project_report_1")
+                    .table(ProjectReports::Table)
+                    .col(ProjectReports::Uid)
+                    .unique()
                     .to_owned(),
             )
             .await?;

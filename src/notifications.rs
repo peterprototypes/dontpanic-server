@@ -177,14 +177,13 @@ pub async fn send_webhook(_ctx: &AppContext<'_>, notification: &Notification, re
         return Ok(());
     };
 
-    let event: serde_json::Value = serde_json::from_str(&notification.event.event_data)?;
-
     let params = json!({
         "status": notification.status,
         "title": notification.report.title,
         "project": notification.project.name,
         "environment": notification.environment.as_ref().map(|e| &e.name),
-        "event": event,
+        "backtrace": notification.event.backtrace,
+        "log": notification.event.log,
         "url": report_url,
     });
 

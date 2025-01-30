@@ -1,12 +1,12 @@
 use std::hash::{DefaultHasher, Hash, Hasher};
 
 use actix_web::{post, web, HttpResponse};
-use chrono::Days;
-use chrono::TimeDelta;
-use chrono::Utc;
+use chrono::prelude::*;
+use chrono::{Days, TimeDelta};
 use lettre::AsyncTransport;
 use sea_orm::prelude::*;
-use sea_orm::{ActiveValue, IntoActiveModel, JoinType, Order, QueryOrder, QuerySelect, TryIntoModel};
+use sea_orm::sea_query;
+use sea_orm::{ActiveValue, IntoActiveModel, JoinType, QueryOrder, QuerySelect, TryIntoModel};
 use serde::Deserialize;
 
 use crate::entity::organization_users;
@@ -14,6 +14,7 @@ use crate::entity::organizations;
 use crate::entity::prelude::*;
 use crate::entity::project_environments;
 use crate::entity::project_report_events;
+use crate::entity::project_report_stats;
 use crate::entity::project_reports;
 use crate::entity::projects;
 
@@ -28,10 +29,8 @@ pub fn routes(cfg: &mut web::ServiceConfig) {
 
 #[derive(Deserialize, Debug)]
 struct Event {
-    #[serde(rename(deserialize = "key"))]
-    api_key: String,
+    key: String,
     env: Option<String>,
-    uid: String,
     data: EventData,
 }
 
@@ -40,7 +39,7 @@ async fn ingress(ctx: web::Data<AppContext<'static>>, event: web::Json<Event>) -
     let event = event.into_inner();
 
     let maybe_project = Projects::find()
-        .filter(projects::Column::ApiKey.eq(&event.api_key))
+        .filter(projects::Column::ApiKey.eq(&event.key))
         .one(&ctx.db)
         .await?;
 
@@ -93,7 +92,7 @@ async fn ingress(ctx: web::Data<AppContext<'static>>, event: web::Json<Event>) -
         }
     }
 
-    // find environment or create id
+    // find environment or create it
     let environment = if let Some(env_ident) = event.env {
         let maybe_env = ProjectEnvironments::find()
             .filter(project_environments::Column::Name.eq(&env_ident))
@@ -118,7 +117,7 @@ async fn ingress(ctx: web::Data<AppContext<'static>>, event: web::Json<Event>) -
         None
     };
 
-    let env_hash = {
+    let environment_hash = {
         let mut s = DefaultHasher::new();
         environment
             .as_ref()
@@ -128,7 +127,13 @@ async fn ingress(ctx: web::Data<AppContext<'static>>, event: web::Json<Event>) -
         s.finish()
     };
 
-    let uid = format!("p{}-{}-{}", project.project_id, env_hash, event.uid);
+    let event_uid = if let Some(location) = event.data.location.as_ref() {
+        format!("{}-{}-{:?}", location.file, location.line, location.column)
+    } else {
+        event.data.title.clone()
+    };
+
+    let uid = format!("p{}-{}-{}", project.project_id, environment_hash, event_uid);
 
     // find relevant report or create it
     let maybe_report = ProjectReports::find()
@@ -167,34 +172,50 @@ async fn ingress(ctx: web::Data<AppContext<'static>>, event: web::Json<Event>) -
 
     let report = report_model.save(&ctx.db).await?.try_into_model()?;
 
-    // get last event for this report
-    let prev_event = ProjectReportEvents::find()
-        .filter(project_report_events::Column::ProjectReportId.eq(report.project_report_id))
-        .order_by(project_report_events::Column::ProjectReportEventId, Order::Desc)
-        .one(&ctx.db)
-        .await?;
-
     // create event
-    let event = project_report_events::ActiveModel {
+    let event_model = project_report_events::ActiveModel {
         project_report_id: ActiveValue::set(report.project_report_id),
-        prev_event_id: ActiveValue::set(prev_event.as_ref().map(|e| e.project_report_event_id)),
-        event_data: ActiveValue::set(serde_json::to_string(&event.data)?),
+        backtrace: ActiveValue::set(Some(event.data.backtrace)),
+        log: ActiveValue::set(Some(serde_json::to_string(&event.data.log_messages)?)),
         ..Default::default()
     };
 
-    let event = event.insert(&ctx.db).await?;
+    let event_row = event_model.insert(&ctx.db).await?;
 
-    if let Some(prev_event) = prev_event {
-        let mut prev_event = prev_event.into_active_model();
-        prev_event.next_event_id = ActiveValue::set(Some(event.project_report_event_id));
-        prev_event.save(&ctx.db).await?;
+    // retain only last 5 events for this report (this may be in a separate task)
+    let events = ProjectReportEvents::find()
+        .filter(project_report_events::Column::ProjectReportId.eq(report.project_report_id))
+        .order_by_desc(project_report_events::Column::ProjectReportEventId)
+        .all(&ctx.db)
+        .await?;
+
+    let events_to_del = events
+        .iter()
+        .skip(5)
+        .map(|e| e.project_report_event_id)
+        .collect::<Vec<_>>();
+
+    if !events_to_del.is_empty() {
+        ProjectReportEvents::delete_many()
+            .filter(project_report_events::Column::ProjectReportEventId.is_in(events_to_del))
+            .exec(&ctx.db)
+            .await?;
+    }
+
+    // Increment counters
+    record_stat(&ctx.db, report.project_report_id, "event", "total_count").await?;
+    record_stat(&ctx.db, report.project_report_id, "os", &event.data.os).await?;
+    record_stat(&ctx.db, report.project_report_id, "arch", &event.data.arch).await?;
+
+    if let Some(version) = event.data.version.as_ref() {
+        record_stat(&ctx.db, report.project_report_id, "version", version).await?;
     }
 
     if let Some(status) = report_status {
         ctx.notifications.send(Notification {
             status,
             project,
-            event,
+            event: event_row,
             report,
             environment,
         })?;
@@ -236,6 +257,36 @@ async fn notify_limit_reached(ctx: &AppContext<'_>, org: &organizations::Model) 
             }
         }
     }
+
+    Ok(())
+}
+
+async fn record_stat(db: &DatabaseConnection, report_id: u32, category: &str, name: &str) -> Result<()> {
+    let stat = project_report_stats::ActiveModel {
+        project_report_id: ActiveValue::set(report_id),
+        category: ActiveValue::set(category.into()),
+        name: ActiveValue::set(name.into()),
+        count: ActiveValue::set(1),
+        date: ActiveValue::set(Utc::now().date_naive().and_time(NaiveTime::default())),
+        ..Default::default()
+    };
+
+    ProjectReportStats::insert(stat)
+        .on_conflict(
+            sea_query::OnConflict::columns([
+                project_report_stats::Column::ProjectReportId,
+                project_report_stats::Column::Category,
+                project_report_stats::Column::Name,
+                project_report_stats::Column::Date,
+            ])
+            .value(
+                project_report_stats::Column::Count,
+                Expr::col(project_report_stats::Column::Count).add(1),
+            )
+            .to_owned(),
+        )
+        .exec(db)
+        .await?;
 
     Ok(())
 }

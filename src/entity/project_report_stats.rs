@@ -4,16 +4,15 @@ use sea_orm::entity::prelude::*;
 use serde::Serialize;
 
 #[derive(Clone, Debug, PartialEq, DeriveEntityModel, Eq, Serialize)]
-#[sea_orm(table_name = "project_report_events")]
+#[sea_orm(table_name = "project_report_stats")]
 pub struct Model {
     #[sea_orm(primary_key)]
-    pub project_report_event_id: u32,
+    pub project_report_stat_id: u32,
     pub project_report_id: u32,
-    #[sea_orm(column_type = "Text", nullable)]
-    pub backtrace: Option<String>,
-    #[sea_orm(column_type = "Text", nullable)]
-    pub log: Option<String>,
-    pub created: Option<DateTime>,
+    pub category: String,
+    pub name: String,
+    pub count: u32,
+    pub date: DateTime,
 }
 
 #[derive(Copy, Clone, Debug, EnumIter, DeriveRelation)]

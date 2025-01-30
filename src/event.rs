@@ -7,11 +7,11 @@ use serde::{Deserialize, Serialize};
 #[derive(Serialize, Deserialize, Debug)]
 pub struct EventFileLocation {
     #[serde(rename = "f")]
-    file: String,
+    pub file: String,
     #[serde(rename = "l")]
-    line: u32,
+    pub line: u32,
     #[serde(rename = "c")]
-    column: Option<u32>,
+    pub column: Option<u32>,
 }
 
 #[derive(Serialize, Deserialize, Debug)]
@@ -32,21 +32,21 @@ pub struct LogEvent {
 
 #[derive(Serialize, Deserialize, Debug)]
 pub struct EventData {
-    title: String,
+    pub title: String,
     #[serde(rename = "loc")]
-    location: Option<EventFileLocation>,
+    pub location: Option<EventFileLocation>,
     #[serde(rename = "ver")]
-    version: String,
-    os: String,
-    arch: String,
+    pub version: Option<String>,
+    pub os: String,
+    pub arch: String,
     #[serde(rename = "tid")]
-    thread_id: String,
+    pub thread_id: String,
     #[serde(rename = "tname")]
-    thread_name: Option<String>,
+    pub thread_name: Option<String>,
     #[serde(rename = "trace")]
-    backtrace: String,
+    pub backtrace: String,
     #[serde(rename = "log")]
-    log_messages: Vec<LogEvent>,
+    pub log_messages: Vec<LogEvent>,
 }
 
 impl EventData {
@@ -62,7 +62,7 @@ impl EventData {
                 line: 45,
                 column: Some(12),
             }),
-            version: "1.2.3".into(),
+            version: Some("1.2.3".into()),
             os: "linux".into(),
             arch: "x86_64".into(),
             thread_id: "ThreadId(1)".into(),

@@ -1,31 +1,28 @@
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 
 use actix_web::{
     get, post,
     web::{self, Data, Json, Path, Query},
     Responder,
 };
+
 use chrono::prelude::*;
-use sea_orm::{
-    prelude::*, ActiveValue, Condition, IntoActiveModel, JoinType, Order, QueryOrder, QuerySelect, QueryTrait,
-};
+use chrono::Days;
+use rust_decimal::prelude::*;
+use sea_orm::prelude::*;
+use sea_orm::{ActiveValue, Condition, IntoActiveModel, JoinType, Order, QueryOrder, QuerySelect, QueryTrait};
 use serde::{Deserialize, Serialize};
-use serde_json::json;
 
+use crate::entity::prelude::*;
 use crate::entity::{
-    organization_users, organizations, prelude::*, project_environments, project_report_events, project_reports,
-    projects,
+    organization_users, organizations, project_environments, project_report_events, project_report_stats,
+    project_reports, projects,
 };
 
-use crate::event::EventData;
 use crate::{AppContext, Error, Identity, Result};
 
 pub fn routes(cfg: &mut web::ServiceConfig) {
-    cfg.service(list)
-        .service(delete)
-        .service(resolve)
-        .service(get_report)
-        .service(get_event);
+    cfg.service(list).service(delete).service(resolve).service(get_report);
 }
 
 #[derive(Serialize)]
@@ -186,18 +183,6 @@ async fn resolve(ctx: Data<AppContext<'_>>, id: Identity, report_ids: Json<Vec<u
     })))
 }
 
-#[derive(Serialize)]
-struct DayEvents {
-    events_count: usize,
-    date: NaiveDate,
-}
-
-#[derive(Serialize)]
-struct WeekEvents {
-    month_label: Option<String>,
-    days: Vec<DayEvents>,
-}
-
 #[get("/{report_id}")]
 async fn get_report(ctx: Data<AppContext<'_>>, id: Identity, path: Path<u32>) -> Result<impl Responder> {
     let report_id = path.into_inner();
@@ -226,120 +211,87 @@ async fn get_report(ctx: Data<AppContext<'_>>, id: Identity, path: Path<u32>) ->
     let org = project.find_related(Organizations).one(&ctx.db).await?;
     let env = report.find_related(ProjectEnvironments).one(&ctx.db).await?;
 
-    // last year stats
-    let stats: HashMap<String, i64> = ProjectReportEvents::find()
+    // number of events each day for the last 365 days
+    let daily_events: HashMap<DateTimeUtc, u64> = ProjectReportStats::find()
         .select_only()
-        .column_as(Expr::cust("substring(created,1,10)"), "date_created")
-        .column_as(project_report_events::Column::ProjectReportEventId.count(), "count")
-        .filter(project_report_events::Column::ProjectReportId.eq(report_id))
-        .group_by(Expr::cust("substring(created,1,10)"))
-        .into_tuple()
+        .column(project_report_stats::Column::Date)
+        .column(project_report_stats::Column::Count)
+        .filter(project_report_stats::Column::ProjectReportId.eq(report_id))
+        .filter(project_report_stats::Column::Category.eq("event"))
+        .filter(project_report_stats::Column::Name.eq("total_count"))
+        .filter(project_report_stats::Column::Date.gte(Utc::now().date_naive() - Days::new(365)))
+        .into_tuple::<(DateTimeUtc, u64)>()
         .all(&ctx.db)
         .await?
         .into_iter()
         .collect();
 
-    let today = Utc::now().date_naive();
+    // OS and version stats
+    let (os_dataset, os_names) = get_dataset(&ctx.db, report_id, "os").await?;
+    let (version_dataset, version_names) = get_dataset(&ctx.db, report_id, "version").await?;
 
-    let mut current_week = vec![];
-    let mut weeks = vec![];
-    let mut prev_date = today;
-    let mut month_label = None;
-    let mut max_events = 0;
-
-    for d in today.iter_days().rev().take(365) {
-        let ymd = d.format("%Y-%m-%d").to_string();
-        let events_count = stats.get(&ymd).copied().unwrap_or_default() as usize;
-        max_events = events_count.max(max_events);
-        current_week.push(DayEvents { events_count, date: d });
-
-        if prev_date.month() != d.month() {
-            month_label = Some(prev_date.format("%b").to_string());
-        }
-
-        if d.weekday() == Weekday::Mon {
-            current_week.reverse();
-
-            weeks.push(WeekEvents {
-                month_label: month_label.take(),
-                days: std::mem::take(&mut current_week),
-            });
-        }
-
-        prev_date = d;
-    }
-
-    weeks.reverse();
+    // Last received log event
+    let last_event = ProjectReportEvents::find()
+        .filter(project_report_events::Column::ProjectReportId.eq(report_id))
+        .order_by(project_report_events::Column::ProjectReportEventId, Order::Desc)
+        .one(&ctx.db)
+        .await?;
 
     Ok(Json(serde_json::json!({
+        "project": project,
         "report": report,
         "env": env,
-        "project": project,
         "org": org,
-        "occurrences": weeks,
-        "max_occurrences": max_events,
+        "daily_events": daily_events,
+        "os_dataset": os_dataset,
+        "os_names": os_names,
+        "version_dataset": version_dataset,
+        "version_names": version_names,
+        "last_event": last_event,
     })))
 }
 
-#[derive(Deserialize, Debug)]
-struct EventQuery {
-    event_id: Option<u32>,
-}
-
-#[get("/{report_id}/get-event")]
-async fn get_event(
-    ctx: Data<AppContext<'_>>,
-    id: Identity,
-    path: Path<u32>,
-    q: Query<EventQuery>,
-) -> Result<impl Responder> {
-    let report_id = path.into_inner();
-    let event_id = q.event_id.filter(|id| *id != 0);
-
-    // make sure this report exists and is owned by the currently logged user
-    let _ = ProjectReports::find_by_id(report_id)
-        .filter(organization_users::Column::UserId.eq(id.user_id))
-        .join(JoinType::InnerJoin, project_reports::Relation::Projects.def())
-        .join(JoinType::InnerJoin, projects::Relation::Organizations.def())
-        .join(JoinType::InnerJoin, organizations::Relation::OrganizationUsers.def())
-        .one(&ctx.db)
-        .await?
-        .ok_or(Error::NotFound)?;
-
-    let maybe_event = if let Some(event_id) = event_id {
-        ProjectReportEvents::find_by_id(event_id)
-            .filter(project_report_events::Column::ProjectReportId.eq(report_id))
-            .one(&ctx.db)
-            .await?
-    } else {
-        ProjectReportEvents::find()
-            .filter(project_report_events::Column::ProjectReportId.eq(report_id))
-            .order_by(project_report_events::Column::ProjectReportEventId, Order::Desc)
-            .one(&ctx.db)
-            .await?
-    };
-
-    let Some(event) = maybe_event else {
-        return Ok(Json(json!({})));
-    };
-
-    let events_count: u64 = ProjectReportEvents::find()
-        .filter(project_report_events::Column::ProjectReportId.eq(report_id))
-        .count(&ctx.db)
+async fn get_dataset(
+    db: &DatabaseConnection,
+    report_id: u32,
+    category: &str,
+) -> Result<(Vec<serde_json::Map<String, serde_json::Value>>, HashSet<String>)> {
+    let os_rows: Vec<(DateTimeUtc, String, Decimal)> = ProjectReportStats::find()
+        .select_only()
+        .column(project_report_stats::Column::Date)
+        .column(project_report_stats::Column::Name)
+        .column_as(project_report_stats::Column::Count.sum(), "value")
+        .filter(project_report_stats::Column::ProjectReportId.eq(report_id))
+        .filter(project_report_stats::Column::Category.eq(category))
+        .group_by(project_report_stats::Column::Name)
+        .group_by(project_report_stats::Column::Date)
+        .order_by_desc(project_report_stats::Column::Date)
+        .limit(30)
+        .into_tuple()
+        .all(db)
         .await?;
 
-    let event_pos: u64 = ProjectReportEvents::find()
-        .filter(project_report_events::Column::ProjectReportId.eq(report_id))
-        .filter(project_report_events::Column::ProjectReportEventId.lte(event.project_report_event_id))
-        .count(&ctx.db)
-        .await?;
+    let today = Utc::now().date_naive();
+    let mut dataset = vec![];
+    let mut names = HashSet::new();
 
-    let data: EventData = serde_json::from_str(&event.event_data)?;
+    for date in today.iter_days().rev().take(30) {
+        let mut daily_os_stats = serde_json::Map::new();
 
-    Ok(Json(json!({
-        "data": data,
-        "event": event,
-        "events_count": events_count,
-        "event_pos": event_pos,
-    })))
+        for row in &os_rows {
+            names.insert(row.1.clone());
+
+            if row.0.date_naive() == date {
+                let count = daily_os_stats.entry(row.1.clone()).or_insert(0.into());
+                *count = (count.as_u64().unwrap() + row.2.to_u64().unwrap()).into();
+            }
+        }
+
+        daily_os_stats.insert("date".into(), date.format("%b %d").to_string().into());
+        dataset.push(daily_os_stats);
+    }
+
+    dataset.reverse();
+
+    Ok((dataset, names))
 }

@@ -1,21 +1,18 @@
 import useSWR from 'swr';
 import { DateTime } from "luxon";
-import { useParams, Link as RouterLink, useSearchParams } from 'react-router';
-import { Box, Divider, Grid2 as Grid, Link, Typography, Stack, Tooltip, Button, Paper } from '@mui/material';
+import { useParams, Link as RouterLink } from 'react-router';
+import { Box, Divider, Grid2 as Grid, Link, Typography, Stack, Tooltip, Paper } from '@mui/material';
+import { BarChart } from '@mui/x-charts/BarChart';
 import { styled } from '@mui/system';
 
 import SideMenu from 'components/SideMenu';
-import { BackIcon, NextIcon } from 'components/ConsistentIcons';
+import { BackIcon } from 'components/ConsistentIcons';
 import LoadingPage from 'components/LoadingPage';
 
 const Report = () => {
   const { id } = useParams();
-  const [searchParams, setSearchParams] = useSearchParams();
-
-  let eventId = searchParams.get('event_id');
 
   const { data, isLoading, error } = useSWR(`/api/reports/${id}`);
-  const { data: event, isLoading: isEventLoading } = useSWR(`/api/reports/${id}/get-event${eventId ? `?event_id=${eventId}` : ''}`);
 
   if (isLoading) {
     return (
@@ -66,14 +63,45 @@ const Report = () => {
           <Typography variant="body2" sx={{ fontWeight: '500', mb: 1 }} color="textSecondary"><DateTimeDisplay value={data.report.last_seen} /></Typography>
         </Stack>
         <Stack>
-          <Typography variant="h6" sx={{ fontSize: '15px' }}>Created</Typography>
+          <Typography variant="h6" sx={{ fontSize: '15px' }}>First Appeared</Typography>
           <Typography variant="body2" sx={{ fontWeight: '500', mb: 1 }} color="textSecondary"><DateTimeDisplay value={data.report.created} /></Typography>
         </Stack>
       </Stack>
 
-      <Occurrences occurrences={data.occurrences} maxOccurrences={data.max_occurrences} />
+      <DailyEvents dailyEvents={data.daily_events} />
 
-      {<Event reportEvent={event} setSearchParams={setSearchParams} isLoading={isEventLoading} />}
+      <Box sx={{ p: 2, mt: 4, borderRadius: 2, backgroundColor: 'background.default' }}>
+        <Typography variant="h6" sx={{ fontSize: '15px', pl: 1 }}>Events Received by Version</Typography>
+        <BarChart
+          dataset={data.version_dataset}
+          xAxis={[{ scaleType: 'band', dataKey: 'date' }]}
+          series={data.version_names.map((name) => ({ dataKey: name, label: name, stack: 'total', stackOrder: 'appearance' }))}
+          height={250}
+        />
+      </Box>
+
+      <Box sx={{ p: 2, mt: 4, borderRadius: 2, backgroundColor: 'background.default' }}>
+        <Typography variant="h6" sx={{ fontSize: '15px', pl: 1 }}>Events Received by Operating System</Typography>
+        <BarChart
+          dataset={data.os_dataset}
+          xAxis={[{ scaleType: 'band', dataKey: 'date' }]}
+          series={data.os_names.map((name) => ({ dataKey: name, label: name, stack: 'total', stackOrder: 'appearance' }))}
+          height={250}
+        />
+      </Box>
+
+      {data.last_event && (
+        <>
+          <Typography variant="h6" sx={{ fontSize: '14px', mt: 4 }}>Latest Stack Trace</Typography>
+          <Code>{data.last_event.backtrace}</Code>
+
+          <Typography variant="h6" sx={{ fontSize: '14px', mt: 4 }}>Latest Log Output</Typography>
+
+          {data.last_event.log && <LogMessages log={JSON.parse(data.last_event.log)} />}
+
+          {!data.last_event.log && <NoLogMessages />}
+        </>
+      )}
     </ReportPage>
   );
 };
@@ -88,110 +116,6 @@ const ReportPage = ({ children }) => {
         {children}
       </Grid>
     </Grid>
-  );
-};
-
-const Event = ({ reportEvent, isLoading, setSearchParams }) => {
-  if (isLoading) {
-    return <LoadingPage />;
-  }
-
-  if (!reportEvent?.event) {
-    return (
-      <Box sx={{ my: 4 }}>
-        <Typography variant="h6" align="center" sx={{ fontWeight: '600', fontSize: '15px' }}>Event Not Found</Typography>
-        <Divider sx={{ my: 2 }} />
-      </Box>
-    );
-  }
-
-  let data = reportEvent ? JSON.parse(reportEvent.event.event_data) : null;
-
-
-  return (
-    <Box sx={{ my: 4 }}>
-      <Stack direction="row" spacing={2} alignItems="center" justifyContent="space-between">
-        <Typography variant="h4" sx={{ fontWeight: '600', fontSize: '15px' }}>
-          {data?.title}
-        </Typography>
-        <Stack>
-
-          <Typography variant="body2" color="textSecondary">
-            {reportEvent ? (
-              <>Event {reportEvent.event_pos} / {reportEvent.events_count}</>
-            ) : (
-              <>
-                Loading
-              </>
-            )}
-          </Typography>
-          <Stack direction="row" spacing={1}>
-            <Button
-              variant="outlined"
-              size="small"
-              startIcon={<BackIcon />}
-              disabled={!reportEvent.event.prev_event_id}
-              onClick={() => setSearchParams({ event_id: reportEvent.event.prev_event_id })}
-            >
-              Prev
-            </Button>
-            <Button
-              variant="outlined"
-              size="small"
-              endIcon={<NextIcon />}
-              disabled={!reportEvent.event.next_event_id}
-              onClick={() => setSearchParams({ event_id: reportEvent.event.next_event_id })}
-            >
-              Next
-            </Button>
-          </Stack>
-        </Stack>
-
-      </Stack>
-
-      <Divider sx={{ my: 2 }} />
-
-      <Stack direction="row" justifyContent="space-between">
-        {/* <Stack>
-          <Typography variant="h6" sx={{ fontSize: '15px' }}>Location</Typography>
-          <Typography variant="body2" sx={{ fontWeight: '500', mb: 1 }} color="textSecondary">
-            {data.loc ? `${data.loc.f}:${data.loc.l}${data.loc.c ? ':' + data.loc.c : ''}` : 'Unknown'}
-          </Typography>
-        </Stack> */}
-        <Stack>
-          <Typography variant="h6" sx={{ fontSize: '15px' }}>Version</Typography>
-          <Typography variant="body2" sx={{ fontWeight: '500', mb: 1 }} color="textSecondary">{data?.ver ?? '-'}</Typography>
-        </Stack>
-        <Stack>
-          <Typography variant="h6" sx={{ fontSize: '15px' }}>OS / Arch</Typography>
-          <Typography variant="body2" sx={{ fontWeight: '500', mb: 1 }} color="textSecondary">
-            {data?.os ?? '-'} / {data?.arch ?? '-'}
-          </Typography>
-        </Stack>
-        <Stack>
-          <Typography variant="h6" sx={{ fontSize: '15px' }}>Thread Name</Typography>
-          <Typography variant="body2" sx={{ fontWeight: '500', mb: 1 }} color="textSecondary">
-            {data?.tname ?? 'Unknown'}
-            {data?.tid ? ` / ${data.tid}` : ''}
-          </Typography>
-        </Stack>
-        <Stack>
-          <Typography variant="h6" sx={{ fontSize: '15px' }}>Received</Typography>
-          <Typography variant="body2" sx={{ fontWeight: '500', mb: 1 }} color="textSecondary">
-            {DateTime.fromISO(reportEvent.event.created, { zone: 'UTC' }).toLocaleString(DateTime.DATETIME_FULL)}
-          </Typography>
-        </Stack>
-      </Stack>
-
-      <Typography variant="h6" sx={{ fontSize: '14px', mt: 4 }}>Stack Trace</Typography>
-      <Code>{data.trace}</Code>
-
-      <Typography variant="h6" sx={{ fontSize: '14px', mt: 4 }}>Log Output</Typography>
-
-      {data.log && <LogMessages log={data.log} />}
-
-      {!data.log && <NoLogMessages />}
-    </Box>
   );
 };
 
@@ -238,11 +162,42 @@ const DateTimeDisplay = ({ value }) => {
   );
 };
 
-const Occurrences = ({ occurrences, maxOccurrences }) => {
+const DailyEvents = ({ dailyEvents }) => {
+  const maxEvents = Math.max(...Object.values(dailyEvents));
 
   const getTitle = (day) => {
     return DateTime.fromISO(day.date, { zone: 'UTC' }).toLocaleString(DateTime.DATE_FULL) + ' - ' + day.events_count + ' events';
   };
+
+  let prev_date = DateTime.now().setZone('UTC').startOf('day');
+  let weeks = [];
+  let current_week = [];
+
+  for (var i = 0; i <= 365; i++) {
+    let date = DateTime.now().setZone('UTC').minus({ days: i }).startOf('day');
+
+    current_week.push({
+      date,
+      events_count: dailyEvents[date.toISO({ suppressMilliseconds: true })] ?? 0
+    });
+
+    let month = null;
+
+    if (prev_date.month != date.month) {
+      month = prev_date.month;
+    }
+
+    if (date.weekday == 1) {
+      weeks.push({
+        month_label: month,
+        days: current_week.reverse()
+      });
+
+      current_week = [];
+    }
+
+    prev_date = date;
+  }
 
   return (
     <Box sx={{ display: 'flex', fontSize: '12px' }}>
@@ -257,12 +212,12 @@ const Occurrences = ({ occurrences, maxOccurrences }) => {
           <OccuranceWeekday></OccuranceWeekday>
           <OccuranceWeekday>Sun</OccuranceWeekday>
         </Stack>
-        {occurrences.map((occurrence, i) => (
+        {weeks.reverse().map((week, i) => (
           <Stack key={i} useFlexGap spacing={0.5}>
-            <OccuranceMonthBox>{occurrence.month_label ?? ' '}</OccuranceMonthBox>
-            {occurrence.days.map((day, j) => (
+            <OccuranceMonthBox>{week.month_label ?? ' '}</OccuranceMonthBox>
+            {week.days.map((day, j) => (
               <Tooltip key={j} title={getTitle(day)}>
-                <Day eventsCount={day.events_count} style={{ filter: day.events_count > 0 ? `opacity(${Math.floor((day.events_count / maxOccurrences) * 100)}%)` : null }}>{' '}</Day>
+                <Day eventsCount={day.events_count} style={{ filter: day.events_count > 0 ? `opacity(${Math.floor((day.events_count / maxEvents) * 100)}%)` : null }}>{' '}</Day>
               </Tooltip>
             ))}
           </Stack>

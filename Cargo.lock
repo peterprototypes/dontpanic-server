@@ -1075,6 +1075,7 @@ dependencies = [
  "rand",
  "rand_seeder",
  "reqwest",
+ "rust_decimal",
  "sea-orm",
  "serde",
  "serde_json",
