@@ -59,7 +59,7 @@ const SlackWebhook = ({ project }) => {
     triggerRemove({})
       .then(() => {
         mutate(`/api/notifications/project/${project.project_id}`);
-        enqueueSnackbar("Slack webhook removed", { variant: 'success' });
+        enqueueSnackbar("Slack webhook successfully removed", { variant: 'success' });
       });
   };
 
@@ -87,7 +87,9 @@ const SlackWebhook = ({ project }) => {
 
           <Box>
             <Typography variant="h6">Slack Webhook</Typography>
-            <Typography color="textSecondary">Slack webhook is the legacy, although still supported, method for sending messages to a Slack Channel.</Typography>
+            <Typography color="textSecondary">
+              Slack webhook is the legacy, although still supported, method for sending messages to a Slack Channel.
+            </Typography>
           </Box>
 
           {isConfigured ? (
@@ -106,7 +108,7 @@ const SlackWebhook = ({ project }) => {
                 </MenuItem>
                 <MenuItem onClick={onTest}>
                   <ListItemIcon><TestIcon /></ListItemIcon>
-                  <ListItemText>Test</ListItemText>
+                  <ListItemText>Send Test Message</ListItemText>
                 </MenuItem>
                 <Divider />
                 <MenuItem onClick={onRemove}>
@@ -116,16 +118,17 @@ const SlackWebhook = ({ project }) => {
               </Menu>
             </>
           ) : (
-            <Button variant="outlined" color="primary" onClick={() => setDialogOpen(true)}>Configure</Button>
+            <Button variant="outlined" color="primary" sx={{ minWidth: '100px' }} onClick={() => setDialogOpen(true)}>Configure</Button>
           )}
         </Stack>
       </Paper>
 
       <Dialog open={dialogOpen} onClose={() => setDialogOpen(false)} component="form" noValidate onSubmit={methods.handleSubmit(onSubmit)}>
-        <DialogTitle>Configure Webhook</DialogTitle>
+        <DialogTitle>Set Up Slack Webhook</DialogTitle>
         <DialogContent>
           <ControlledTextField required name="webhook_url" label="Webhook Url" fullWidth />
           <DialogContentText sx={{ mt: 2, minWidth: '400px' }}>
+            To configure a Slack webhook, obtain an <strong>Incoming Webhook URL</strong> from your Slack workspace.
             You can get Slack Incoming Webhook URL in Slack&lsquo;s <Link href="https://api.slack.com/messaging/webhooks#getting-started">Apps {">"} Incoming WebHooks</Link>.
           </DialogContentText>
         </DialogContent>
@@ -137,7 +140,7 @@ const SlackWebhook = ({ project }) => {
             loadingPosition="end"
             endIcon={<SaveIcon />}
           >
-            Save
+            Save Webhook
           </LoadingButton>
         </DialogActions>
       </Dialog>

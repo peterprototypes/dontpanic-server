@@ -5,12 +5,12 @@ import { useSnackbar } from 'notistack';
 import { useConfirm } from "material-ui-confirm";
 import { Link as RouterLink, useNavigate, useSearchParams } from 'react-router';
 import { DateTime } from "luxon";
-import { TableContainer, Tooltip, Typography, TableCell, TableRow, Table, TableHead, TableBody, Checkbox, Paper, Stack, Button, Box, Grow, LinearProgress } from '@mui/material';
+import { TableContainer, Tooltip, Typography, TableCell, TableRow, Table, TableHead, TableBody, Checkbox, Paper, Stack, Box, Grow, LinearProgress, IconButton, Link } from '@mui/material';
 import { styled } from '@mui/system';
+import { LoadingButton } from '@mui/lab';
 
 import { BackIcon, NextIcon, DeleteIcon, ResolveIcon } from 'components/ConsistentIcons';
 import LoadingPage from 'components/LoadingPage';
-import { LoadingButton } from '@mui/lab';
 
 const ReportsList = ({ resolved = false }) => {
   const confirm = useConfirm();
@@ -33,7 +33,7 @@ const ReportsList = ({ resolved = false }) => {
   }
 
   if (data?.reports.length === 0) {
-    return resolved ? <NoResolved /> : <NoReports />;
+    return resolved ? <NoResolved /> : <NoReports project={data?.project} />;
   }
 
   const getNextPageUrl = () => {
@@ -64,8 +64,8 @@ const ReportsList = ({ resolved = false }) => {
 
   const onDelete = () => {
     let config = {
-      title: 'Are you sure?',
-      description: 'You\'re about to permanently delete the selected reports. This action cannot be undone.',
+      title: 'Confirm Deletion',
+      description: 'This action will permanently delete the selected reports and cannot be undone. Do you wish to proceed?',
       confirmationText: 'Delete Reports'
     };
 
@@ -138,7 +138,7 @@ const ReportsList = ({ resolved = false }) => {
               onClick={onDelete}
               loading={isDeleting}
             >
-              Delete
+              Delete Selected
             </LoadingButton>
           </Grow>
           <Grow in={selected.length > 0 && !resolved} timeout={selected.length > 0 ? 400 : 0}>
@@ -149,31 +149,33 @@ const ReportsList = ({ resolved = false }) => {
               onClick={onResolve}
               loading={isResolving}
             >
-              Resolve
+              Mark as Resolved
             </LoadingButton>
           </Grow>
         </Stack>
 
         <Stack spacing={2} direction="row">
-          <Button
-            variant="contained"
-            color="grey"
-            onClick={() => navigate(-1)}
-            startIcon={<BackIcon />}
-            disabled={Boolean(!cursor)}
-          >
-            Prev
-          </Button>
-          <Button
-            variant="contained"
-            color="grey"
-            component={RouterLink}
-            endIcon={<NextIcon />}
-            disabled={!data?.next}
-            to={getNextPageUrl()}
-          >
-            Next
-          </Button>
+          <Tooltip title="Previous Page">
+            <IconButton
+              variant="contained"
+              color="grey"
+              onClick={() => navigate(-1)}
+              disabled={Boolean(!cursor)}
+            >
+              <BackIcon />
+            </IconButton>
+          </Tooltip>
+          <Tooltip title="Next Page">
+            <IconButton
+              variant="contained"
+              color="grey"
+              component={RouterLink}
+              disabled={!data?.next}
+              to={getNextPageUrl()}
+            >
+              <NextIcon />
+            </IconButton>
+          </Tooltip>
         </Stack>
 
       </Stack>
@@ -181,22 +183,103 @@ const ReportsList = ({ resolved = false }) => {
   );
 };
 
-const NoReports = () => {
+const NoReports = ({ project }) => {
   return (
-    <Paper sx={{ px: 5, py: 4, backgroundColor: 'accentBackground' }}>
-      <Stack spacing={1} alignItems="center" useFlexGap>
-        {/* <ProjectIcon sx={{ fontSize: 60 }} /> */}
-        <Typography variant="h5" textAlign="center">No Reports Available</Typography>
-        <Typography variant="body1" textAlign="center" gutterBottom>
-          It looks like your application is running smoothly, or the Don&lsquo;t Panic library hasn&lsquo;t been configured correctly to send reports.
-        </Typography>
-        <Typography variant="body2" textAlign="center">
-          To ensure reporting is functioning, add the following line after initializing Don&lsquo;t Panic and perform a test:
-          <br />
-          <Box component="span" sx={{ fontFamily: 'monospace' }}>Option::&lt;()&gt;::None.unwrap();</Box>
-        </Typography>
-      </Stack>
-    </Paper>
+    <Stack spacing={2}>
+      <Paper sx={{ px: 5, py: 4, backgroundColor: 'accentBackground' }}>
+        <Stack spacing={2} useFlexGap>
+          <Typography variant="h5" textAlign="center">No Reports Found</Typography>
+          <Typography variant="body2" textAlign="center" color="textSecondary" gutterBottom>
+            It looks like your application is running smoothly. If you expected reports here, ensure reporting is properly configured.
+          </Typography>
+        </Stack>
+      </Paper>
+
+      {project && <IntegrationExample project={project} />}
+    </Stack>
+  );
+};
+
+const IntegrationExample = ({ project }) => {
+  return (
+    <Box>
+      <Typography variant="h5" gutterBottom>How to Integrate with {project.name}</Typography>
+      <Typography variant="body2" color="textSecondary" gutterBottom>
+        Follow the steps below to integrate <strong>Don&lsquo;t Panic</strong> with your project.
+      </Typography>
+
+      <Typography variant="subtitle1" sx={{ mt: 3 }}>Step 1: Install the Dependency</Typography>
+
+      <Paper sx={{ px: 3, py: 2, backgroundColor: '', fontFamily: 'monospace', mb: 2 }}>
+        <Box component="span" sx={{ color: 'success.main' }}>user@host</Box>
+        {':'}
+        <Box component="span" sx={{ color: 'primary.main' }}>~/myapp</Box>
+        {'$ cargo add dontpanic'}
+      </Paper>
+
+      <Typography variant="subtitle1" sx={{ mt: 3 }}>Step 2: Initialize the Library</Typography>
+      <Paper component="pre" sx={{ px: 3, py: 2, m: 0, backgroundColor: '', fontFamily: 'monospace' }}>
+        <Box component="span" sx={{ color: 'info.dark' }}>fn</Box>
+        {' '}
+        <Box component="span" sx={{ color: 'secondary.main' }}>main</Box>
+        {'() -> '}
+        <Box component="span" sx={{ color: 'primary.main' }}>Result</Box>
+        {'<(), '}
+        <Box component="span" sx={{ color: 'primary.main' }}>Box</Box>
+        {'<'}
+        <Box component="span" sx={{ color: 'info.dark' }}>dyn</Box>
+        {' '}
+        <Box component="span" sx={{ color: 'primary.main' }}>Error</Box>
+        {'>> {'}
+        <br />
+        {'    '}
+        <Box component="span" sx={{ color: 'primary.main' }}>dontpanic</Box>
+        {'::'}
+        <Box component="span" sx={{ color: 'secondary.main' }}>builder</Box>
+        {'('}
+        <Box component="span" sx={{ color: 'error.main' }}>&quot;{project.api_key}&quot;</Box>
+        {')'}
+        <br />
+        {'        .'}
+        <Box component="span" sx={{ color: 'secondary.main' }}>version</Box>
+        {'('}
+        <Box component="span" sx={{ color: 'info.dark' }}>env!</Box>
+        {'('}
+        <Box component="span" sx={{ color: 'error.main' }}>&quot;CARGO_PKG_VERSION&quot;</Box>
+        {')'}
+        {')'}
+        <br />
+        {'        .'}
+        <Box component="span" sx={{ color: 'secondary.main' }}>build</Box>
+        {'()?;'}
+        <br /><br />
+        {'    '}
+        <Box component="span" sx={{ color: 'success.main' }}>{'// Your application logic here'}</Box>
+        <br />
+        {'}'}
+      </Paper>
+
+      {/* Step 3: Trigger a Test Report */}
+      <Typography variant="subtitle1" sx={{ mt: 3 }}>Step 3: Verify Integration</Typography>
+      <Typography variant="body2" color="textSecondary">
+        To confirm that error reporting is working, you can trigger a test report by adding the following code snippet:
+      </Typography>
+      <Paper component="pre" sx={{ px: 3, py: 2, backgroundColor: 'background.default', fontFamily: 'monospace' }}>
+        <Box component="span" sx={{ color: 'primary.main' }}>Option</Box>
+        {'::<()>::'}
+        <Box component="span" sx={{ color: 'primary.main' }}>None</Box>
+        {'.'}
+        <Box component="span" sx={{ color: 'secondary.main' }}>expect</Box>
+        {'('}
+        <Box component="span" sx={{ color: 'error.main' }}>&quot;Reporting is working&quot;</Box>
+        {');'}
+      </Paper>
+
+      {/* Documentation Link */}
+      <Typography variant="body2" sx={{ mt: 3 }}>
+        For more details, visit the <Link href="https://docs.rs/dontpanic/latest/dontpanic" target="_blank">documentation</Link>.
+      </Typography>
+    </Box>
   );
 };
 
@@ -204,10 +287,9 @@ const NoResolved = () => {
   return (
     <Paper sx={{ px: 5, py: 4, backgroundColor: 'accentBackground' }}>
       <Stack spacing={1} alignItems="center" useFlexGap>
-        {/* <ProjectIcon sx={{ fontSize: 60 }} /> */}
         <Typography variant="h5" textAlign="center">No Resolved Reports</Typography>
         <Typography variant="body1" textAlign="center" gutterBottom>
-          You haven&lsquo;t marked any reports as resolved.
+          No reports have been marked as resolved yet. You can resolve issues from the reports list.
         </Typography>
       </Stack>
     </Paper>

@@ -36,6 +36,7 @@ struct ReportSummary {
 struct ListResult {
     reports: Vec<ReportSummary>,
     next: Option<String>,
+    project: Option<projects::Model>,
 }
 
 #[derive(Serialize, Deserialize, Clone, Copy, Debug)]
@@ -125,7 +126,13 @@ async fn list(ctx: Data<AppContext<'_>>, id: Identity, q: Query<ReportsQuery>) -
         next = None;
     }
 
-    Ok(Json(ListResult { reports, next }))
+    let project = if let Some(project_id) = q.project_id {
+        projects::Entity::find_by_id(project_id).one(&ctx.db).await?
+    } else {
+        None
+    };
+
+    Ok(Json(ListResult { reports, next, project }))
 }
 
 #[post("/delete")]

@@ -34,9 +34,14 @@ const ProjectManage = () => {
     trigger(data)
       .then((response) => {
         enqueueSnackbar("Project saved", { variant: 'success' });
-        navigate(`/organization/${organizationId}/projects`);
         mutateGlobal('/api/organizations');
         mutate(response, { revalidate: false });
+
+        if (!projectId) {
+          navigate(`/reports?project_id=${response.project_id}`);
+        } else {
+          navigate(`/organization/${organizationId}/projects`);
+        }
       })
       .catch((e) => methods.setError('root.serverError', { message: e.message }));
   };

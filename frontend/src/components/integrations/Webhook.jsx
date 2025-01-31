@@ -59,7 +59,7 @@ const Webhook = ({ project }) => {
     triggerRemove({})
       .then(() => {
         mutate(`/api/notifications/project/${project.project_id}`);
-        enqueueSnackbar("Webhook disabled", { variant: 'success' });
+        enqueueSnackbar("Webhook successfully removed", { variant: 'success' });
       });
   };
 
@@ -87,7 +87,10 @@ const Webhook = ({ project }) => {
 
           <Box>
             <Typography variant="h6">Webhook</Typography>
-            <Typography color="textSecondary">For advanced use cases you can setup a webhook to your own system.</Typography>
+            <Typography color="textSecondary">
+              Configure a webhook to receive real-time notifications directly in your system.
+              Ideal for custom automation and advanced workflows.
+            </Typography>
           </Box>
 
           {isConfigured ? (
@@ -106,7 +109,7 @@ const Webhook = ({ project }) => {
                 </MenuItem>
                 <MenuItem onClick={onTest}>
                   <ListItemIcon><TestIcon /></ListItemIcon>
-                  <ListItemText>Test</ListItemText>
+                  <ListItemText>Send Test Event</ListItemText>
                 </MenuItem>
                 <Divider />
                 <MenuItem onClick={onRemove}>
@@ -116,17 +119,18 @@ const Webhook = ({ project }) => {
               </Menu>
             </>
           ) : (
-            <Button variant="outlined" color="primary" onClick={() => setDialogOpen(true)}>Configure</Button>
+            <Button variant="outlined" color="primary" sx={{ minWidth: '100px' }} onClick={() => setDialogOpen(true)}>Configure</Button>
           )}
         </Stack>
       </Paper>
 
       <Dialog open={dialogOpen} onClose={() => setDialogOpen(false)} component="form" noValidate onSubmit={methods.handleSubmit(onSubmit)}>
-        <DialogTitle>Configure Webhook</DialogTitle>
+        <DialogTitle>Webhook Setup</DialogTitle>
         <DialogContent>
           <ControlledTextField required name="webhook_url" label="Webhook Url" fullWidth />
           <DialogContentText sx={{ mt: 2, minWidth: '400px' }}>
-            We will send a POST request to this URL when new reports arrive.
+            This URL will receive a <strong>POST request</strong> whenever a new report is generated.
+            Ensure your endpoint is configured to handle incoming requests.
           </DialogContentText>
         </DialogContent>
         <DialogActions sx={{ justifyContent: 'space-between' }}>
@@ -137,7 +141,7 @@ const Webhook = ({ project }) => {
             loadingPosition="end"
             endIcon={<SaveIcon />}
           >
-            Save
+            Save Webhook
           </LoadingButton>
         </DialogActions>
       </Dialog>

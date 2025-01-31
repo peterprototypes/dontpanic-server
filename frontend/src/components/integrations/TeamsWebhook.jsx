@@ -59,7 +59,7 @@ const TeamsWebhook = ({ project }) => {
     triggerRemove({})
       .then(() => {
         mutate(`/api/notifications/project/${project.project_id}`);
-        enqueueSnackbar("Teams webhook removed", { variant: 'success' });
+        enqueueSnackbar("Microsoft Teams webhook successfully removed", { variant: 'success' });
       });
   };
 
@@ -86,9 +86,9 @@ const TeamsWebhook = ({ project }) => {
           <SvgIcon sx={{ fontSize: 40, filter: isConfigured ? '' : 'grayscale() opacity(0.5)' }} component={TeamsIcon} inheritViewBox />
 
           <Box>
-            <Typography variant="h6">MS Teams</Typography>
+            <Typography variant="h6">Microsoft Teams Integration</Typography>
             <Typography color="textSecondary">
-              Integrate with Microsoft Teams to receive real-time alerts and notifications directly in your Teams channels.
+              Connect Microsoft Teams to receive real-time alerts and notifications directly in your preferred channels.
             </Typography>
           </Box>
 
@@ -108,7 +108,7 @@ const TeamsWebhook = ({ project }) => {
                 </MenuItem>
                 <MenuItem onClick={onTest}>
                   <ListItemIcon><TestIcon /></ListItemIcon>
-                  <ListItemText>Test</ListItemText>
+                  <ListItemText>Send Test Notification</ListItemText>
                 </MenuItem>
                 <Divider />
                 <MenuItem onClick={onRemove}>
@@ -118,18 +118,19 @@ const TeamsWebhook = ({ project }) => {
               </Menu>
             </>
           ) : (
-            <Button variant="outlined" color="primary" onClick={() => setDialogOpen(true)}>Configure</Button>
+            <Button variant="outlined" color="primary" sx={{ minWidth: '100px' }} onClick={() => setDialogOpen(true)}>Configure</Button>
           )}
         </Stack>
       </Paper>
 
       <Dialog open={dialogOpen} onClose={() => setDialogOpen(false)} component="form" noValidate onSubmit={methods.handleSubmit(onSubmit)}>
-        <DialogTitle>Configure MS Teams Webhook</DialogTitle>
+        <DialogTitle>Set Up Microsoft Teams Webhook</DialogTitle>
         <DialogContent>
           <ControlledTextField required name="webhook_url" label="Webhook Url" fullWidth />
           <DialogContentText sx={{ mt: 2, minWidth: '400px' }}>
-            To configure a webhook, you need to create an incoming webhook with Workflows for Microsoft Teams.
-            {' '}
+            To enable webhook notifications, create an <strong>Incoming Webhook</strong> in Microsoft Teams.
+            Follow the official guide to generate your webhook URL and paste it here.
+            <br />
             <Link href="https://support.microsoft.com/en-us/office/create-incoming-webhooks-with-workflows-for-microsoft-teams-8ae491c7-0394-4861-ba59-055e33f75498" target="_blank">Learn more</Link>
           </DialogContentText>
         </DialogContent>
@@ -141,7 +142,7 @@ const TeamsWebhook = ({ project }) => {
             loadingPosition="end"
             endIcon={<SaveIcon />}
           >
-            Save
+            Save Webhook
           </LoadingButton>
         </DialogActions>
       </Dialog>

@@ -25,10 +25,12 @@ const Notifications = () => {
     <Stack spacing={1} useFlexGap>
       <UserNotifications projectId={projectId} />
 
-      <Typography variant="h5" sx={{ mt: 5, fontWeight: 'bold' }}>Integrations</Typography>
+      <Typography variant="h5" sx={{ mt: 5, fontWeight: 'bold' }}>Notification Integrations</Typography>
       <Typography color="textSecondary">
-        Integrations allow you to receive notifications in third-party applications.
-        If the available integrations don&lsquo;t meet your needs, consider using a webhook or <Link href="https://github.com/peterprototypes/dontpanic-server/issues">open an issue</Link> on GitHub.
+        Connect your project with third-party applications to receive real-time notifications.
+      </Typography>
+      <Typography color="textSecondary" gutterBottom>
+        If none of the available integrations fit your requirements, you can set up a custom webhook or <Link href="https://github.com/peterprototypes/dontpanic-server/issues">suggest a new integration</Link> on GitHub.
       </Typography>
       <Divider sx={{ mb: 2 }} />
 
