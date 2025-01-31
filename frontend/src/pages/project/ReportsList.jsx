@@ -186,15 +186,14 @@ const NoReports = () => {
     <Paper sx={{ px: 5, py: 4, backgroundColor: 'accentBackground' }}>
       <Stack spacing={1} alignItems="center" useFlexGap>
         {/* <ProjectIcon sx={{ fontSize: 60 }} /> */}
-        <Typography variant="h5" textAlign="center">No Reports Submitted</Typography>
+        <Typography variant="h5" textAlign="center">No Reports Available</Typography>
         <Typography variant="body1" textAlign="center" gutterBottom>
-          Your application is either bug free or dontpanic library isn&lsquo;t set up correctly to send reports to this server.
+          It looks like your application is running smoothly, or the Don&lsquo;t Panic library hasn&lsquo;t been configured correctly to send reports.
         </Typography>
         <Typography variant="body2" textAlign="center">
-          To verify reporting is working, add:
+          To ensure reporting is functioning, add the following line after initializing Don&lsquo;t Panic and perform a test:
           <br />
           <Box component="span" sx={{ fontFamily: 'monospace' }}>Option::&lt;()&gt;::None.unwrap();</Box>
-          after dontpanic initialization and make a test.
         </Typography>
       </Stack>
     </Paper>
@@ -208,7 +207,7 @@ const NoResolved = () => {
         {/* <ProjectIcon sx={{ fontSize: 60 }} /> */}
         <Typography variant="h5" textAlign="center">No Resolved Reports</Typography>
         <Typography variant="body1" textAlign="center" gutterBottom>
-          You haven&lsquo;t marked any reports as resolved yet.
+          You haven&lsquo;t marked any reports as resolved.
         </Typography>
       </Stack>
     </Paper>

@@ -39,7 +39,7 @@ const PasswordChange = () => {
   return (
     <FormProvider {...methods}>
       <Stack component="form" spacing={2} sx={{ mt: 2 }} onSubmit={methods.handleSubmit(onSubmit)} noValidate useFlexGap alignItems="flex-start">
-        <Typography variant="h5">Password</Typography>
+        <Typography variant="h5">Password Update</Typography>
 
         <ControlledTextField
           name="old_password"
