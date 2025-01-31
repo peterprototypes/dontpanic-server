@@ -24,7 +24,6 @@ mod config;
 mod entity;
 mod entity_extensions;
 mod error;
-mod event;
 mod handlers;
 mod identity;
 mod notifications;

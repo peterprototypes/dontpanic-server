@@ -7,7 +7,7 @@ use lettre::AsyncTransport;
 use sea_orm::prelude::*;
 use sea_orm::sea_query;
 use sea_orm::{ActiveValue, IntoActiveModel, JoinType, QueryOrder, QuerySelect, TryIntoModel};
-use serde::Deserialize;
+use serde::{Deserialize, Serialize};
 
 use crate::entity::organization_users;
 use crate::entity::organizations;
@@ -19,12 +19,55 @@ use crate::entity::project_reports;
 use crate::entity::projects;
 
 use crate::entity::users;
-use crate::event::EventData;
 use crate::notifications::{Notification, ReportStatus};
 use crate::{AppContext, Error, Result};
 
-pub fn routes(cfg: &mut web::ServiceConfig) {
-    cfg.service(ingress);
+// To preserve backwards compatibility with any client version,
+// only new, optional fields should be added to these structures
+
+#[derive(Serialize, Deserialize, Debug)]
+struct EventFileLocation {
+    #[serde(rename = "f")]
+    file: String,
+    #[serde(rename = "l")]
+    line: u32,
+    #[serde(rename = "c")]
+    column: Option<u32>,
+}
+
+#[derive(Serialize, Deserialize, Debug)]
+struct LogEvent {
+    #[serde(rename = "ts")]
+    timestamp: u64,
+    #[serde(rename = "lvl")]
+    level: u8,
+    #[serde(rename = "msg")]
+    message: String,
+    #[serde(rename = "mod")]
+    module: Option<String>,
+    #[serde(rename = "f")]
+    file: Option<String>,
+    #[serde(rename = "l")]
+    line: Option<u32>,
+}
+
+#[derive(Serialize, Deserialize, Debug)]
+struct EventData {
+    title: String,
+    #[serde(rename = "loc")]
+    location: Option<EventFileLocation>,
+    #[serde(rename = "ver")]
+    version: Option<String>,
+    os: String,
+    arch: String,
+    #[serde(rename = "tid")]
+    thread_id: Option<String>,
+    #[serde(rename = "tname")]
+    thread_name: Option<String>,
+    #[serde(rename = "trace")]
+    backtrace: String,
+    #[serde(rename = "log")]
+    log_messages: Vec<LogEvent>,
 }
 
 #[derive(Deserialize, Debug)]
@@ -32,6 +75,10 @@ struct Event {
     key: String,
     env: Option<String>,
     data: EventData,
+}
+
+pub fn routes(cfg: &mut web::ServiceConfig) {
+    cfg.service(ingress);
 }
 
 #[post("/ingress")]
@@ -163,7 +210,7 @@ async fn ingress(ctx: web::Data<AppContext<'static>>, event: web::Json<Event>) -
             project_reports::ActiveModel {
                 project_id: ActiveValue::set(project.project_id),
                 uid: ActiveValue::set(uid),
-                title: ActiveValue::set(event.data.title()),
+                title: ActiveValue::set(event.data.title),
                 project_environment_id: ActiveValue::set(environment.as_ref().map(|e| e.project_environment_id)),
                 ..Default::default()
             }
