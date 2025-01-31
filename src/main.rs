@@ -14,7 +14,7 @@ use chrono_tz::Tz;
 use handlebars::{Context, Handlebars, Helper, HelperResult, JsonRender, Output, RenderContext, RenderErrorReason};
 use key_lock::KeyLock;
 use lettre::{transport::smtp::PoolConfig, AsyncSmtpTransport, Tokio1Executor};
-use tokio::sync::mpsc;
+use tokio::sync::broadcast;
 
 use sea_orm::{prelude::*, ConnectOptions, Database, IntoActiveModel, TryIntoModel};
 
@@ -42,7 +42,10 @@ pub struct AppContext<'reg> {
     pub hb: Handlebars<'reg>,
     pub db: DatabaseConnection,
     pub mailer: Option<AsyncSmtpTransport<Tokio1Executor>>,
-    pub notifications: mpsc::UnboundedSender<Notification>,
+    pub notifications: broadcast::Sender<Notification>,
+    // needed handle events sequentially per project
+    // when an event arrives for a project, it will wait until the previous event is processed
+    // and it's lock is released
     pub locked_projects: Arc<KeyLock<u32>>,
 }
 
@@ -74,7 +77,7 @@ impl AppContext<'static> {
             None
         };
 
-        let (notifications, mut notifications_rx) = mpsc::unbounded_channel();
+        let (notifications, mut notifications_rx) = broadcast::channel(1000);
 
         let ctx = Self {
             config,
@@ -92,7 +95,7 @@ impl AppContext<'static> {
             log::info!("Notifications handler task started");
 
             loop {
-                let Some(notification) = notifications_rx.recv().await else {
+                let Ok(notification) = notifications_rx.recv().await else {
                     log::info!("Notifications handler receiving channel closed");
                     break;
                 };
@@ -123,10 +126,10 @@ impl AppContext<'static> {
         handlebars.register_templates_directory("./templates", Default::default())?;
         handlebars.register_helper("dateFmt", Box::new(date));
 
-        let (notifications, mut notifications_rx) = mpsc::unbounded_channel();
+        let (notifications, mut notifications_rx) = broadcast::channel(10);
 
         actix_web::rt::spawn(async move {
-            while let Some(notification) = notifications_rx.recv().await {
+            while let Ok(notification) = notifications_rx.recv().await {
                 dbg!(notification);
             }
         });

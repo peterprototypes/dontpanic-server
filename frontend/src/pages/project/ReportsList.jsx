@@ -25,14 +25,36 @@ const ReportsList = ({ resolved = false }) => {
 
   const { trigger: deleteReports, isMutating: isDeleting } = useSWRMutation('/api/reports/delete');
   const { trigger: resolveReports, isMutating: isResolving } = useSWRMutation('/api/reports/resolve');
-
   const { data, mutate, isValidating, isLoading } = useSWR(`/api/reports?${searchParams.toString()}`);
+
+  React.useEffect(() => {
+    // Only subscribe if we're on the first page
+    if (cursor) return;
+
+    const api_url = import.meta.env.DEV ? "http://localhost:8080" : "";
+
+    const eventSource = new EventSource(api_url + `/api/reports/subscribe?${searchParams.toString()}`, { withCredentials: true });
+
+    eventSource.onmessage = () => {
+      // Trigger SWR to revalidate the data
+      mutate();
+    };
+
+    eventSource.onerror = (error) => {
+      console.error('EventSource failed:', error);
+      eventSource.close();
+    };
+
+    return () => {
+      eventSource.close();
+    };
+  }, [cursor, searchParams, mutate]);
 
   if (isLoading) {
     return <LoadingPage />;
   }
 
-  if (data?.reports.length === 0) {
+  if (data.reports.length === 0) {
     return resolved ? <NoResolved /> : <NoReports project={data?.project} />;
   }
 
@@ -110,7 +132,7 @@ const ReportsList = ({ resolved = false }) => {
           </TableRow>
         </TableHead>
         <TableBody>
-          {data?.reports.map((row) => (
+          {data.reports.map((row) => (
             <ReportRow key={row.report.project_report_id} onClick={() => navigate(`/view-report/${row.report.project_report_id}`)}>
               <TableCell onClick={(e) => e.stopPropagation()}>
                 <Checkbox onChange={() => toggle(row.report.project_report_id)} checked={selected.includes(row.report.project_report_id)} />
@@ -156,25 +178,29 @@ const ReportsList = ({ resolved = false }) => {
 
         <Stack spacing={2} direction="row">
           <Tooltip title="Previous Page">
-            <IconButton
-              variant="contained"
-              color="grey"
-              onClick={() => navigate(-1)}
-              disabled={Boolean(!cursor)}
-            >
-              <BackIcon />
-            </IconButton>
+            <span>
+              <IconButton
+                variant="contained"
+                color="grey"
+                onClick={() => navigate(-1)}
+                disabled={Boolean(!cursor)}
+              >
+                <BackIcon />
+              </IconButton>
+            </span>
           </Tooltip>
           <Tooltip title="Next Page">
-            <IconButton
-              variant="contained"
-              color="grey"
-              component={RouterLink}
-              disabled={!data?.next}
-              to={getNextPageUrl()}
-            >
-              <NextIcon />
-            </IconButton>
+            <span>
+              <IconButton
+                variant="contained"
+                color="grey"
+                component={RouterLink}
+                disabled={!data?.next}
+                to={getNextPageUrl()}
+              >
+                <NextIcon />
+              </IconButton>
+            </span>
           </Tooltip>
         </Stack>
 

@@ -1,17 +1,23 @@
-use std::collections::{HashMap, HashSet};
+use std::{
+    collections::{HashMap, HashSet},
+    time::Duration,
+};
 
 use actix_web::{
     get, post,
     web::{self, Data, Json, Path, Query},
     Responder,
 };
+use actix_web_lab::sse;
 
 use chrono::prelude::*;
 use chrono::Days;
 use rust_decimal::prelude::*;
 use sea_orm::prelude::*;
+use sea_orm::sea_query::Alias;
 use sea_orm::{ActiveValue, Condition, IntoActiveModel, JoinType, Order, QueryOrder, QuerySelect, QueryTrait};
 use serde::{Deserialize, Serialize};
+use tokio_stream::{wrappers::BroadcastStream, StreamExt};
 
 use crate::entity::prelude::*;
 use crate::entity::{
@@ -22,7 +28,11 @@ use crate::entity::{
 use crate::{AppContext, Error, Identity, Result};
 
 pub fn routes(cfg: &mut web::ServiceConfig) {
-    cfg.service(list).service(delete).service(resolve).service(get_report);
+    cfg.service(list)
+        .service(delete)
+        .service(resolve)
+        .service(subscribe)
+        .service(get_report);
 }
 
 #[derive(Serialize)]
@@ -190,6 +200,52 @@ async fn resolve(ctx: Data<AppContext<'_>>, id: Identity, report_ids: Json<Vec<u
     })))
 }
 
+#[get("/subscribe")]
+async fn subscribe(ctx: Data<AppContext<'_>>, id: Identity, q: Query<ReportsQuery>) -> Result<impl Responder> {
+    let rx = ctx.notifications.subscribe();
+
+    // cache user projects
+    let mut projects: Vec<u32> = Projects::find()
+        .select_only()
+        .column(projects::Column::ProjectId)
+        .filter(organization_users::Column::UserId.eq(id.user_id))
+        .join(JoinType::InnerJoin, projects::Relation::Organizations.def())
+        .join(JoinType::InnerJoin, organizations::Relation::OrganizationUsers.def())
+        .into_tuple()
+        .all(&ctx.db)
+        .await?;
+
+    if let Some(project_id) = q.project_id {
+        projects = vec![project_id];
+    }
+
+    let stream = BroadcastStream::new(rx)
+        .filter_map(move |res| match res {
+            Ok(msg) => {
+                // filter only notifications for user projects
+                if !projects.contains(&msg.project.project_id) {
+                    return None;
+                }
+
+                Some(msg)
+            }
+            Err(e) => {
+                log::error!("Broadcast error: {:?}", e);
+                None
+            }
+        })
+        .map(|msg| {
+            let report = serde_json::json!({
+                "report": msg.report,
+                "env": msg.environment,
+            });
+
+            sse::Event::Data(sse::Data::new(report.to_string()))
+        });
+
+    Ok(sse::Sse::from_infallible_stream(stream).with_keep_alive(Duration::from_secs(5)))
+}
+
 #[get("/{report_id}")]
 async fn get_report(ctx: Data<AppContext<'_>>, id: Identity, path: Path<u32>) -> Result<impl Responder> {
     let report_id = path.into_inner();
@@ -257,8 +313,6 @@ async fn get_report(ctx: Data<AppContext<'_>>, id: Identity, path: Path<u32>) ->
         "last_event": last_event,
     })))
 }
-
-use sea_orm::sea_query::Alias;
 
 async fn get_dataset(
     db: &DatabaseConnection,

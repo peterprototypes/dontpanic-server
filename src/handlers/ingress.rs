@@ -258,14 +258,16 @@ async fn ingress(ctx: web::Data<AppContext<'static>>, event: web::Json<Event>) -
         record_stat(&ctx.db, report.project_report_id, "version", version).await?;
     }
 
-    if let Some(status) = report_status {
-        ctx.notifications.send(Notification {
-            status,
-            project,
-            event: event_row,
-            report,
-            environment,
-        })?;
+    let res = ctx.notifications.send(Notification {
+        status: report_status,
+        project,
+        event: event_row,
+        report,
+        environment,
+    });
+
+    if let Err(e) = res {
+        log::error!("Error sending notification: {:?}", e);
     }
 
     Ok(HttpResponse::Ok().finish())

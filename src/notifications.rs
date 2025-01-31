@@ -17,7 +17,7 @@ pub enum ReportStatus {
 
 #[derive(Serialize, Debug, Clone)]
 pub struct Notification {
-    pub status: ReportStatus,
+    pub status: Option<ReportStatus>,
     pub project: projects::Model,
     pub event: project_report_events::Model,
     pub report: project_reports::Model,
@@ -25,6 +25,11 @@ pub struct Notification {
 }
 
 pub async fn send(ctx: &AppContext<'_>, notification: &Notification) -> Result<()> {
+    // notifications are not send if the report is not new or regressed
+    if notification.status.is_none() {
+        return Ok(());
+    }
+
     let users: Vec<(users::Model, Option<project_user_settings::Model>)> = Users::find()
         .filter(project_user_settings::Column::ProjectId.eq(notification.project.project_id))
         .find_also_related(ProjectUserSettings)
@@ -114,7 +119,7 @@ pub async fn send_slack_webhook(_ctx: &AppContext<'_>, notification: &Notificati
 }
 
 fn get_slack_blocks(notification: &Notification, report_url: &str) -> serde_json::Value {
-    let mut title = if notification.status == ReportStatus::New {
+    let mut title = if notification.status == Some(ReportStatus::New) {
         format!(
             ":boom: New report on {} received {}",
             notification.project.name, notification.report.title
@@ -126,7 +131,7 @@ fn get_slack_blocks(notification: &Notification, report_url: &str) -> serde_json
         )
     };
 
-    let mut markdown = if notification.status == ReportStatus::New {
+    let mut markdown = if notification.status == Some(ReportStatus::New) {
         format!(
             ":boom: New report on *{}* received {}",
             notification.project.name, notification.report.title
@@ -199,13 +204,13 @@ pub async fn send_email(
     user: &users::Model,
     report_url: &str,
 ) -> Result<()> {
-    let template = if notification.status == ReportStatus::New {
+    let template = if notification.status == Some(ReportStatus::New) {
         "email/new_report"
     } else {
         "email/regressed_report"
     };
 
-    let mut title = if notification.status == ReportStatus::New {
+    let mut title = if notification.status == Some(ReportStatus::New) {
         format!(
             "New report on {} received '{}'",
             notification.project.name, notification.report.title
@@ -257,7 +262,7 @@ pub async fn send_pushover(
         return Ok(());
     };
 
-    let mut message = if notification.status == ReportStatus::New {
+    let mut message = if notification.status == Some(ReportStatus::New) {
         format!(
             "New report on {} received '{}'",
             notification.project.name, notification.report.title
@@ -301,7 +306,7 @@ pub async fn send_teams_webhook(_ctx: &AppContext<'_>, notification: &Notificati
         return Ok(());
     };
 
-    let title = if notification.status == ReportStatus::New {
+    let title = if notification.status == Some(ReportStatus::New) {
         format!("New report on {} received", notification.project.name)
     } else {
         format!("Resolved report on {} reappeared", notification.project.name)
