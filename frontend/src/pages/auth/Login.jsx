@@ -38,7 +38,7 @@ const Login = () => {
     },
   });
 
-  const onSubmit = (data) => {
+  const onSubmit = React.useCallback((data) => {
     setShowResendVerification(false);
 
     trigger(data)
@@ -52,7 +52,15 @@ const Login = () => {
         methods.setError('root.serverError', { message: e.message });
         setShowResendVerification(e?.user?.type === 'email_unverified');
       });
-  };
+  }, [trigger, navigate, methods]);
+
+  const totp = methods.watch("totp");
+
+  React.useEffect(() => {
+    if (totpRequired && totp.length === 6) {
+      methods.handleSubmit(onSubmit)();
+    }
+  }, [totp, methods, totpRequired, onSubmit]);
 
   return (
     <FormProvider {...methods}>
