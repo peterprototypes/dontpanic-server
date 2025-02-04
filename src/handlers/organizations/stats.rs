@@ -2,7 +2,7 @@ use std::collections::HashSet;
 
 use actix_web::{
     get,
-    web::{self, Data, Json, Path, Query},
+    web::{self, Json, Path, Query},
     Responder,
 };
 use chrono::prelude::*;
