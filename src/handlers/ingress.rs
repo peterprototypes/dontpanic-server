@@ -2,14 +2,12 @@ use std::hash::{DefaultHasher, Hash, Hasher};
 
 use actix_web::{post, web, HttpResponse};
 use chrono::prelude::*;
-use chrono::{Days, TimeDelta};
 use lettre::AsyncTransport;
 use sea_orm::prelude::*;
 use sea_orm::sea_query;
 use sea_orm::{ActiveValue, IntoActiveModel, JoinType, QueryOrder, QuerySelect, TryIntoModel};
 use serde::{Deserialize, Serialize};
 
-use crate::entity::organization_users;
 use crate::entity::organizations;
 use crate::entity::prelude::*;
 use crate::entity::project_environments;
@@ -17,6 +15,7 @@ use crate::entity::project_report_events;
 use crate::entity::project_report_stats;
 use crate::entity::project_reports;
 use crate::entity::projects;
+use crate::entity::{organization_stats, organization_users};
 
 use crate::entity::users;
 use crate::notifications::{Notification, ReportStatus};
@@ -106,38 +105,30 @@ async fn ingress(ctx: web::Data<AppContext<'static>>, event: web::Json<Event>) -
         .expect("Each project must have organization");
 
     if let Some(request_limit) = org.requests_limit {
-        let mut request_count = org.requests_count.unwrap_or_default();
+        let request_count = org.requests_count.unwrap_or_default();
 
-        let now = Utc::now().naive_utc();
-        let start_date = org.requests_count_start.unwrap_or_default();
-
-        // reset request_count if 30 days have passed and set requests_count_start to today
-        if now - start_date > TimeDelta::days(30) {
-            request_count = 0;
-
-            let mut row = org.clone().into_active_model();
-            row.requests_count_start = ActiveValue::set(Some(now));
-            row.save(&ctx.db).await?;
-        }
-
-        // send an email one request before the limit is reached
-        if request_limit - 1 == request_count {
+        // send an email when 90% of the limit is reached
+        if request_limit * 9 / 10 == request_count {
             let bg_ctx = ctx.clone();
             let bg_org = org.clone();
 
             actix_web::rt::spawn(async move {
-                notify_limit_reached(&bg_ctx, &bg_org).await.expect("Cannot send mail");
+                if let Err(e) = notify_limit_approaching(&bg_ctx, &bg_org).await {
+                    log::error!("Error sending limit reached notification: {:?}", e);
+                }
             });
         }
 
         if request_count >= request_limit {
             return Err(Error::new("Organization requests limit exceeded"));
         } else {
-            let mut row = org.into_active_model();
+            let mut row = org.clone().into_active_model();
             row.requests_count = ActiveValue::set(Some(request_count + 1));
             row.save(&ctx.db).await?;
         }
     }
+
+    record_org_stat(&ctx.db, org.organization_id, "event", "total_count").await?;
 
     // find environment or create it
     let environment = if let Some(env_ident) = event.env {
@@ -206,6 +197,14 @@ async fn ingress(ctx: web::Data<AppContext<'static>>, event: web::Json<Event>) -
         None => {
             report_status = Some(ReportStatus::New);
 
+            record_org_stat(
+                &ctx.db,
+                org.organization_id,
+                "new_project_report",
+                &project.project_id.to_string(),
+            )
+            .await?;
+
             // new issue
             project_reports::ActiveModel {
                 project_id: ActiveValue::set(project.project_id),
@@ -250,12 +249,12 @@ async fn ingress(ctx: web::Data<AppContext<'static>>, event: web::Json<Event>) -
     }
 
     // Increment counters
-    record_stat(&ctx.db, report.project_report_id, "event", "total_count").await?;
-    record_stat(&ctx.db, report.project_report_id, "os", &event.data.os).await?;
-    record_stat(&ctx.db, report.project_report_id, "arch", &event.data.arch).await?;
+    record_report_stat(&ctx.db, report.project_report_id, "event", "total_count").await?;
+    record_report_stat(&ctx.db, report.project_report_id, "os", &event.data.os).await?;
+    record_report_stat(&ctx.db, report.project_report_id, "arch", &event.data.arch).await?;
 
     if let Some(version) = event.data.version.as_ref() {
-        record_stat(&ctx.db, report.project_report_id, "version", version).await?;
+        record_report_stat(&ctx.db, report.project_report_id, "version", version).await?;
     }
 
     let res = ctx.notifications.send(Notification {
@@ -273,7 +272,7 @@ async fn ingress(ctx: web::Data<AppContext<'static>>, event: web::Json<Event>) -
     Ok(HttpResponse::Ok().finish())
 }
 
-async fn notify_limit_reached(ctx: &AppContext<'_>, org: &organizations::Model) -> Result<()> {
+async fn notify_limit_approaching(ctx: &AppContext<'_>, org: &organizations::Model) -> Result<()> {
     let owners = Users::find()
         .filter(organization_users::Column::OrganizationId.eq(org.organization_id))
         .filter(organization_users::Column::Role.eq("owner"))
@@ -281,22 +280,20 @@ async fn notify_limit_reached(ctx: &AppContext<'_>, org: &organizations::Model) 
         .all(&ctx.db)
         .await?;
 
-    let reset_date = org.requests_count_start.map(|date| date + Days::new(30));
-
     for user in owners {
         let email = lettre::Message::builder()
             .from(ctx.config.email_from.clone().into())
             .to(user.email.parse()?)
-            .subject("Monthly Request Limit Reached for Your Organization")
+            .subject("Don't Panic: Your Organization's API Quota is Running Low")
             .header(lettre::message::header::ContentType::TEXT_HTML)
             .body(ctx.hb.render(
-                "email/limit_reached",
+                "email/limit_approaching",
                 &serde_json::json!({
                     "base_url": ctx.config.base_url,
                     "scheme": ctx.config.scheme,
                     "user": user,
-                    "reset_date": reset_date,
-                    "title": "Monthly Request Limit Reached for Your Organization"
+                    "org": org,
+                    "title": "Don't Panic: Your Organization's API Quota is Running Low"
                 }),
             )?)?;
 
@@ -310,7 +307,7 @@ async fn notify_limit_reached(ctx: &AppContext<'_>, org: &organizations::Model) 
     Ok(())
 }
 
-async fn record_stat(db: &DatabaseConnection, report_id: u32, category: &str, name: &str) -> Result<()> {
+async fn record_report_stat(db: &DatabaseConnection, report_id: u32, category: &str, name: &str) -> Result<()> {
     let stat = project_report_stats::ActiveModel {
         project_report_id: ActiveValue::set(report_id),
         category: ActiveValue::set(category.into()),
@@ -331,6 +328,36 @@ async fn record_stat(db: &DatabaseConnection, report_id: u32, category: &str, na
             .value(
                 project_report_stats::Column::Count,
                 Expr::col(project_report_stats::Column::Count).add(1),
+            )
+            .to_owned(),
+        )
+        .exec(db)
+        .await?;
+
+    Ok(())
+}
+
+async fn record_org_stat(db: &DatabaseConnection, organization_id: u32, category: &str, name: &str) -> Result<()> {
+    let stat = organization_stats::ActiveModel {
+        organization_id: ActiveValue::set(organization_id),
+        category: ActiveValue::set(category.into()),
+        name: ActiveValue::set(name.into()),
+        count: ActiveValue::set(1),
+        date: ActiveValue::set(Utc::now().date_naive().and_time(NaiveTime::default())),
+        ..Default::default()
+    };
+
+    OrganizationStats::insert(stat)
+        .on_conflict(
+            sea_query::OnConflict::columns([
+                organization_stats::Column::OrganizationId,
+                organization_stats::Column::Category,
+                organization_stats::Column::Name,
+                organization_stats::Column::Date,
+            ])
+            .value(
+                organization_stats::Column::Count,
+                Expr::col(organization_stats::Column::Count).add(1),
             )
             .to_owned(),
         )

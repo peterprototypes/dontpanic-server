@@ -23,11 +23,14 @@ use projects::OrganizationProject;
 mod members;
 use members::OrganizationMember;
 
+mod stats;
+
 pub fn routes(cfg: &mut web::ServiceConfig) {
     cfg.service(list)
         .service(create)
         .service(web::scope("/{organization_id}/projects").configure(projects::routes))
         .service(web::scope("/{organization_id}/members").configure(members::routes))
+        .service(web::scope("/{organization_id}/stats").configure(stats::routes))
         .service(delete)
         .service(edit);
 }

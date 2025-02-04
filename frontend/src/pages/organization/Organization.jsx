@@ -19,6 +19,7 @@ const Organization = () => {
           <Tabs value={params.page}>
             <Tab label="Projects" value="projects" component={Link} to={`/organization/${params.id}/projects`} />
             <Tab label="Members" value="members" component={Link} to={`/organization/${params.id}/members`} />
+            <Tab label="Usage" value="usage" component={Link} to={`/organization/${params.id}/usage`} />
             {user.getRole(params.id) == 'owner' && <Tab label="Settings" value="settings" component={Link} to={`/organization/${params.id}/settings`} />}
           </Tabs>
         </Box>

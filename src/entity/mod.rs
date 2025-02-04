@@ -3,6 +3,7 @@
 pub mod prelude;
 
 pub mod organization_invitations;
+pub mod organization_stats;
 pub mod organization_users;
 pub mod organizations;
 pub mod project_environments;

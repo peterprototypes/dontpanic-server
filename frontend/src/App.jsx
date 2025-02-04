@@ -24,6 +24,7 @@ import Members from "./pages/organization/Members";
 import ProjectManage from "./pages/organization/ProjectManage";
 import MemberInvite from "./pages/organization/MemberInvite";
 import MemberManage from "./pages/organization/MemberManage";
+import Usage from "./pages/organization/Usage";
 
 import Project from "./pages/Project";
 import ReportsList from "./pages/project/ReportsList";
@@ -62,6 +63,7 @@ const App = () => {
                   <Route path="manage/:memberId" element={<MemberManage />} />
                 </Route>
                 <Route path="settings" element={<Settings />} />
+                <Route path="usage" element={<Usage />} />
               </Route>
               <Route index element={<Navigate to="/reports" replace />} />
             </Route>

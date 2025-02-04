@@ -67,6 +67,13 @@ const theme = createTheme({
         disableElevation: true
       }
     },
+    MuiToggleButton: {
+      styleOverrides: {
+        root: {
+          padding: "4px 16px",
+        },
+      },
+    },
     MuiTab: {
       styleOverrides: {
         root: {
