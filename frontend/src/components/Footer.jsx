@@ -14,6 +14,8 @@ const Footer = () => {
             <Divider orientation="vertical" flexItem />
             <Link href="https://dontpanic.rs/privacy" target="_blank">Privacy Policy</Link>
             <Divider orientation="vertical" flexItem />
+            <Link href="https://dontpanic.rs/payments" target="_blank">Payments</Link>
+            <Divider orientation="vertical" flexItem />
             <Link href="https://dontpanic.rs/contact" target="_blank">Contact Us</Link>
           </Stack>
           <Typography color="textSecondary" fontSize={13}>
