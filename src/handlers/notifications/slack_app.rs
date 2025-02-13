@@ -74,7 +74,7 @@ async fn config(ctx: Data<AppContext<'_>>, path: Path<u32>, id: Identity) -> Res
         ctx.config.scheme, ctx.config.base_url, project.project_id
     );
 
-    // chats = vec![];
+    // let redirect_uri = "https://localhost:5173/reports/notifications?project_id=1";
 
     Ok(Json(json!({
         "project_id": project.project_id,
@@ -122,7 +122,7 @@ async fn config_save(
         ctx.config.scheme, ctx.config.base_url, project.project_id
     );
 
-    // let redirect_uri = format!("https://localhost:8080/reports/notifications?project_id=10");
+    // let redirect_uri = format!("https://localhost:5173/reports/notifications?project_id=1");
 
     let client_id = ctx
         .config
@@ -243,7 +243,7 @@ async fn test(ctx: Data<AppContext<'_>>, id: Identity, path: Path<u32>) -> Resul
         ("channel", channel),
         (
             "text",
-            "Slack is working! I'll post here when your app panic!()s".into(),
+            "You have successfully configured Slack App for notifications!".into(),
         ),
     ];
 

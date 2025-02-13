@@ -1,5 +1,6 @@
 use anyhow::Result;
 use lettre::AsyncTransport;
+use reqwest::header::CONTENT_TYPE;
 use sea_orm::prelude::*;
 use serde::{Deserialize, Serialize};
 use serde_json::json;
@@ -84,17 +85,23 @@ pub async fn send_slack(_ctx: &AppContext<'_>, notification: &Notification, repo
     };
 
     let mut params = get_slack_blocks(notification, report_url);
-    params["token"] = token.into();
     params["channel"] = channel.into();
 
     let client = reqwest::Client::new();
-    client
+    let response: serde_json::Value = client
         .post("https://slack.com/api/chat.postMessage")
-        .form(&params)
+        .bearer_auth(token)
+        .header(CONTENT_TYPE, "application/json; charset=utf-8")
+        .json(&params)
         .send()
+        .await?
+        .json()
         .await?;
 
-    // TODO: log error response
+    if !response.get("ok").and_then(|v| v.as_bool()).unwrap_or(false) {
+        log::error!("Error sending slack message: {:?}", response);
+        return Ok(());
+    }
 
     Ok(())
 }
