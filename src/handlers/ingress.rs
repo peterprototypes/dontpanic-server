@@ -165,10 +165,28 @@ async fn ingress(ctx: web::Data<AppContext<'static>>, event: web::Json<Event>) -
         s.finish()
     };
 
+    // Enforce event title limit. Varchar column limit counts in characters, not bytes
+    let title_upto = event
+        .data
+        .title
+        .char_indices()
+        .enumerate()
+        .map(|(char_idx, (byte_idx, _))| (char_idx, byte_idx))
+        .find(|(i, _)| *i >= 496);
+
+    let event_title = if let Some((_, byte_idx)) = title_upto {
+        let mut title = event.data.title.clone();
+        title.truncate(byte_idx);
+        title.push_str("...");
+        title
+    } else {
+        event.data.title.clone()
+    };
+
     let event_uid = if let Some(location) = event.data.location.as_ref() {
         format!("{}-{}-{:?}", location.file, location.line, location.column)
     } else {
-        event.data.title.clone()
+        event_title.clone()
     };
 
     let uid = format!("p{}-{}-{}", project.project_id, environment_hash, event_uid);
@@ -209,7 +227,7 @@ async fn ingress(ctx: web::Data<AppContext<'static>>, event: web::Json<Event>) -
             project_reports::ActiveModel {
                 project_id: ActiveValue::set(project.project_id),
                 uid: ActiveValue::set(uid),
-                title: ActiveValue::set(event.data.title),
+                title: ActiveValue::set(event_title),
                 project_environment_id: ActiveValue::set(environment.as_ref().map(|e| e.project_environment_id)),
                 ..Default::default()
             }
