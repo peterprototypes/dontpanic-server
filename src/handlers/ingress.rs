@@ -34,7 +34,7 @@ struct EventFileLocation {
     column: Option<u32>,
 }
 
-#[derive(Serialize, Deserialize, Debug)]
+#[derive(Serialize, Deserialize, Debug, Clone)]
 struct LogEvent {
     #[serde(rename = "ts")]
     timestamp: u64,
@@ -218,11 +218,32 @@ async fn ingress(ctx: web::Data<AppContext<'static>>, event: web::Json<Event>) -
 
     let report = report_model.save(&ctx.db).await?.try_into_model()?;
 
+    // enforce log message limit
+    let log_messages: Vec<LogEvent> = event
+        .data
+        .log_messages
+        .into_iter()
+        .take(100)
+        .map(|mut log_event| {
+            let upto = log_event.message.char_indices().map(|(i, _)| i).find(|i| *i > 600);
+
+            if let Some(upto) = upto {
+                log_event.message.truncate(upto);
+                log_event.message.push_str("...");
+            }
+
+            log_event
+        })
+        .collect::<Vec<_>>();
+
+    // enforce backtrace limit of 10 000 characters, considering urf-8 codepoints and avoiding panics
+    let backtrace = event.data.backtrace.chars().take(10000).collect::<String>();
+
     // create event
     let event_model = project_report_events::ActiveModel {
         project_report_id: ActiveValue::set(report.project_report_id),
-        backtrace: ActiveValue::set(Some(event.data.backtrace)),
-        log: ActiveValue::set(Some(serde_json::to_string(&event.data.log_messages)?)),
+        backtrace: ActiveValue::set(Some(backtrace)),
+        log: ActiveValue::set(Some(serde_json::to_string(&log_messages)?)),
         ..Default::default()
     };
 
