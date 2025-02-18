@@ -236,23 +236,41 @@ async fn ingress(ctx: web::Data<AppContext<'static>>, event: web::Json<Event>) -
 
     let report = report_model.save(&ctx.db).await?.try_into_model()?;
 
-    // enforce log message limit
-    let log_messages: Vec<LogEvent> = event
-        .data
-        .log_messages
-        .into_iter()
-        .take(100)
-        .map(|mut log_event| {
-            let upto = log_event.message.char_indices().map(|(i, _)| i).find(|i| *i > 600);
+    // fill log messages from latest to oldest and limit to 65 000 characters
+    let mut log_messages: Vec<String> = Vec::new();
+    let mut log_messages_size = 2;
 
-            if let Some(upto) = upto {
-                log_event.message.truncate(upto);
-                log_event.message.push_str("...");
-            }
+    for log_message in event.data.log_messages.into_iter().rev() {
+        let message_serialized = serde_json::to_string(&log_message)?;
+        log_messages_size += message_serialized.len() + 1;
 
-            log_event
-        })
-        .collect::<Vec<_>>();
+        if log_messages_size > 65000 {
+            break;
+        }
+
+        log_messages.push(message_serialized);
+    }
+
+    log_messages.reverse();
+
+    // enforce log message memory limit
+    // let log_messages: Vec<LogEvent> = event
+    //     .data
+    //     .log_messages
+    //     .into_iter()
+    //     .take(100)
+    //     .map(|mut log_event| {
+    //         let encoded = serde_json::to_string(&log_event.message).unwrap();
+    //         let upto = encoded.char_indices().map(|(i, _)| i).find(|i| *i > 500);
+
+    //         if let Some(upto) = upto {
+    //             log_event.message.truncate(upto);
+    //             log_event.message.push_str("...");
+    //         }
+
+    //         log_event
+    //     })
+    //     .collect::<Vec<_>>();
 
     // enforce backtrace limit of 10 000 characters, considering urf-8 codepoints and avoiding panics
     let backtrace = event.data.backtrace.chars().take(10000).collect::<String>();
@@ -261,7 +279,7 @@ async fn ingress(ctx: web::Data<AppContext<'static>>, event: web::Json<Event>) -
     let event_model = project_report_events::ActiveModel {
         project_report_id: ActiveValue::set(report.project_report_id),
         backtrace: ActiveValue::set(Some(backtrace)),
-        log: ActiveValue::set(Some(serde_json::to_string(&log_messages)?)),
+        log: ActiveValue::set(Some(format!("[{}]", log_messages.join(",")))),
         ..Default::default()
     };
 
@@ -504,4 +522,76 @@ mod tests {
         assert!(obj.contains_key("version_names"));
         assert!(obj.contains_key("last_event"));
     }
+
+    // #[actix_web::test]
+    // async fn test_ingress_limits() {
+    //     let (app, sess) = crate::test_app_with_auth().await.unwrap();
+
+    //     // create
+    //     let req = test::TestRequest::post()
+    //         .uri("/api/organizations/1/projects")
+    //         .cookie(sess.clone())
+    //         .set_json(serde_json::json!({
+    //             "name": "Test Project",
+    //         }))
+    //         .to_request();
+
+    //     let res: Value = test::call_and_read_body_json(&app, req).await;
+    //     let project_id = res["project_id"].as_u64().unwrap();
+    //     let api_key = res["api_key"].as_str().unwrap();
+
+    //     let mut log_messages = vec![];
+
+    //     for i in 0..200 {
+    //         let mut message = String::new();
+
+    //         for j in 0..650 {
+    //             message.push_str(&format!("{}\" ", j));
+    //         }
+
+    //         log_messages.push(serde_json::json!({
+    //             "msg": message,
+    //             "lvl": 3,
+    //             "ts": 1738255164
+    //         }));
+    //     }
+
+    //     // test good request
+    //     let req = test::TestRequest::post()
+    //         .uri("/ingress")
+    //         .set_json(serde_json::json!({
+    //             "key": api_key,
+    //             "env": "production",
+    //             "data": {
+    //                 "title": "Test Error",
+    //                 "trace": "backtrace",
+    //                 "log": log_messages,
+    //                 "os": "linux",
+    //                 "arch": "x86_64",
+    //                 "ver": "1.0.0",
+    //                 "loc": {
+    //                     "f": "main.rs",
+    //                     "l": 10,
+    //                     "c": 5
+    //                 }
+    //             }
+    //         }))
+    //         .to_request();
+
+    //     let res = test::call_service(&app, req).await;
+    //     // let body = test::read_body(res).await;
+    //     assert_eq!(res.status(), StatusCode::OK);
+
+    //     // test getting reports
+    //     let req = test::TestRequest::get()
+    //         .uri(&format!("/api/reports?project_id={}", project_id))
+    //         .cookie(sess.clone())
+    //         .to_request();
+
+    //     let res: Value = test::call_and_read_body_json(&app, req).await;
+    //     let report_id = res["reports"][0]["report"]["project_report_id"].as_u64().unwrap();
+
+    //     assert_eq!(res["reports"][0]["report"]["title"], "Test Error");
+    //     assert_eq!(res["reports"][0]["env"]["name"], "production");
+    // }
 }

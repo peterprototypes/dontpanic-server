@@ -126,7 +126,7 @@ const LogMessages = ({ log }) => {
 
   return (
     <Paper sx={{ p: 2, mt: 2 }}>
-      <Box>
+      <Box sx={{ overflow: 'auto' }}>
         {log.map((message, i) => (
           <Box key={i} sx={{ mb: 1, fontSize: '13px', fontFamily: 'Consolas, monospace' }}>
             [
