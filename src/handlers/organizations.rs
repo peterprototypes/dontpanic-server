@@ -44,6 +44,7 @@ struct Organization {
     requests_count_start: Option<DateTime>,
     is_enabled: i8,
     created: DateTime,
+    requests_alert_threshold: Option<u32>,
     projects: Vec<OrganizationProject>,
     members: Vec<OrganizationMember>,
 }
@@ -82,6 +83,7 @@ async fn list(ctx: web::Data<AppContext<'_>>, identity: Identity) -> Result<impl
             requests_limit: org.requests_limit,
             requests_count: org.requests_count,
             requests_count_start: org.requests_count_start,
+            requests_alert_threshold: org.requests_alert_threshold,
             is_enabled: org.is_enabled,
             created: org.created,
             projects,
@@ -146,11 +148,19 @@ async fn create(ctx: Data<AppContext<'_>>, id: Identity, input: Json<CreateInput
     })))
 }
 
+#[derive(Debug, Deserialize, Validate)]
+struct EditInput {
+    #[validate(length(min = 1, max = 80, message = "Organization name is required"))]
+    name: String,
+    #[validate(range(min = 1, message = "Requests limit must be at least 1"))]
+    requests_alert_threshold: Option<u32>,
+}
+
 #[post("/{organization_id}")]
 async fn edit(
     ctx: Data<AppContext<'_>>,
     id: Identity,
-    input: Json<CreateInput>,
+    input: Json<EditInput>,
     path: Path<u32>,
 ) -> Result<impl Responder> {
     let input = input.into_inner();
@@ -185,8 +195,11 @@ async fn edit(
         ));
     }
 
+    let daily_requests_alert_threshold = input.requests_alert_threshold.filter(|&x| x > 0);
+
     let mut org_model = org.into_active_model();
     org_model.name = ActiveValue::set(input.name);
+    org_model.requests_alert_threshold = ActiveValue::set(daily_requests_alert_threshold);
     org_model.save(&ctx.db).await?;
 
     Ok(Json(()))

@@ -9,6 +9,7 @@ use actix_web::{
     middleware, web, App, HttpServer,
 };
 
+use argh::FromArgs;
 use chrono::prelude::*;
 use chrono_tz::Tz;
 use handlebars::{Context, Handlebars, Helper, HelperResult, JsonRender, Output, RenderContext, RenderErrorReason};
@@ -21,6 +22,7 @@ use sea_orm::{prelude::*, ConnectOptions, Database, IntoActiveModel, TryIntoMode
 use migration::{Migrator, MigratorTrait};
 
 mod config;
+mod cron;
 mod entity;
 mod entity_extensions;
 mod error;
@@ -35,6 +37,14 @@ pub use error::Error;
 pub use identity::Identity;
 
 pub type Result<T> = std::result::Result<T, error::Error>;
+
+#[derive(FromArgs)]
+/// DontPanic command line interface
+struct CmdArgs {
+    /// run a cron task and exit
+    #[argh(option)]
+    run_task: Option<String>,
+}
 
 #[derive(Clone)]
 pub struct AppContext<'reg> {
@@ -161,10 +171,19 @@ async fn main() -> anyhow::Result<()> {
 
     let ctx = AppContext::new().await?;
 
+    let cmd_args: CmdArgs = argh::from_env();
+
+    if let Some(cmd) = cmd_args.run_task.as_deref() {
+        cron::run_command(ctx.clone(), cmd).await?;
+        // return Ok(());
+    }
+
     if ctx.config.require_email_verification && ctx.mailer.is_none() {
         log::error!("Email verification is required but no email transport is configured");
         return Err(Error::new("Email verification is required but no email transport is configured").into());
     }
+
+    actix_web::rt::spawn(cron::cronjobs(ctx.clone()));
 
     let bind_addr = ctx.config.bind_addr;
 

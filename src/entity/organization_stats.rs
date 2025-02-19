@@ -13,6 +13,7 @@ pub struct Model {
     pub name: String,
     pub count: u32,
     pub date: DateTime,
+    pub is_over_alert_threshold: i8,
 }
 
 #[derive(Copy, Clone, Debug, EnumIter, DeriveRelation)]

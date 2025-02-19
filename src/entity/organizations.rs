@@ -14,6 +14,7 @@ pub struct Model {
     pub requests_count_start: Option<DateTime>,
     pub is_enabled: i8,
     pub created: DateTime,
+    pub requests_alert_threshold: Option<u32>,
 }
 
 #[derive(Copy, Clone, Debug, EnumIter, DeriveRelation)]

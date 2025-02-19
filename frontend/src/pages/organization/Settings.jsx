@@ -20,16 +20,21 @@ const Settings = () => {
   const { data: organizations, mutate } = useSwr(`/api/organizations`);
   const { trigger, error, isMutating } = useSWRMutation(`/api/organizations/${organizationId}`);
 
+  let org = organizations?.find((org) => org.organization_id === parseInt(organizationId));
+
   let methods = useForm({
     resolver: yupResolver(SettingsSchema),
     errors: error?.fields,
     values: {
-      name: organizations?.find((org) => org.organization_id === parseInt(organizationId))?.name ?? "",
+      name: org?.name ?? "",
+      requests_alert_threshold: org?.requests_alert_threshold ?? "",
     }
   });
 
   const onSubmit = (data) => {
-    trigger(data)
+    let limit_treshold = parseInt(data.requests_alert_threshold);
+
+    trigger({ ...data, requests_alert_threshold: limit_treshold == 0 ? null : limit_treshold })
       .then(() => {
         enqueueSnackbar("Organization updated", { variant: 'success' });
         mutate();
@@ -49,6 +54,15 @@ const Settings = () => {
             label="Organization Name"
             placeholder="My Awesome Organization"
             helperText="Max 80 characters."
+          />
+
+          <ControlledTextField
+            required
+            fullWidth
+            name="requests_alert_threshold"
+            label="Daily Requests Alert Threshold"
+            placeholder="0"
+            helperText="All owners will get notified if this organization receives more than the specified amount of API requests per day. Set to 0 to disable."
           />
 
           <LoadingButton

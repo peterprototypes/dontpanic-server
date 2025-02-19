@@ -36,6 +36,8 @@ actix-session = { version = "0.10", features = ["cookie-session"] }
 
 migration = { path = "migration" }
 rust_decimal = "1.36.0"
+tokio_schedule = "0.3.2"
+argh = "0.1.13"
 
 [dependencies.reqwest]
 version = "0.12"

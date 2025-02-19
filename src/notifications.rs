@@ -1,3 +1,5 @@
+use core::panic;
+
 use anyhow::Result;
 use lettre::AsyncTransport;
 use reqwest::header::CONTENT_TYPE;
@@ -10,10 +12,11 @@ use crate::entity::{
 };
 use crate::AppContext;
 
-#[derive(Serialize, Deserialize, Debug, Clone, Copy, Eq, PartialEq)]
+#[derive(Serialize, Deserialize, Debug, Clone, Copy)]
 pub enum ReportStatus {
     New,
     Regressed,
+    Spiking { percentage: u32 },
 }
 
 #[derive(Serialize, Debug, Clone)]
@@ -23,6 +26,29 @@ pub struct Notification {
     pub event: project_report_events::Model,
     pub report: project_reports::Model,
     pub environment: Option<project_environments::Model>,
+}
+
+impl Notification {
+    pub fn message(&self) -> String {
+        let mut message = match self.status {
+            Some(ReportStatus::New) => format!("New report on {} received '{}'", self.project.name, self.report.title),
+            Some(ReportStatus::Regressed) => format!(
+                "Resolved report on {} reappeared: '{}'",
+                self.project.name, self.report.title
+            ),
+            Some(ReportStatus::Spiking { percentage }) => format!(
+                "Received events for '{}' on {} have spiked by {}%",
+                self.project.name, self.report.title, percentage
+            ),
+            None => "Unknown report status".to_string(),
+        };
+
+        if let Some(environment) = self.environment.as_ref() {
+            message.push_str(&format!(" in {}", environment.name));
+        }
+
+        message
+    }
 }
 
 pub async fn send(ctx: &AppContext<'_>, notification: &Notification) -> Result<()> {
@@ -126,28 +152,36 @@ pub async fn send_slack_webhook(_ctx: &AppContext<'_>, notification: &Notificati
 }
 
 fn get_slack_blocks(notification: &Notification, report_url: &str) -> serde_json::Value {
-    let mut title = if notification.status == Some(ReportStatus::New) {
-        format!(
+    let mut title = match notification.status {
+        Some(ReportStatus::New) => format!(
             ":boom: New report on {} received {}",
             notification.project.name, notification.report.title
-        )
-    } else {
-        format!(
+        ),
+        Some(ReportStatus::Regressed) => format!(
             "Resolved report on {} reappeared: {}",
             notification.project.name, notification.report.title
-        )
+        ),
+        Some(ReportStatus::Spiking { percentage }) => format!(
+            ":warning: Received events for '{}' on {} have spiked by {}%",
+            notification.report.title, notification.project.name, percentage
+        ),
+        None => "Unknown report status".to_string(),
     };
 
-    let mut markdown = if notification.status == Some(ReportStatus::New) {
-        format!(
+    let mut markdown = match notification.status {
+        Some(ReportStatus::New) => format!(
             ":boom: New report on *{}* received {}",
             notification.project.name, notification.report.title
-        )
-    } else {
-        format!(
+        ),
+        Some(ReportStatus::Regressed) => format!(
             "Resolved report on *{}* reappeared: {}",
             notification.project.name, notification.report.title
-        )
+        ),
+        Some(ReportStatus::Spiking { percentage }) => format!(
+            ":warning: Received events for '{}' on *{}* have spiked by {}%",
+            notification.report.title, notification.project.name, percentage
+        ),
+        None => "Unknown report status".to_string(),
     };
 
     if let Some(environment) = notification.environment.as_ref() {
@@ -211,27 +245,14 @@ pub async fn send_email(
     user: &users::Model,
     report_url: &str,
 ) -> Result<()> {
-    let template = if notification.status == Some(ReportStatus::New) {
-        "email/new_report"
-    } else {
-        "email/regressed_report"
+    let template = match notification.status {
+        Some(ReportStatus::New) => "email/new_report",
+        Some(ReportStatus::Regressed) => "email/regressed_report",
+        Some(ReportStatus::Spiking { .. }) => "email/spiking_report",
+        None => panic!("Unknown report status"),
     };
 
-    let mut title = if notification.status == Some(ReportStatus::New) {
-        format!(
-            "New report on {} received '{}'",
-            notification.project.name, notification.report.title
-        )
-    } else {
-        format!(
-            "Resolved report on {} reappeared: '{}'",
-            notification.project.name, notification.report.title
-        )
-    };
-
-    if let Some(environment) = notification.environment.as_ref() {
-        title.push_str(&format!(" in {}", environment.name));
-    }
+    let title = notification.message();
 
     let data = serde_json::json!({
         "title": &title,
@@ -269,22 +290,6 @@ pub async fn send_pushover(
         return Ok(());
     };
 
-    let mut message = if notification.status == Some(ReportStatus::New) {
-        format!(
-            "New report on {} received '{}'",
-            notification.project.name, notification.report.title
-        )
-    } else {
-        format!(
-            "Resolved report on {} reappeared: '{}'",
-            notification.project.name, notification.report.title
-        )
-    };
-
-    if let Some(environment) = notification.environment.as_ref() {
-        message.push_str(&format!(" in {}", environment.name));
-    }
-
     let client = reqwest::Client::new();
 
     let res = client
@@ -292,7 +297,7 @@ pub async fn send_pushover(
         .form(&[
             ("token", token),
             ("user", user_key),
-            ("message", &message),
+            ("message", &notification.message()),
             ("url", report_url),
         ])
         .send()
@@ -313,11 +318,7 @@ pub async fn send_teams_webhook(_ctx: &AppContext<'_>, notification: &Notificati
         return Ok(());
     };
 
-    let title = if notification.status == Some(ReportStatus::New) {
-        format!("New report on {} received", notification.project.name)
-    } else {
-        format!("Resolved report on {} reappeared", notification.project.name)
-    };
+    let title = notification.message();
 
     let params = json!({
         "type": "message",

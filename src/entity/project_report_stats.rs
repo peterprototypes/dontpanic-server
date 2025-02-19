@@ -13,6 +13,7 @@ pub struct Model {
     pub name: String,
     pub count: u32,
     pub date: DateTime,
+    pub spiking: i8,
 }
 
 #[derive(Copy, Clone, Debug, EnumIter, DeriveRelation)]

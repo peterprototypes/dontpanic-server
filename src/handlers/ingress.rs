@@ -305,13 +305,22 @@ async fn ingress(ctx: web::Data<AppContext<'static>>, event: web::Json<Event>) -
             .await?;
     }
 
+    let is_new_report = matches!(report_status, Some(ReportStatus::New) | Some(ReportStatus::Regressed));
+
     // Increment counters
-    record_report_stat(&ctx.db, report.project_report_id, "event", "total_count").await?;
-    record_report_stat(&ctx.db, report.project_report_id, "os", &event.data.os).await?;
-    record_report_stat(&ctx.db, report.project_report_id, "arch", &event.data.arch).await?;
+    record_report_stat(&ctx.db, report.project_report_id, "event", "total_count", is_new_report).await?;
+    record_report_stat(&ctx.db, report.project_report_id, "os", &event.data.os, is_new_report).await?;
+    record_report_stat(
+        &ctx.db,
+        report.project_report_id,
+        "arch",
+        &event.data.arch,
+        is_new_report,
+    )
+    .await?;
 
     if let Some(version) = event.data.version.as_ref() {
-        record_report_stat(&ctx.db, report.project_report_id, "version", version).await?;
+        record_report_stat(&ctx.db, report.project_report_id, "version", version, is_new_report).await?;
     }
 
     let res = ctx.notifications.send(Notification {
@@ -364,7 +373,13 @@ async fn notify_limit_approaching(ctx: &AppContext<'_>, org: &organizations::Mod
     Ok(())
 }
 
-async fn record_report_stat(db: &DatabaseConnection, report_id: u32, category: &str, name: &str) -> Result<()> {
+async fn record_report_stat(
+    db: &DatabaseConnection,
+    report_id: u32,
+    category: &str,
+    name: &str,
+    is_new_report: bool,
+) -> Result<()> {
     let current_hour = Utc::now()
         .date_naive()
         .and_hms_opt(Utc::now().hour(), 0, 0)
@@ -377,6 +392,8 @@ async fn record_report_stat(db: &DatabaseConnection, report_id: u32, category: &
         name: ActiveValue::set(name.into()),
         count: ActiveValue::set(1),
         date: ActiveValue::set(Utc::now().date_naive().and_time(current_hour)),
+        // first event is considered a spike
+        spiking: ActiveValue::set(is_new_report as i8),
         ..Default::default()
     };
 
