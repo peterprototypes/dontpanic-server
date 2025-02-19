@@ -18,6 +18,7 @@ use crate::entity::{
 
 pub async fn run_command(ctx: AppContext<'_>, cmd: &str) -> Result<()> {
     match cmd {
+        "disable-depleted-orgs" => disable_depleted_orgs(ctx).await,
         "notify-spiking" => notify_spiking_reports(ctx).await,
         "notify-limits" => notify_organization_limits(ctx).await,
         _ => Err(anyhow::anyhow!("Unknown command")),
@@ -25,6 +26,12 @@ pub async fn run_command(ctx: AppContext<'_>, cmd: &str) -> Result<()> {
 }
 
 pub async fn cronjobs(ctx: AppContext<'_>) {
+    let disable_depleted_orgs = every(10).minutes().perform(|| async {
+        if let Err(e) = disable_depleted_orgs(ctx.clone()).await {
+            log::error!("Error disabling organizations: {}", e);
+        }
+    });
+
     let spiking_reports = every(10).minutes().perform(|| async {
         if let Err(e) = notify_spiking_reports(ctx.clone()).await {
             log::error!("Error notifying for spiking reports: {}", e);
@@ -37,7 +44,7 @@ pub async fn cronjobs(ctx: AppContext<'_>) {
         }
     });
 
-    join!(spiking_reports, organization_limits);
+    join!(disable_depleted_orgs, spiking_reports, organization_limits);
 }
 
 pub async fn notify_spiking_reports(ctx: AppContext<'_>) -> Result<()> {
@@ -179,6 +186,56 @@ pub async fn notify_organization_limits(ctx: AppContext<'_>) -> Result<()> {
                         "title": title,
                         "organization": org,
                         "actual": stats_row.count,
+                    }),
+                )?)?;
+
+            mailer.send(email).await?;
+        }
+    }
+
+    Ok(())
+}
+
+pub async fn disable_depleted_orgs(ctx: AppContext<'_>) -> Result<()> {
+    let Some(mailer) = ctx.mailer.as_ref() else {
+        log::warn!("Mailer is not configured");
+        return Ok(());
+    };
+
+    let organizations = Organizations::find()
+        .filter(organizations::Column::IsEnabled.eq(1))
+        .filter(organizations::Column::RequestsLimit.is_not_null())
+        .filter(organizations::Column::RequestsCount.is_not_null())
+        .filter(Expr::cust("requests_count >= requests_limit"))
+        .all(&ctx.db)
+        .await?;
+
+    for org in organizations {
+        let mut org = org.into_active_model();
+        org.is_enabled = ActiveValue::set(false as i8);
+        let org = org.save(&ctx.db).await?.try_into_model()?;
+
+        let owners = Users::find()
+            .filter(organization_users::Column::Role.eq("owner"))
+            .filter(organization_users::Column::OrganizationId.eq(org.organization_id))
+            .join(JoinType::InnerJoin, users::Relation::OrganizationUsers.def())
+            .all(&ctx.db)
+            .await?;
+
+        for user in owners {
+            let email = lettre::Message::builder()
+                .from(ctx.config.email_from.clone().into())
+                .to(user.email.parse()?)
+                .subject("Don't Panic: Your Organization's API Quota is Exhausted")
+                .header(lettre::message::header::ContentType::TEXT_HTML)
+                .body(ctx.hb.render(
+                    "email/org_limit_reached",
+                    &serde_json::json!({
+                        "base_url": ctx.config.base_url,
+                        "scheme": ctx.config.scheme,
+                        "user": user,
+                        "org": org,
+                        "title": "Don't Panic: Your Organization's API Quota is Exhausted"
                     }),
                 )?)?;
 

@@ -97,12 +97,15 @@ async fn ingress(ctx: web::Data<AppContext<'static>>, event: web::Json<Event>) -
     let _lock = ctx.locked_projects.lock(project.project_id).await;
 
     // limits check
-    // ideally this check should not be in the hot path - it should happen on a timer once an hour and disable all projects in the org
     let org = project
         .find_related(Organizations)
         .one(&ctx.db)
         .await?
         .expect("Each project must have organization");
+
+    if org.is_enabled == 0 {
+        return Err(Error::new("Organization requests limit exceeded"));
+    }
 
     if let Some(request_limit) = org.requests_limit {
         let request_count = org.requests_count.unwrap_or_default();

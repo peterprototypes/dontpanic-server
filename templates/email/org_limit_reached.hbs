@@ -1,0 +1,61 @@
+{{#*inline "content"}}
+<span class="preheader">
+    Don't Panic: Your Organization's API Quota is Exhausted
+</span>
+
+<table role="presentation" border="0" cellpadding="0" cellspacing="0" class="main">
+
+    <tr>
+        <td class="wrapper">
+            <p>
+                {{#if user.name}}
+                Dear {{user.name}},
+                {{else}}
+                Dear Don't Panic user,
+                {{/if}}
+            </p>
+
+            <p>
+                Your organization has used all of its allocated API calls. API requests will no longer be processed
+                until you add more to your quota.
+            </p>
+
+            <p>
+                To ensure you don't miss any panics or errors, we recommend topping up now. You can easily add more API
+                calls or review your usage by visiting your account:
+            </p>
+
+            <table role="presentation" border="0" cellpadding="0" cellspacing="0" class="btn btn-primary">
+                <tbody>
+                    <tr>
+                        <td align="left">
+                            <table role="presentation" border="0" cellpadding="0" cellspacing="0">
+                                <tbody>
+                                    <tr>
+                                        <td>
+                                            <a href="{{scheme}}://{{base_url}}/organization/{{org.organization_id}}/usage"
+                                                target="_blank">Billing</a>
+                                        </td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </td>
+                    </tr>
+                </tbody>
+            </table>
+
+            <p>
+                If you have any questions or need assistance, feel free to reach out to our support team at
+                <a href="mailto:support@dontpanic.rs">support@dontpanic.rs</a>
+            </p>
+
+            <p>
+                Thank you for using Don't Panic!
+            </p>
+        </td>
+    </tr>
+
+</table>
+{{/inline}}
+
+{{> email/layout}}
