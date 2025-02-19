@@ -179,10 +179,8 @@ const DailyEvents = ({ dailyEvents }) => {
 
     current_week.push({
       date,
-      events_count: dailyEvents[date.toISO({ suppressMilliseconds: true })] ?? 0
+      events_count: dailyEvents[date.toISODate()] ?? 0
     });
-
-
 
     if (prev_date.monthShort != date.monthShort) {
       month = prev_date.monthShort;

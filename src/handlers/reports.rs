@@ -275,18 +275,24 @@ async fn get_report(ctx: Data<AppContext<'_>>, id: Identity, path: Path<u32>) ->
     let env = report.find_related(ProjectEnvironments).one(&ctx.db).await?;
 
     // number of events each day for the last 365 days
-    let daily_events: HashMap<DateTimeUtc, u32> = ProjectReportStats::find()
+    let daily_events: HashMap<NaiveDate, i64> = ProjectReportStats::find()
         .select_only()
         .column(project_report_stats::Column::Date)
-        .column(project_report_stats::Column::Count)
+        .column_as(
+            project_report_stats::Column::Count.sum().cast_as(Alias::new("INTEGER")),
+            "count",
+        )
+        // .column(project_report_stats::Column::Count)
         .filter(project_report_stats::Column::ProjectReportId.eq(report_id))
         .filter(project_report_stats::Column::Category.eq("event"))
         .filter(project_report_stats::Column::Name.eq("total_count"))
         .filter(project_report_stats::Column::Date.gte(Utc::now().date_naive() - Days::new(365)))
-        .into_tuple::<(DateTimeUtc, u32)>()
+        .group_by(Expr::cust("DATE(`date`)"))
+        .into_tuple::<(DateTimeUtc, i64)>()
         .all(&ctx.db)
         .await?
         .into_iter()
+        .map(|(date, count)| (date.date_naive(), count))
         .collect();
 
     // OS and version stats

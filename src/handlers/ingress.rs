@@ -365,12 +365,18 @@ async fn notify_limit_approaching(ctx: &AppContext<'_>, org: &organizations::Mod
 }
 
 async fn record_report_stat(db: &DatabaseConnection, report_id: u32, category: &str, name: &str) -> Result<()> {
+    let current_hour = Utc::now()
+        .date_naive()
+        .and_hms_opt(Utc::now().hour(), 0, 0)
+        .expect("valid time")
+        .time();
+
     let stat = project_report_stats::ActiveModel {
         project_report_id: ActiveValue::set(report_id),
         category: ActiveValue::set(category.into()),
         name: ActiveValue::set(name.into()),
         count: ActiveValue::set(1),
-        date: ActiveValue::set(Utc::now().date_naive().and_time(NaiveTime::default())),
+        date: ActiveValue::set(Utc::now().date_naive().and_time(current_hour)),
         ..Default::default()
     };
 
