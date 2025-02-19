@@ -172,6 +172,7 @@ const DailyEvents = ({ dailyEvents }) => {
   let prev_date = DateTime.now().setZone('UTC').startOf('day');
   let weeks = [];
   let current_week = [];
+  let month = null;
 
   for (var i = 0; i <= 365; i++) {
     let date = DateTime.now().setZone('UTC').minus({ days: i }).startOf('day');
@@ -181,10 +182,10 @@ const DailyEvents = ({ dailyEvents }) => {
       events_count: dailyEvents[date.toISO({ suppressMilliseconds: true })] ?? 0
     });
 
-    let month = null;
 
-    if (prev_date.month != date.month) {
-      month = prev_date.month;
+
+    if (prev_date.monthShort != date.monthShort) {
+      month = prev_date.monthShort;
     }
 
     if (date.weekday == 1) {
@@ -192,6 +193,8 @@ const DailyEvents = ({ dailyEvents }) => {
         month_label: month,
         days: current_week.reverse()
       });
+
+      month = null;
 
       current_week = [];
     }
