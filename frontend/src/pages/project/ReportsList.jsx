@@ -276,6 +276,12 @@ const IntegrationExample = ({ project }) => {
         {')'}
         <br />
         {'        .'}
+        <Box component="span" sx={{ color: 'secondary.main' }}>backend_url</Box>
+        {'('}
+        <Box component="span" sx={{ color: 'error.main' }}>&quot;{location.origin}&quot;</Box>
+        {')'}
+        <br />
+        {'        .'}
         <Box component="span" sx={{ color: 'secondary.main' }}>build</Box>
         {'()?;'}
         <br /><br />
