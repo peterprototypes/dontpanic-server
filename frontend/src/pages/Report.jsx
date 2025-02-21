@@ -56,7 +56,7 @@ const Report = () => {
         </Stack>
         <Stack>
           <Typography variant="h6" sx={{ fontSize: '15px' }}>Environment</Typography>
-          <Typography variant="body2" sx={{ fontWeight: '500', mb: 1 }} color="textSecondary">{data?.env.name ?? '-'}</Typography>
+          <Typography variant="body2" sx={{ fontWeight: '500', mb: 1 }} color="textSecondary">{data?.env?.name ?? '-'}</Typography>
         </Stack>
         <Stack>
           <Typography variant="h6" sx={{ fontSize: '15px' }}>Last Seen</Typography>

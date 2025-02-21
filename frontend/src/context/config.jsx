@@ -4,10 +4,17 @@ import useSWR from "swr";
 const ConfigContext = React.createContext();
 
 export const ConfigProvider = ({ children }) => {
-  const { data } = useSWR("/api/config");
+  const { data, isLoading } = useSWR("/api/config");
+
+  const loadingData = {
+    version: "0.0.0",
+    registration_enabled: false,
+    can_send_emails: false,
+    pushover_enabled: false
+  };
 
   return (
-    <ConfigContext.Provider value={{ config: data }}>
+    <ConfigContext.Provider value={{ config: isLoading ? loadingData : data }}>
       {children}
     </ConfigContext.Provider>
   );
