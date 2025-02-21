@@ -325,6 +325,10 @@ async fn get_dataset(
     report_id: u32,
     category: &str,
 ) -> Result<(Vec<serde_json::Map<String, serde_json::Value>>, HashSet<String>)> {
+    let one_month_ago = (Utc::now() - chrono::Duration::days(31))
+        .format("%Y-%m-%d %H:%M:%S")
+        .to_string();
+
     let os_rows: Vec<(DateTimeUtc, String, i64)> = ProjectReportStats::find()
         .select_only()
         .column(project_report_stats::Column::Date)
@@ -335,10 +339,10 @@ async fn get_dataset(
         )
         .filter(project_report_stats::Column::ProjectReportId.eq(report_id))
         .filter(project_report_stats::Column::Category.eq(category))
+        .filter(project_report_stats::Column::Date.gte(one_month_ago))
         .group_by(project_report_stats::Column::Name)
         .group_by(project_report_stats::Column::Date)
         .order_by_desc(project_report_stats::Column::Date)
-        .limit(30)
         .into_tuple()
         .all(db)
         .await?;
