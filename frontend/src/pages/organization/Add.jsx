@@ -1,4 +1,5 @@
 import useSWRMutation from 'swr/mutation';
+import { useSWRConfig } from "swr";
 import * as yup from "yup";
 import { useNavigate } from 'react-router';
 import { useSnackbar } from 'notistack';
@@ -26,6 +27,7 @@ const Route = () => {
 
 const AddOrganization = () => {
   const navigate = useNavigate();
+  const { mutate } = useSWRConfig();
   const { enqueueSnackbar } = useSnackbar();
 
   const { trigger, error, isMutating } = useSWRMutation('/api/organizations');
@@ -41,6 +43,7 @@ const AddOrganization = () => {
   const onSubmit = (data) => {
     trigger(data)
       .then((response) => {
+        mutate('/api/account');
         enqueueSnackbar("Organization created", { variant: 'success' });
         navigate(`/organization/${response.organization_id}/projects`);
       })
