@@ -345,6 +345,8 @@ pub async fn test_app_with_auth() -> Result<(
     impl actix_web::dev::Service<actix_http::Request, Response = ServiceResponse, Error = actix_web::Error>,
     actix_web::cookie::Cookie<'static>,
 )> {
+    let _ = env_logger::builder().is_test(true).try_init();
+
     let ctx = crate::AppContext::testing().await.unwrap();
 
     let signing_key = Key::generate();

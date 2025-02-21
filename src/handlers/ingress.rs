@@ -462,6 +462,7 @@ async fn record_org_stat(db: &DatabaseConnection, organization_id: u32, category
 mod tests {
     use actix_web::{http::StatusCode, test};
     use serde_json::Value;
+    use tokio::time::sleep;
 
     #[actix_web::test]
     async fn test_ingress_endpoint() {
@@ -521,8 +522,10 @@ mod tests {
             .to_request();
 
         let res = test::call_service(&app, req).await;
-        // let body = test::read_body(res).await;
-        assert_eq!(res.status(), StatusCode::OK);
+        let body = test::read_body(res).await;
+
+        // since the ingress endpoint finishes its work in the background, we need to wait a bit before checking the results
+        sleep(tokio::time::Duration::from_millis(100)).await;
 
         // test getting reports
         let req = test::TestRequest::get()
@@ -533,7 +536,7 @@ mod tests {
         let res: Value = test::call_and_read_body_json(&app, req).await;
         let report_id = res["reports"][0]["report"]["project_report_id"].as_u64().unwrap();
 
-        assert_eq!(res["reports"][0]["report"]["title"], "Test Error");
+        assert_eq!(res["reports"][0]["report"]["title"], "Test Error in main.rs:10");
         assert_eq!(res["reports"][0]["env"]["name"], "production");
 
         // get getting single report
@@ -556,76 +559,4 @@ mod tests {
         assert!(obj.contains_key("version_names"));
         assert!(obj.contains_key("last_event"));
     }
-
-    // #[actix_web::test]
-    // async fn test_ingress_limits() {
-    //     let (app, sess) = crate::test_app_with_auth().await.unwrap();
-
-    //     // create
-    //     let req = test::TestRequest::post()
-    //         .uri("/api/organizations/1/projects")
-    //         .cookie(sess.clone())
-    //         .set_json(serde_json::json!({
-    //             "name": "Test Project",
-    //         }))
-    //         .to_request();
-
-    //     let res: Value = test::call_and_read_body_json(&app, req).await;
-    //     let project_id = res["project_id"].as_u64().unwrap();
-    //     let api_key = res["api_key"].as_str().unwrap();
-
-    //     let mut log_messages = vec![];
-
-    //     for i in 0..200 {
-    //         let mut message = String::new();
-
-    //         for j in 0..650 {
-    //             message.push_str(&format!("{}\" ", j));
-    //         }
-
-    //         log_messages.push(serde_json::json!({
-    //             "msg": message,
-    //             "lvl": 3,
-    //             "ts": 1738255164
-    //         }));
-    //     }
-
-    //     // test good request
-    //     let req = test::TestRequest::post()
-    //         .uri("/ingress")
-    //         .set_json(serde_json::json!({
-    //             "key": api_key,
-    //             "env": "production",
-    //             "data": {
-    //                 "title": "Test Error",
-    //                 "trace": "backtrace",
-    //                 "log": log_messages,
-    //                 "os": "linux",
-    //                 "arch": "x86_64",
-    //                 "ver": "1.0.0",
-    //                 "loc": {
-    //                     "f": "main.rs",
-    //                     "l": 10,
-    //                     "c": 5
-    //                 }
-    //             }
-    //         }))
-    //         .to_request();
-
-    //     let res = test::call_service(&app, req).await;
-    //     // let body = test::read_body(res).await;
-    //     assert_eq!(res.status(), StatusCode::OK);
-
-    //     // test getting reports
-    //     let req = test::TestRequest::get()
-    //         .uri(&format!("/api/reports?project_id={}", project_id))
-    //         .cookie(sess.clone())
-    //         .to_request();
-
-    //     let res: Value = test::call_and_read_body_json(&app, req).await;
-    //     let report_id = res["reports"][0]["report"]["project_report_id"].as_u64().unwrap();
-
-    //     assert_eq!(res["reports"][0]["report"]["title"], "Test Error");
-    //     assert_eq!(res["reports"][0]["env"]["name"], "production");
-    // }
 }
