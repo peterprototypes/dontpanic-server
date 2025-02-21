@@ -522,7 +522,8 @@ mod tests {
             .to_request();
 
         let res = test::call_service(&app, req).await;
-        let body = test::read_body(res).await;
+        // let body = test::read_body(res).await;
+        assert_eq!(res.status(), StatusCode::OK);
 
         // since the ingress endpoint finishes its work in the background, we need to wait a bit before checking the results
         sleep(tokio::time::Duration::from_millis(100)).await;
