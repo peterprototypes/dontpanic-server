@@ -70,25 +70,29 @@ const Report = () => {
 
       <DailyEvents dailyEvents={data.daily_events} />
 
-      <Box sx={{ p: 2, mt: 4, borderRadius: 2, backgroundColor: 'background.default' }}>
-        <Typography variant="h6" sx={{ fontSize: '15px', pl: 1 }}>Events Received by Version</Typography>
-        <BarChart
-          dataset={data.version_dataset}
-          xAxis={[{ scaleType: 'band', dataKey: 'date' }]}
-          series={data.version_names.map((name) => ({ dataKey: name, label: name, stack: 'total', stackOrder: 'appearance' }))}
-          height={250}
-        />
-      </Box>
+      <Stack direction="row" spacing={2} sx={{ mt: 4 }}>
+        <Box sx={{ width: '100%', borderRadius: 2, backgroundColor: 'background.default' }}>
+          <Typography variant="h6" textAlign="center" sx={{ fontSize: '15px', p: 2 }}>Events Received by Version</Typography>
+          <BarChart
+            dataset={data.version_dataset}
+            xAxis={[{ scaleType: 'band', dataKey: 'date' }]}
+            series={data.version_names.map((name) => ({ dataKey: name, label: name, stack: 'total', stackOrder: 'appearance' }))}
+            height={250}
+          />
+        </Box>
 
-      <Box sx={{ p: 2, mt: 4, borderRadius: 2, backgroundColor: 'background.default' }}>
-        <Typography variant="h6" sx={{ fontSize: '15px', pl: 1 }}>Events Received by Operating System</Typography>
-        <BarChart
-          dataset={data.os_dataset}
-          xAxis={[{ scaleType: 'band', dataKey: 'date' }]}
-          series={data.os_names.map((name) => ({ dataKey: name, label: name, stack: 'total', stackOrder: 'appearance' }))}
-          height={250}
-        />
-      </Box>
+        <Box sx={{ width: '100%', px: 1, borderRadius: 2, backgroundColor: 'background.default' }}>
+          <Typography variant="h6" textAlign="center" sx={{ fontSize: '15px', p: 2 }}>Events Received by Operating System</Typography>
+          <BarChart
+            dataset={data.os_dataset}
+            xAxis={[{ scaleType: 'band', dataKey: 'date' }]}
+            series={data.os_names.map((name) => ({ dataKey: name, label: name, stack: 'total', stackOrder: 'appearance' }))}
+            height={250}
+          />
+        </Box>
+      </Stack>
+
+
 
       {data.last_event && (
         <>
@@ -113,7 +117,9 @@ const ReportPage = ({ children }) => {
         <SideMenu />
       </Grid>
       <Grid size={9} sx={{ mt: 2 }}>
-        {children}
+        <Stack>
+          {children}
+        </Stack>
       </Grid>
     </Grid>
   );
@@ -201,7 +207,7 @@ const DailyEvents = ({ dailyEvents }) => {
   }
 
   return (
-    <Box sx={{ display: 'flex', fontSize: '12px' }}>
+    <Box sx={{ display: 'flex', fontSize: '12px', alignSelf: 'center' }}>
       <Stack direction="row" sx={{ width: '100%' }} justifyContent="space-between">
         <Stack useFlexGap spacing={0.5} sx={{ textAlign: 'right', pr: '2px' }}>
           <OccuranceWeekday sx={{ height: '14px' }}></OccuranceWeekday>
@@ -214,7 +220,7 @@ const DailyEvents = ({ dailyEvents }) => {
           <OccuranceWeekday>Sun</OccuranceWeekday>
         </Stack>
         {weeks.reverse().map((week, i) => (
-          <Stack key={i} useFlexGap spacing={0.5}>
+          <Stack key={i} useFlexGap spacing={0.5} sx={{ pr: '3px' }}>
             <OccuranceMonthBox>{week.month_label ?? ' '}</OccuranceMonthBox>
             {week.days.map((day, j) => (
               <Tooltip key={j} title={getTitle(day)}>

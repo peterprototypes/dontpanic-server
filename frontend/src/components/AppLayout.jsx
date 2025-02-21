@@ -14,7 +14,7 @@ const AppLayout = () => {
   return (
     <UserProvider>
       <AppBar position="static" sx={{ bgcolor: "accentBackground", color: "text.primary" }} elevation={1}>
-        <Container maxWidth="md">
+        <Container maxWidth="lg">
           <Toolbar variant="dense" disableGutters={true}>
             <IconButton edge="start" sx={{ mr: 1 }} component={Link} to="/">
               <Logo sx={{ height: '25px' }} />
@@ -26,7 +26,7 @@ const AppLayout = () => {
           </Toolbar>
         </Container>
       </AppBar>
-      <Container maxWidth="md" sx={{ flexGrow: 1, py: 3 }}>
+      <Container maxWidth="lg" sx={{ flexGrow: 1, py: 3 }}>
         <Outlet />
       </Container>
 
