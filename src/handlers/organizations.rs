@@ -128,6 +128,7 @@ async fn create(ctx: Data<AppContext<'_>>, id: Identity, input: Json<CreateInput
         name: ActiveValue::set(name),
         requests_limit: ActiveValue::set(requests_limit),
         requests_count_start: ActiveValue::set(requests_limit.map(|_| Utc::now().naive_utc())),
+        requests_count: ActiveValue::set(Some(0)),
         is_enabled: ActiveValue::set(1),
         ..Default::default()
     };

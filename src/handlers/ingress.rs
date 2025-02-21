@@ -107,6 +107,22 @@ async fn ingress(ctx: web::Data<AppContext<'static>>, event: web::Json<Event>) -
         return Err(Error::new("Organization requests limit exceeded"));
     }
 
+    // Handle everything in bg to not hold client waiting
+    actix_web::rt::spawn(async move {
+        if let Err(e) = ingress_background(ctx, event, org, project).await {
+            log::error!("Error handling incoming event: {:?}", e);
+        }
+    });
+
+    Ok(HttpResponse::Ok().finish())
+}
+
+async fn ingress_background(
+    ctx: web::Data<AppContext<'static>>,
+    event: Event,
+    org: organizations::Model,
+    project: projects::Model,
+) -> Result<()> {
     if let Some(request_limit) = org.requests_limit {
         let request_count = org.requests_count.unwrap_or_default();
 
@@ -168,23 +184,34 @@ async fn ingress(ctx: web::Data<AppContext<'static>>, event: web::Json<Event>) -
         s.finish()
     };
 
-    // Enforce event title limit. Varchar column limit counts in characters, not bytes
+    // Enforce event title limit to 500 characters, including the event location
+    let event_location = event
+        .data
+        .location
+        .as_ref()
+        .map(|l| format!("{}:{}", l.file, l.line))
+        .unwrap_or_else(|| "Unknown".to_string());
+
+    let event_location_len = event_location.chars().count();
+
     let title_upto = event
         .data
         .title
         .char_indices()
         .enumerate()
         .map(|(char_idx, (byte_idx, _))| (char_idx, byte_idx))
-        .find(|(i, _)| *i >= 496);
+        .find(|(i, _)| *i >= (490 - event_location_len - 3));
 
-    let event_title = if let Some((_, byte_idx)) = title_upto {
+    let truncated_title = if let Some((_, byte_idx)) = title_upto {
         let mut title = event.data.title.clone();
         title.truncate(byte_idx);
         title.push_str("...");
         title
     } else {
-        event.data.title.clone()
+        event.data.title
     };
+
+    let event_title = format!("{} in {}", truncated_title, event_location);
 
     let event_uid = if let Some(location) = event.data.location.as_ref() {
         format!("{}-{}-{:?}", location.file, location.line, location.column)
@@ -256,25 +283,6 @@ async fn ingress(ctx: web::Data<AppContext<'static>>, event: web::Json<Event>) -
 
     log_messages.reverse();
 
-    // enforce log message memory limit
-    // let log_messages: Vec<LogEvent> = event
-    //     .data
-    //     .log_messages
-    //     .into_iter()
-    //     .take(100)
-    //     .map(|mut log_event| {
-    //         let encoded = serde_json::to_string(&log_event.message).unwrap();
-    //         let upto = encoded.char_indices().map(|(i, _)| i).find(|i| *i > 500);
-
-    //         if let Some(upto) = upto {
-    //             log_event.message.truncate(upto);
-    //             log_event.message.push_str("...");
-    //         }
-
-    //         log_event
-    //     })
-    //     .collect::<Vec<_>>();
-
     // enforce backtrace limit of 10 000 characters, considering urf-8 codepoints and avoiding panics
     let backtrace = event.data.backtrace.chars().take(10000).collect::<String>();
 
@@ -338,7 +346,7 @@ async fn ingress(ctx: web::Data<AppContext<'static>>, event: web::Json<Event>) -
         log::error!("Error sending notification: {:?}", e);
     }
 
-    Ok(HttpResponse::Ok().finish())
+    Ok(())
 }
 
 async fn notify_limit_approaching(ctx: &AppContext<'_>, org: &organizations::Model) -> Result<()> {
