@@ -2,9 +2,13 @@ use std::sync::Arc;
 
 use actix_cors::Cors;
 use actix_files::{Files, NamedFile};
-use actix_session::{storage::CookieSessionStore, SessionMiddleware};
+use actix_session::{
+    config::{PersistentSession, SessionLifecycle, TtlExtensionPolicy},
+    storage::CookieSessionStore,
+    SessionMiddleware,
+};
 use actix_web::{
-    cookie::Key,
+    cookie::{time::Duration, Key},
     dev::{fn_service, ServiceRequest, ServiceResponse},
     middleware, web, App, HttpServer,
 };
@@ -204,6 +208,11 @@ async fn main() -> anyhow::Result<()> {
             .wrap(
                 SessionMiddleware::builder(CookieSessionStore::default(), cookie_secret.clone())
                     .cookie_name("dontpanic-session".into())
+                    .session_lifecycle(SessionLifecycle::PersistentSession(
+                        PersistentSession::default()
+                            .session_ttl(Duration::weeks(6 * 4))
+                            .session_ttl_extension_policy(TtlExtensionPolicy::OnEveryRequest),
+                    ))
                     .build(),
             )
             .app_data(web::Data::new(ctx.clone()))
