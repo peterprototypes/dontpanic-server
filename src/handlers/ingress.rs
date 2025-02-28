@@ -8,6 +8,7 @@ use sea_orm::sea_query;
 use sea_orm::{ActiveValue, IntoActiveModel, JoinType, QueryOrder, QuerySelect, TryIntoModel};
 use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha256};
+use tokio::sync::OwnedMutexGuard;
 
 use crate::entity::organizations;
 use crate::entity::prelude::*;
@@ -95,7 +96,7 @@ async fn ingress(ctx: web::Data<AppContext<'static>>, event: web::Json<Event>) -
     };
 
     // make sure to handle events sequentially per project
-    let _lock = ctx.locked_projects.lock(project.project_id).await;
+    let lock = ctx.locked_projects.lock(project.project_id).await;
 
     // limits check
     let org = project
@@ -110,7 +111,7 @@ async fn ingress(ctx: web::Data<AppContext<'static>>, event: web::Json<Event>) -
 
     // Handle everything in bg to not hold client waiting
     actix_web::rt::spawn(async move {
-        if let Err(e) = ingress_background(ctx, event, org, project).await {
+        if let Err(e) = ingress_background(ctx, event, org, project, lock).await {
             log::error!("Error handling incoming event: {:?}", e);
         }
     });
@@ -123,6 +124,7 @@ async fn ingress_background(
     event: Event,
     org: organizations::Model,
     project: projects::Model,
+    _lock: OwnedMutexGuard<()>,
 ) -> Result<()> {
     if let Some(request_limit) = org.requests_limit {
         let request_count = org.requests_count.unwrap_or_default();
