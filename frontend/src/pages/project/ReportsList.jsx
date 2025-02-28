@@ -125,7 +125,6 @@ const ReportsList = ({ resolved = false }) => {
             <TableCell>
               <Checkbox onChange={toggleAll} />
             </TableCell>
-            <TableCell>#</TableCell>
             <TableCell>Title</TableCell>
             <TableCell>Environment</TableCell>
             <TableCell align="right">Last Seen</TableCell>
@@ -137,10 +136,9 @@ const ReportsList = ({ resolved = false }) => {
               <TableCell onClick={(e) => e.stopPropagation()}>
                 <Checkbox onChange={() => toggle(row.report.project_report_id)} checked={selected.includes(row.report.project_report_id)} />
               </TableCell>
-              <TableCell>{row.report.project_report_id}</TableCell>
               <TableCell sx={{ fontWeight: row.report.is_seen ? 'normal' : 'bold' }}>{row.report.title}</TableCell>
-              <TableCell>{row.env?.name}</TableCell>
-              <TableCell>
+              <TableCell>{row.env?.name ?? '-'}</TableCell>
+              <TableCell align="right">
                 <Tooltip title={DateTime.fromISO(row.report.last_seen, { zone: 'UTC' }).toLocaleString(DateTime.DATETIME_FULL)}>
                   <Typography variant="body2" noWrap>{DateTime.fromISO(row.report.last_seen, { zone: 'UTC' }).toRelative()}</Typography>
                 </Tooltip>
@@ -181,7 +179,6 @@ const ReportsList = ({ resolved = false }) => {
             <span>
               <IconButton
                 variant="contained"
-                color="grey"
                 onClick={() => navigate(-1)}
                 disabled={Boolean(!cursor)}
               >
@@ -193,7 +190,6 @@ const ReportsList = ({ resolved = false }) => {
             <span>
               <IconButton
                 variant="contained"
-                color="grey"
                 component={RouterLink}
                 disabled={!data?.next}
                 to={getNextPageUrl()}
