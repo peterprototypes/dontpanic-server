@@ -9,10 +9,16 @@ license = "AGPL-3.0-only"
 members = [".", "migration"]
 
 [dependencies]
+migration = { path = "migration" }
+
 log = "0.4"
 anyhow = "1"
 dotenvy = "0.15"
 env_logger = "0.11"
+key-lock = "0.1"
+argh = "0.1.13"
+sha2 = "0.10.8"
+rust_decimal = "1.36.0"
 chrono = "0.4"
 bcrypt = "0.16"
 rand = "0.8"
@@ -26,7 +32,7 @@ google-authenticator = "0.4"
 urlencoding = "2.1"
 tokio = { version = "1", features = ["full"] }
 tokio-stream = { version = "0.1", features = ["sync"] }
-key-lock = "0.1"
+tokio_schedule = "0.3.2"
 
 actix-web = "4"
 actix-files = "0.6"
@@ -34,10 +40,6 @@ actix-cors = "0.7"
 actix-web-lab = "0.23"
 actix-session = { version = "0.10", features = ["cookie-session"] }
 
-migration = { path = "migration" }
-rust_decimal = "1.36.0"
-tokio_schedule = "0.3.2"
-argh = "0.1.13"
 
 [dependencies.reqwest]
 version = "0.12"

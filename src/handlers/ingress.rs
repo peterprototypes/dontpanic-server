@@ -7,6 +7,7 @@ use sea_orm::prelude::*;
 use sea_orm::sea_query;
 use sea_orm::{ActiveValue, IntoActiveModel, JoinType, QueryOrder, QuerySelect, TryIntoModel};
 use serde::{Deserialize, Serialize};
+use sha2::{Digest, Sha256};
 
 use crate::entity::organizations;
 use crate::entity::prelude::*;
@@ -219,7 +220,9 @@ async fn ingress_background(
         event_title.clone()
     };
 
-    let uid = format!("p{}-{}-{}", project.project_id, environment_hash, event_uid);
+    let mut hasher = Sha256::new();
+    hasher.update(format!("p{}-{}-{}", project.project_id, environment_hash, event_uid));
+    let uid = format!("{:X}", hasher.finalize());
 
     // find relevant report or create it
     let maybe_report = ProjectReports::find()
