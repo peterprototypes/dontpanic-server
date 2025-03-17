@@ -211,7 +211,7 @@ async fn main() -> anyhow::Result<()> {
                     .session_lifecycle(SessionLifecycle::PersistentSession(
                         PersistentSession::default()
                             .session_ttl(Duration::weeks(6 * 4))
-                            .session_ttl_extension_policy(TtlExtensionPolicy::OnEveryRequest),
+                            .session_ttl_extension_policy(TtlExtensionPolicy::OnStateChanges),
                     ))
                     .build(),
             )
