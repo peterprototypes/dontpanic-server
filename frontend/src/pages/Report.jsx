@@ -42,10 +42,7 @@ const Report = () => {
         Back to reports
       </Link>
 
-      <Stack direction="row" spacing={2} alignItems="center">
-        <Typography variant="h6" sx={{ mt: 2 }} color="textSecondary">#{data.report.project_report_id}</Typography>
-        <Typography variant="h6" sx={{ mt: 2, fontWeight: '600', fontSize: '15px' }}>{data.report.title}</Typography>
-      </Stack>
+      <Typography variant="h6">{data.report.title}</Typography>
 
       <Divider sx={{ my: 2 }} />
 
