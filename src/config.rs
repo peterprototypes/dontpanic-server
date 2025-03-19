@@ -74,7 +74,7 @@ impl Config {
             data
         } else {
             let mut data = [0u8; 64];
-            rand::thread_rng().fill_bytes(&mut data);
+            rand::rng().fill_bytes(&mut data);
             data
         };
 

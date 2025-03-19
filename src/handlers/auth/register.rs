@@ -2,7 +2,7 @@ use actix_web::{post, web, Responder};
 use chrono::prelude::*;
 use chrono_tz::Tz;
 use lettre::AsyncTransport;
-use rand::distributions::Alphanumeric;
+use rand::distr::Alphanumeric;
 use rand::Rng;
 use sea_orm::{prelude::*, ActiveValue, Condition, TryIntoModel};
 use serde::Deserialize;
@@ -69,7 +69,7 @@ async fn create_user(ctx: web::Data<AppContext<'_>>, data: RegistrationRequest) 
     let name = data.name.filter(|s| !s.is_empty());
 
     let (email_verification_hash, email_verification_created) = if ctx.config.require_email_verification {
-        let hash: String = rand::thread_rng()
+        let hash: String = rand::rng()
             .sample_iter(&Alphanumeric)
             .take(64)
             .map(char::from)

@@ -2,7 +2,7 @@ use actix_web::{post, web, HttpRequest, Responder};
 use anyhow::anyhow;
 use chrono::{prelude::*, TimeDelta};
 use lettre::AsyncTransport;
-use rand::distributions::Alphanumeric;
+use rand::distr::Alphanumeric;
 use rand::prelude::*;
 use sea_orm::{prelude::*, ActiveValue, IntoActiveModel};
 use serde::Deserialize;
@@ -65,7 +65,7 @@ async fn resend_verification_email_in_bg(
         anyhow::bail!("Attempt to resent email verification without respecting time limit");
     }
 
-    let hash: String = rand::thread_rng()
+    let hash: String = rand::rng()
         .sample_iter(&Alphanumeric)
         .take(64)
         .map(char::from)

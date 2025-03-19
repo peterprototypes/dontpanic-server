@@ -4,7 +4,7 @@ use actix_web::{
     Responder,
 };
 use lettre::AsyncTransport;
-use rand::distributions::Alphanumeric;
+use rand::distr::Alphanumeric;
 use rand::Rng;
 use sea_orm::{prelude::*, ActiveValue, FromQueryResult, IntoActiveModel, JoinType, QuerySelect, TryIntoModel};
 use serde::{Deserialize, Serialize};
@@ -280,7 +280,7 @@ async fn invite(
             return Err(Error::field("email", "Email already invited".into()));
         }
 
-        let slug: String = rand::thread_rng()
+        let slug: String = rand::rng()
             .sample_iter(&Alphanumeric)
             .take(64)
             .map(char::from)

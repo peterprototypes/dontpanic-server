@@ -1,7 +1,7 @@
 use actix_web::{http, post, web, HttpRequest, Responder};
 use chrono::prelude::*;
 use lettre::AsyncTransport;
-use rand::distributions::Alphanumeric;
+use rand::distr::Alphanumeric;
 use rand::prelude::*;
 use sea_orm::{prelude::*, ActiveValue, IntoActiveModel, TryIntoModel};
 use serde::Deserialize;
@@ -58,7 +58,7 @@ async fn password_reset_request_in_bg(ctx: web::Data<AppContext<'_>>, req: HttpR
 
     let Some(user) = user else { return Ok(()) };
 
-    let reset_hash: String = rand::thread_rng()
+    let reset_hash: String = rand::rng()
         .sample_iter(&Alphanumeric)
         .take(64)
         .map(char::from)

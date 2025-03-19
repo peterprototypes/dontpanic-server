@@ -20,13 +20,13 @@ argh = "0.1.13"
 sha2 = "0.10.8"
 rust_decimal = "1.36.0"
 chrono = "0.4"
-bcrypt = "0.16"
-rand = "0.8"
-rand_seeder = "0.3"
+bcrypt = "0.17"
+rand = "0.9"
+rand_seeder = "0.4"
 serde = "1"
 serde_json = "1"
 handlebars = { version = "6", features = ["dir_source"] }
-validator = { version = "0.19", features = ["derive"] }
+validator = { version = "0.20", features = ["derive"] }
 chrono-tz = { version = "0.10", features = ["std", "case-insensitive"] }
 google-authenticator = "0.4"
 urlencoding = "2.1"
@@ -37,7 +37,7 @@ tokio_schedule = "0.3.2"
 actix-web = "4"
 actix-files = "0.6"
 actix-cors = "0.7"
-actix-web-lab = "0.23"
+actix-web-lab = "0.24"
 actix-session = { version = "0.10", features = ["cookie-session"] }
 
 

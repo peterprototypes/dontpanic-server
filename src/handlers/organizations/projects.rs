@@ -3,7 +3,7 @@ use actix_web::{
     web::{Data, Json, Path},
     Responder,
 };
-use rand::{distributions::Alphanumeric, prelude::*};
+use rand::{distr::Alphanumeric, prelude::*};
 use sea_orm::{prelude::*, ActiveValue, IntoActiveModel, JoinType, QuerySelect, QueryTrait, TryIntoModel};
 use serde::{Deserialize, Serialize};
 use validator::Validate;
@@ -116,7 +116,7 @@ async fn manage(
             .ok_or(Error::NotFound)?
             .into_active_model()
     } else {
-        let api_key: String = rand::thread_rng()
+        let api_key: String = rand::rng()
             .sample_iter(&Alphanumeric)
             .take(32)
             .map(char::from)
