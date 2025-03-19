@@ -42,7 +42,14 @@ const Login = () => {
     setShowResendVerification(false);
 
     trigger(data)
-      .then(() => navigate("/reports"))
+      .then((response) => {
+        // first time users should go to org project to create a new project
+        if (!response?.has_projects && response?.org_id) {
+          navigate(`/organization/${response?.org_id}/projects`);
+        } else {
+          navigate("/reports");
+        }
+      })
       .catch((e) => {
         if (e?.user?.type === 'totp_required') {
           setTotpRequired(true);

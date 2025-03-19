@@ -2,14 +2,15 @@ use actix_session::Session;
 use actix_web::{http, post, web, HttpRequest, Responder};
 use google_authenticator::GoogleAuthenticator;
 use lettre::AsyncTransport;
-use sea_orm::prelude::*;
+use sea_orm::{prelude::*, JoinType, QuerySelect};
 use serde::Deserialize;
+use serde_json::json;
 use validator::Validate;
 
 use crate::{AppContext, Error, Result};
 
-use crate::entity::prelude::*;
-use crate::entity::users;
+use crate::entity::{organization_users, users};
+use crate::entity::{organizations, prelude::*};
 
 #[derive(Clone, Debug, Deserialize, Validate)]
 struct LoginRequest {
@@ -111,5 +112,22 @@ pub async fn login(
 
     session.insert(format!("seen_{}", user.user_id), true)?;
 
-    Ok(web::Json(()))
+    // first login - indicate to the FE that the user has no projects
+    let any_org = Organizations::find()
+        .filter(organization_users::Column::UserId.eq(user.user_id))
+        .join(JoinType::InnerJoin, organizations::Relation::OrganizationUsers.def())
+        .one(&ctx.db)
+        .await?;
+
+    let (has_projects, org_id) = if let Some(org) = any_org {
+        let project = org.find_related(Projects).one(&ctx.db).await?;
+        (project.is_some(), Some(org.organization_id))
+    } else {
+        (false, None)
+    };
+
+    Ok(web::Json(json!({
+        "has_projects": has_projects,
+        "org_id": org_id
+    })))
 }
