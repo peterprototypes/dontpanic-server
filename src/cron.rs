@@ -81,7 +81,7 @@ pub async fn notify_spiking_reports(ctx: AppContext<'_>) -> Result<()> {
         let diff = report_stat.count.saturating_sub(last_hour_report.count);
         let diff_percent = (diff as f64 / last_hour_report.count as f64) * 100.0;
 
-        if diff_percent > 50.0 {
+        if diff_percent > 101.0 {
             let mut report_stat = report_stat.clone().into_active_model();
             report_stat.spiking = ActiveValue::set(true as i8);
             let report_stat = report_stat.save(&ctx.db).await?.try_into_model()?;
