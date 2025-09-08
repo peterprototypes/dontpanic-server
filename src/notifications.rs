@@ -106,9 +106,18 @@ pub async fn send(ctx: &AppContext<'_>, notification: &Notification) -> Result<(
 pub async fn send_slack(_ctx: &AppContext<'_>, notification: &Notification, report_url: &str) -> Result<()> {
     let project = &notification.project;
 
-    let Some((token, channel)) = project.slack_bot_token.as_deref().zip(project.slack_channel.as_deref()) else {
+    let Some((token, mut channel)) = project.slack_bot_token.as_deref().zip(project.slack_channel.clone()) else {
         return Ok(());
     };
+
+    if let Some(env_channel) = notification.environment.as_ref().and_then(|e| e.slack_channel.clone()) {
+        if env_channel == "-1" {
+            // Notifications are disabled for this env
+            return Ok(());
+        }
+
+        channel = env_channel;
+    }
 
     let mut params = get_slack_blocks(notification, report_url);
     params["channel"] = channel.into();
@@ -135,9 +144,18 @@ pub async fn send_slack(_ctx: &AppContext<'_>, notification: &Notification, repo
 pub async fn send_slack_webhook(_ctx: &AppContext<'_>, notification: &Notification, report_url: &str) -> Result<()> {
     let project = &notification.project;
 
-    let Some(webhook) = project.slack_webhook.as_ref() else {
+    let Some(mut webhook) = project.slack_webhook.clone() else {
         return Ok(());
     };
+
+    if let Some(env_webhook) = notification.environment.as_ref().and_then(|e| e.slack_webhook.clone()) {
+        if env_webhook == "-1" {
+            // Notifications are disabled for this env
+            return Ok(());
+        }
+
+        webhook = env_webhook;
+    }
 
     let mut params = get_slack_blocks(notification, report_url);
     params["username"] = "Don't Panic".into();
@@ -219,9 +237,18 @@ fn get_slack_blocks(notification: &Notification, report_url: &str) -> serde_json
 pub async fn send_webhook(_ctx: &AppContext<'_>, notification: &Notification, report_url: &str) -> Result<()> {
     let project = &notification.project;
 
-    let Some(webhook) = project.webhook.as_ref() else {
+    let Some(mut webhook) = project.webhook.clone() else {
         return Ok(());
     };
+
+    if let Some(env_webhook) = notification.environment.as_ref().and_then(|e| e.webhook.clone()) {
+        if env_webhook == "-1" {
+            // Notifications are disabled for this env
+            return Ok(());
+        }
+
+        webhook = env_webhook;
+    }
 
     let params = json!({
         "status": notification.status,
@@ -314,9 +341,18 @@ pub async fn send_pushover(
 pub async fn send_teams_webhook(_ctx: &AppContext<'_>, notification: &Notification, report_url: &str) -> Result<()> {
     let project = &notification.project;
 
-    let Some(webhook) = project.teams_webhook.as_ref() else {
+    let Some(mut webhook) = project.teams_webhook.clone() else {
         return Ok(());
     };
+
+    if let Some(env_webhook) = notification.environment.as_ref().and_then(|e| e.teams_webhook.clone()) {
+        if env_webhook == "-1" {
+            // Notifications are disabled for this env
+            return Ok(());
+        }
+
+        webhook = env_webhook;
+    }
 
     let title = notification.message();
 

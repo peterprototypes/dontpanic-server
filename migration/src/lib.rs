@@ -13,6 +13,7 @@ mod m20250130_065644_report_events;
 mod m20250204_035650_organization_stats;
 mod m20250219_073234_report_stat_spiking;
 mod m20250219_093632_org_requests_alert;
+mod m20250908_130953_environment_notification_settings;
 
 pub struct Migrator;
 
@@ -32,6 +33,7 @@ impl MigratorTrait for Migrator {
             Box::new(m20250204_035650_organization_stats::Migration),
             Box::new(m20250219_073234_report_stat_spiking::Migration),
             Box::new(m20250219_093632_org_requests_alert::Migration),
+            Box::new(m20250908_130953_environment_notification_settings::Migration),
         ]
     }
 }

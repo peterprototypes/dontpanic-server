@@ -17,9 +17,16 @@ pub fn routes(cfg: &mut web::ServiceConfig) {
 }
 
 #[derive(Deserialize, Validate)]
+struct EnvironmentWebhookInput {
+    project_environment_id: u32,
+    webhook: Option<String>,
+}
+
+#[derive(Deserialize, Validate)]
 struct WebhookInput {
     #[validate(url(message = "Please enter a valid URL"))]
     webhook_url: String,
+    environments: Vec<EnvironmentWebhookInput>,
 }
 
 #[post("/save")]
@@ -47,6 +54,19 @@ async fn save(
     let mut project_model = project.into_active_model();
     project_model.webhook = ActiveValue::set(Some(input.webhook_url));
     project_model.save(&ctx.db).await?;
+
+    for env_input in input.environments {
+        let Some(env) = ProjectEnvironments::find_by_id(env_input.project_environment_id)
+            .one(&ctx.db)
+            .await?
+        else {
+            continue;
+        };
+
+        let mut env = env.into_active_model();
+        env.webhook = ActiveValue::set(env_input.webhook);
+        env.save(&ctx.db).await?;
+    }
 
     Ok(Json(()))
 }

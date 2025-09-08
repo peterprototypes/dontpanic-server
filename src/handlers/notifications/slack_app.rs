@@ -74,6 +74,8 @@ async fn config(ctx: Data<AppContext<'_>>, path: Path<u32>, id: Identity) -> Res
         ctx.config.scheme, ctx.config.base_url, project.project_id
     );
 
+    let environments = project.find_related(ProjectEnvironments).all(&ctx.db).await?;
+
     // let redirect_uri = "https://localhost:5173/reports/notifications?project_id=1";
 
     Ok(Json(json!({
@@ -81,6 +83,7 @@ async fn config(ctx: Data<AppContext<'_>>, path: Path<u32>, id: Identity) -> Res
         "slack_chats": chats,
         "slack_redirect_uri": redirect_uri,
         "slack_client_id": ctx.config.slack_client_id,
+        "environments": environments
     })))
 }
 
@@ -164,9 +167,16 @@ async fn config_save(
 }
 
 #[derive(Deserialize, Validate)]
+struct SlackAppEnvironmentInput {
+    project_environment_id: u32,
+    slack_channel: Option<String>,
+}
+
+#[derive(Deserialize, Validate)]
 struct SlackAppInput {
     #[validate(length(min = 1, message = "Slack channel is required"))]
     slack_channel: String,
+    environments: Vec<SlackAppEnvironmentInput>,
 }
 
 #[post("/save")]
@@ -194,6 +204,19 @@ async fn save(
     let mut project_model = project.into_active_model();
     project_model.slack_channel = ActiveValue::set(Some(input.slack_channel));
     project_model.save(&ctx.db).await?;
+
+    for env_input in input.environments {
+        let Some(env) = ProjectEnvironments::find_by_id(env_input.project_environment_id)
+            .one(&ctx.db)
+            .await?
+        else {
+            continue;
+        };
+
+        let mut env = env.into_active_model();
+        env.slack_channel = ActiveValue::set(env_input.slack_channel);
+        env.save(&ctx.db).await?;
+    }
 
     Ok(Json(()))
 }

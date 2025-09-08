@@ -34,11 +34,18 @@ const SlackApp = ({ project }) => {
 
   const { trigger, error, isMutating } = useSWRMutation(`/api/notifications/${project.project_id}/slack-app/save`);
 
+  const allowedChatIds = config?.slack_chats?.map(c => c.id) ?? [];
+  const envCount = config?.environments?.length ?? 0;
+
   const methods = useForm({
-    resolver: yupResolver(SlackAppSchema),
+    resolver: yupResolver(buildSlackAppSchema(allowedChatIds, envCount)),
     errors: error?.fields,
     values: {
       slack_channel: project?.slack_channel || config?.slack_chats[0]?.id || "",
+      environments: config?.environments.map(e => ({
+        project_environment_id: e.project_environment_id,
+        slack_channel: e.slack_channel ?? "",
+      })) ?? [],
     },
   });
 
@@ -137,23 +144,42 @@ const SlackApp = ({ project }) => {
             required
             fullWidth
             name="slack_channel"
-            label="Slack Channel"
+            label="Default Slack Channel"
+            helperText="Default slack channel to send reports to."
           >
             {config?.slack_chats.map((chat) => (
               <MenuItem key={chat.id} value={chat.id}>{chat.name}</MenuItem>
             ))}
           </ControlledTextField>
 
-          <DialogContentText sx={{ mt: 2, minWidth: '400px' }}>
-            Select which Slack channel to send messages to
-          </DialogContentText>
+          <Typography variant="body1" fontWeight="bold" sx={{ my: 2, minWidth: '400px' }}>Environment Overrides</Typography>
+
+          {config?.environments.map((env, index) => (
+            <Box sx={{ mb: 1 }} key={env.project_environment_id}>
+              <ControlledTextField
+                select
+                fullWidth
+                displayEmpty
+                name={`environments.${index}.slack_channel`}
+                label={env.name}
+                helperText={"Channel to send reports to for the " + env.name + " environment"}
+              >
+                <MenuItem value="">Use default channel ({config?.slack_chats.find(c => c.chat_id = methods.watch("slack_channel")).name})</MenuItem>
+                <MenuItem value="-1">Do not send notifications</MenuItem>
+                <Divider />
+                {config?.slack_chats.map((chat) => (
+                  <MenuItem key={chat.id} value={chat.id}>{chat.name}</MenuItem>
+                ))}
+              </ControlledTextField>
+            </Box>
+          ))}
 
           {config?.slack_chats.length === 0 && (
             <Alert color="warning" sx={{ mt: 2 }} action={<Button color="inherit" size="small" onClick={() => configMutate()}>Refresh</Button>}>
               No channels found. Please type <pre>{`/invite @Don't Panic`}</pre> in the channel intended to receive notifications.
-
             </Alert>
           )}
+
         </DialogContent>
         <DialogActions sx={{ justifyContent: 'space-between' }}>
           <Button onClick={() => setDialogOpen(false)} color="inherit">Cancel</Button>
@@ -226,8 +252,33 @@ const ChannelNotSet = ({ onClick }) => (
   </Button>
 );
 
-const SlackAppSchema = yup.object({
-  slack_channel: yup.string().required("Channel URL is required"),
-}).required();
+// Build-time helper so we can inject allowed IDs from config
+const buildSlackAppSchema = (allowedChatIds = [], envCount) =>
+  yup.object({
+    slack_channel: yup
+      .string()
+      .required("Channel is required")
+      .oneOf(allowedChatIds, "Choose a valid channel"),
+
+    environments: yup
+      .array()
+      .of(
+        yup.object({
+          project_environment_id: yup.mixed().required(),
+          slack_channel: yup
+            .string()
+            .nullable()
+            // Treat empty string as "use default"
+            .transform((v, orig) => (orig === "" ? null : v))
+            .oneOf(
+              [...allowedChatIds, "-1", null],
+              "Choose a valid channel, 'Do not send', or leave blank for default"
+            ),
+        })
+      )
+      // Optional: ensure we have the same number of rows as config
+      .min(envCount ?? 0)
+      .max(envCount ?? Number.MAX_SAFE_INTEGER),
+  });
 
 export default SlackApp;

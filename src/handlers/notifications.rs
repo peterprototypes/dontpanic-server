@@ -161,5 +161,10 @@ async fn get_project(ctx: Data<AppContext<'_>>, id: Identity, path: Path<u32>) -
         .await?
         .ok_or(Error::LoginRequired)?;
 
-    Ok(Json(project))
+    let environments = project.find_related(ProjectEnvironments).all(&ctx.db).await?;
+
+    let mut res = serde_json::json!(project);
+    res["environments"] = serde_json::json!(environments);
+
+    Ok(Json(res))
 }
