@@ -156,6 +156,7 @@ async fn ingress_background(
     let environment = if let Some(env_ident) = event.env {
         let maybe_env = ProjectEnvironments::find()
             .filter(project_environments::Column::Name.eq(&env_ident))
+            .filter(project_environments::Column::ProjectId.eq(project.project_id))
             .one(&ctx.db)
             .await?;
 
