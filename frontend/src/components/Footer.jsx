@@ -7,7 +7,7 @@ const Footer = () => {
 
   return (
     <Box sx={{ backgroundColor: 'accentBackground', py: '30px', fontSize: 13 }}>
-      <Container maxWidth="md">
+      <Container maxWidth="lg">
         <Stack direction="row" justifyContent="space-between">
           <Stack direction="row" spacing={3}>
             <Link href="https://dontpanic.rs/terms" target="_blank">Terms of Use</Link>
