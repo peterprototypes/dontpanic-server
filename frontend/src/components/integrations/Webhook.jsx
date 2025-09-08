@@ -85,7 +85,7 @@ const Webhook = ({ project }) => {
 
           <SvgIcon sx={{ fontSize: 40, filter: isConfigured ? '' : 'grayscale() opacity(0.5)' }} component={WebhookIcon} inheritViewBox />
 
-          <Box>
+          <Box sx={{ flexGrow: 1 }}>
             <Typography variant="h6">Webhook</Typography>
             <Typography color="textSecondary">
               Configure a webhook to receive real-time notifications directly in your system.

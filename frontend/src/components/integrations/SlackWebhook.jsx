@@ -85,7 +85,7 @@ const SlackWebhook = ({ project }) => {
 
           <SvgIcon sx={{ fontSize: 40, filter: isConfigured ? '' : 'grayscale() opacity(0.5)' }} component={SlackIcon} inheritViewBox />
 
-          <Box>
+          <Box sx={{ flexGrow: 1 }}>
             <Typography variant="h6">Slack Webhook</Typography>
             <Typography color="textSecondary">
               Slack webhook is the legacy, although still supported, method for sending messages to a Slack Channel.

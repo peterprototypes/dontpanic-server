@@ -85,7 +85,7 @@ const TeamsWebhook = ({ project }) => {
 
           <SvgIcon sx={{ fontSize: 40, filter: isConfigured ? '' : 'grayscale() opacity(0.5)' }} component={TeamsIcon} inheritViewBox />
 
-          <Box>
+          <Box sx={{ flexGrow: 1 }}>
             <Typography variant="h6">Microsoft Teams Integration</Typography>
             <Typography color="textSecondary">
               Connect Microsoft Teams to receive real-time alerts and notifications directly in your preferred channels.

@@ -91,7 +91,7 @@ const SlackApp = ({ project }) => {
 
           <SvgIcon sx={{ fontSize: 40, filter: project.slack_bot_token ? '' : 'grayscale() opacity(0.5)' }} component={SlackIcon} inheritViewBox />
 
-          <Box>
+          <Box sx={{ flexGrow: 1 }}>
             <Typography variant="h6">Slack App</Typography>
             <Typography color="textSecondary">Slack messages are a great way to promptly inform the entire team of a panic or error.</Typography>
           </Box>
