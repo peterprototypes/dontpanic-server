@@ -3,6 +3,7 @@ use std::hash::{DefaultHasher, Hash, Hasher};
 use actix_web::{post, web, HttpResponse};
 use chrono::prelude::*;
 use lettre::AsyncTransport;
+use regex::Regex;
 use sea_orm::prelude::*;
 use sea_orm::sea_query;
 use sea_orm::{ActiveValue, IntoActiveModel, JoinType, QueryOrder, QuerySelect, TryIntoModel};
@@ -217,14 +218,13 @@ async fn ingress_background(
 
     let event_title = format!("{} in {}", truncated_title, event_location);
 
-    let event_uid = if let Some(location) = event.data.location.as_ref() {
-        format!("{}-{}-{:?}", location.file, location.line, location.column)
-    } else {
-        event_title.clone()
-    };
-
     let mut hasher = Sha256::new();
-    hasher.update(format!("p{}-{}-{}", project.project_id, environment_hash, event_uid));
+    hasher.update(format!(
+        "p{}-{}-{}",
+        project.project_id,
+        environment_hash,
+        normalize_title(&event_title)
+    ));
     let uid = format!("{:X}", hasher.finalize());
 
     // find relevant report or create it
@@ -567,4 +567,49 @@ mod tests {
         assert!(obj.contains_key("version_names"));
         assert!(obj.contains_key("last_event"));
     }
+}
+
+fn normalize_title(title: &str) -> String {
+    let mut s = title.to_lowercase();
+
+    s = Regex::new(r"[0-9a-f]{8,}")
+        .unwrap()
+        .replace_all(&s, "<hex>")
+        .into_owned();
+
+    s = Regex::new(r"\b[0-9a-f]{8}-([0-9a-f]{4}-){3}[0-9a-f]{12}\b")
+        .unwrap()
+        .replace_all(&s, "<uuid>")
+        .into_owned();
+
+    s = Regex::new(r"\b\d+\b").unwrap().replace_all(&s, "<num>").into_owned();
+
+    s = Regex::new(r"[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}")
+        .unwrap()
+        .replace_all(&s, "<email>")
+        .into_owned();
+
+    s = Regex::new(r"\b(?:\d{1,3}\.){3}\d{1,3}\b")
+        .unwrap()
+        .replace_all(&s, "<ip>")
+        .into_owned();
+
+    s = Regex::new(r#""[^"]*"|'[^']*'"#)
+        .unwrap()
+        .replace_all(&s, "<str>")
+        .into_owned();
+
+    s = Regex::new(r"\b[a-z0-9_]*[A-Z][A-Za-z0-9_]*\b")
+        .unwrap()
+        .replace_all(&s, "<id>")
+        .into_owned();
+
+    s = Regex::new(r"\b[a-z_]+\d+[a-z0-9_]*\b")
+        .unwrap()
+        .replace_all(&s, "<id>")
+        .into_owned();
+
+    let s = Regex::new(r"\s+").unwrap().replace_all(&s, " ").trim().to_owned();
+
+    s
 }

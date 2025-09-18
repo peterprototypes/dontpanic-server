@@ -1211,6 +1211,7 @@ dependencies = [
  "migration",
  "rand 0.9.2",
  "rand_seeder",
+ "regex",
  "reqwest",
  "rust_decimal",
  "sea-orm",
