@@ -246,6 +246,7 @@ async fn ingress_background(
             report_model.last_seen = ActiveValue::set(Utc::now().naive_utc());
             report_model.is_resolved = ActiveValue::set(0);
             report_model.is_seen = ActiveValue::set(0);
+            report_model.title = ActiveValue::set(event_title);
             report_model
         }
         None => {
