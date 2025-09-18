@@ -76,10 +76,12 @@ async fn list(ctx: Data<AppContext<'_>>, id: Identity, q: Query<ReportsQuery>) -
         .filter(project_reports::Column::IsResolved.eq(resolved))
         .apply_if(q.project_id, |query, v| query.filter(projects::Column::ProjectId.eq(v)))
         .apply_if(q.term.as_ref().filter(|v| !v.is_empty()), |query, v| {
+            let v = v.replace(' ', "%");
+
             query.filter(
                 Condition::any()
-                    .add(project_reports::Column::Title.contains(v))
-                    .add(project_environments::Column::Name.contains(v)),
+                    .add(project_reports::Column::Title.contains(&v))
+                    .add(project_environments::Column::Name.contains(&v)),
             )
         })
         .join(JoinType::InnerJoin, project_reports::Relation::Projects.def())

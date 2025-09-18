@@ -9,3 +9,4 @@ export { default as NextIcon } from '@mui/icons-material/NavigateNextOutlined';
 export { default as ResolveIcon } from '@mui/icons-material/CheckOutlined';
 export { default as TestIcon } from '@mui/icons-material/AutorenewOutlined';
 export { default as WarningIcon } from '@mui/icons-material/WarningAmberOutlined';
+export { default as SortIcon } from '@mui/icons-material/SortByAlphaOutlined';

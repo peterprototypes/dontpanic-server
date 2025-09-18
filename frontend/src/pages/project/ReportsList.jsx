@@ -5,12 +5,11 @@ import { useSnackbar } from 'notistack';
 import { useConfirm } from "material-ui-confirm";
 import { Link as RouterLink, useNavigate, useSearchParams } from 'react-router';
 import { DateTime } from "luxon";
-import { TableContainer, Tooltip, Typography, TableCell, TableRow, Table, TableHead, TableBody, Checkbox, Paper, Stack, Box, Grow, LinearProgress, IconButton, Link } from '@mui/material';
+import { TableContainer, Tooltip, Typography, TableCell, TableRow, Table, TableHead, TableBody, Checkbox, Paper, Stack, Box, Grow, LinearProgress, IconButton, Link, TextField, MenuItem, Button } from '@mui/material';
 import { styled } from '@mui/system';
 import { LoadingButton } from '@mui/lab';
 
-import { BackIcon, NextIcon, DeleteIcon, ResolveIcon } from 'components/ConsistentIcons';
-import LoadingPage from 'components/LoadingPage';
+import { BackIcon, NextIcon, DeleteIcon, ResolveIcon, SortIcon } from 'components/ConsistentIcons';
 
 const ReportsList = ({ resolved = false }) => {
   const confirm = useConfirm();
@@ -20,6 +19,8 @@ const ReportsList = ({ resolved = false }) => {
   const cursor = searchParams.get('cursor');
 
   const [selected, setSelected] = React.useState([]);
+  const [titleSearchInputValue, setTitleSearchInputValue] = React.useState("")
+  const [debouncedTitleSearch, setDebouncedTitleSearch] = React.useState("")
 
   searchParams.set('resolved', resolved ? 1 : 0);
 
@@ -50,13 +51,23 @@ const ReportsList = ({ resolved = false }) => {
     };
   }, [cursor, searchParams, mutate]);
 
-  if (isLoading) {
-    return <LoadingPage />;
-  }
+  React.useEffect(() => {
+    const delayInputTimeoutId = setTimeout(() => {
+      setDebouncedTitleSearch(titleSearchInputValue);
+    }, 500);
+    return () => clearTimeout(delayInputTimeoutId);
+  }, [titleSearchInputValue]);
 
-  if (data.reports.length === 0) {
-    return resolved ? <NoResolved /> : <NoReports project={data?.project} />;
-  }
+
+  React.useEffect(() => {
+    if (debouncedTitleSearch.length >= 3) {
+      searchParams.set('term', debouncedTitleSearch);
+      mutate();
+    } else {
+      searchParams.delete('term');
+      mutate();
+    }
+  }, [debouncedTitleSearch, mutate]);
 
   const getNextPageUrl = () => {
     if (!data?.next) {
@@ -122,16 +133,22 @@ const ReportsList = ({ resolved = false }) => {
       <Table>
         <TableHead>
           <TableRow>
-            <TableCell>
-              <Checkbox onChange={toggleAll} />
-            </TableCell>
+            <TableCell></TableCell>
             <TableCell>Title</TableCell>
             <TableCell>Environment</TableCell>
             <TableCell align="right">Last Seen</TableCell>
           </TableRow>
+          <TableRow>
+            <TableCell>
+              <Checkbox onChange={toggleAll} title="Select All" />
+            </TableCell>
+            <TableCell colSpan={3}>
+              <TextField fullWidth placeholder="Search in title and environment" value={titleSearchInputValue} onChange={(e) => setTitleSearchInputValue(e.target.value)} />
+            </TableCell>
+          </TableRow>
         </TableHead>
         <TableBody>
-          {data.reports.map((row) => (
+          {data?.reports.map((row) => (
             <ReportRow key={row.report.project_report_id} onClick={() => navigate(`/view-report/${row.report.project_report_id}`)}>
               <TableCell onClick={(e) => e.stopPropagation()}>
                 <Checkbox onChange={() => toggle(row.report.project_report_id)} checked={selected.includes(row.report.project_report_id)} />
@@ -147,6 +164,13 @@ const ReportsList = ({ resolved = false }) => {
           ))}
         </TableBody>
       </Table>
+
+      {data?.reports.length === 0 && (
+        <Box sx={{ my: 2 }}>
+          {resolved ? <NoResolved /> : <NoReports project={data?.project} />}
+        </Box>
+      )}
+
       <Stack justifyContent="space-between" direction="row" sx={{ mt: 2 }}>
 
         <Stack spacing={2} direction="row">
@@ -211,9 +235,6 @@ const NoReports = ({ project }) => {
       <Paper sx={{ px: 5, py: 4, backgroundColor: 'accentBackground' }}>
         <Stack spacing={2} useFlexGap>
           <Typography variant="h5" textAlign="center">No Reports Found</Typography>
-          <Typography variant="body2" textAlign="center" color="textSecondary" gutterBottom>
-            It looks like your application is running smoothly. If you expected reports here, ensure reporting is properly configured.
-          </Typography>
         </Stack>
       </Paper>
 
@@ -315,10 +336,7 @@ const NoResolved = () => {
   return (
     <Paper sx={{ px: 5, py: 4, backgroundColor: 'accentBackground' }}>
       <Stack spacing={1} alignItems="center" useFlexGap>
-        <Typography variant="h5" textAlign="center">No Resolved Reports</Typography>
-        <Typography variant="body1" textAlign="center" gutterBottom>
-          No reports have been marked as resolved yet. You can resolve issues from the reports list.
-        </Typography>
+        <Typography variant="h5" textAlign="center">No Resolved Reports Found</Typography>
       </Stack>
     </Paper>
   );
